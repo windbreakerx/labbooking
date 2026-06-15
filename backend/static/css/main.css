@@ -1,0 +1,117 @@
+:root {
+    --bg: #f4f6f8;
+    --card: #fff;
+    --text: #1a1a2e;
+    --accent: #0f4c81;
+    --border: #dde3ea;
+    --success: #1b7f4a;
+    --error: #b42318;
+}
+
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 1rem; }
+
+.header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+.header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.logo {
+    font-weight: 700;
+    color: var(--accent);
+    text-decoration: none;
+}
+.nav { display: flex; gap: 1rem; flex-wrap: wrap; }
+.nav a { color: var(--text); text-decoration: none; font-size: 0.95rem; }
+.nav a:hover { color: var(--accent); }
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+.card--narrow { max-width: 420px; margin: 2rem auto; }
+.card h2 { margin-top: 0; }
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.table th, .table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+.table th { background: #eef2f6; }
+
+label { display: block; margin-bottom: 1rem; }
+input, select, textarea {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+button:hover { opacity: 0.9; }
+.btn-link {
+    background: none;
+    color: var(--accent);
+    padding: 0;
+    text-decoration: underline;
+}
+
+.list { list-style: none; padding: 0; }
+.list li {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.messages { list-style: none; padding: 0; }
+.message {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+.message--success { background: #e8f7ee; color: var(--success); }
+.message--error { background: #fdecea; color: var(--error); }
+
+.muted { color: #667; }

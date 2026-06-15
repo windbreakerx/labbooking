@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Записавшиеся студенты{% endblock %}
+{% block content %}
+<h1>Записавшиеся студенты</h1>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Студент</th>
+            <th>Дисциплина</th>
+            <th>ЛР</th>
+            <th>Дата</th>
+            <th>Статус</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for b in bookings %}
+        <tr>
+            <td>{{ b.student.full_name }}</td>
+            <td>{{ b.discipline.title }}</td>
+            <td>{{ b.lab_work.title }}</td>
+            <td>{{ b.scheduled_at|date:"d.m.Y H:i" }}</td>
+            <td>{{ b.get_current_status_display }}</td>
+            <td>
+                <form method="post" action="{% url 'staff-booking-status' b.pk %}">
+                    {% csrf_token %}
+                    <select name="status">
+                        <option value="VISITED">Посетил</option>
+                        <option value="NO_SHOW">Неявка</option>
+                        <option value="REACCESS">Повторный доступ</option>
+                        <option value="CANCELLED">Отменил запись</option>
+                    </select>
+                    <button type="submit">Применить</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

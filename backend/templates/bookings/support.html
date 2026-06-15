@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Технические вопросы{% endblock %}
+{% block content %}
+<h1>Технические и организационные вопросы</h1>
+
+<form method="post" action="{% url 'support-create' %}" class="card">
+    {% csrf_token %}
+    <h2>Добавить обращение</h2>
+    <label>Заголовок
+        <input type="text" name="subject" required>
+    </label>
+    <label>Сообщение
+        <textarea name="body" rows="4" required></textarea>
+    </label>
+    <button type="submit">Сохранить</button>
+</form>
+
+<h2>Мои обращения</h2>
+<ul class="list">
+    {% for t in tickets %}
+    <li><strong>{{ t.subject }}</strong> — {{ t.get_status_display }} ({{ t.created_at|date:"d.m.Y" }})</li>
+    {% empty %}
+    <li>Обращений нет.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

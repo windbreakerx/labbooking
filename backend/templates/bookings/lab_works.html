@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ discipline.title }}{% endblock %}
+{% block content %}
+<h1>{{ discipline.title }}</h1>
+<p><a href="{% url 'disciplines' %}">← К дисциплинам</a></p>
+<ul class="list">
+    {% for lw in lab_works %}
+    <li>
+        <strong>ЛР {{ lw.number }}:</strong> {{ lw.title }}
+        <a href="{% url 'book-lab-work' lw.pk %}">Записаться</a>
+    </li>
+    {% empty %}
+    <li>Лабораторные работы не добавлены.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Запись — {{ lab_work.title }}{% endblock %}
+{% block content %}
+<h1>Запись на {{ lab_work.title }}</h1>
+<p class="muted">{{ lab_work.discipline.title }}</p>
+
+<form method="post">
+    {% csrf_token %}
+    <label>Выберите слот
+        <select name="session_id" required>
+            <option value="">—</option>
+            {% for s in sessions %}
+            <option value="{{ s.pk }}">
+                {{ s.starts_at|date:"d.m.Y" }} {{ s.starts_at|time:"H:i" }} —
+                УЦ №{{ s.room.training_center.number }}, ауд. {{ s.room.number }}
+                (свободно: {{ s.available_seats }}/{{ s.capacity }})
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <button type="submit">Записаться</button>
+</form>
+{% endblock %}

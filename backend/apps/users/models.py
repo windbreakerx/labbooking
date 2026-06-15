@@ -1,0 +1,85 @@
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.db import models
+
+
+class UserManager(BaseUserManager):
+    use_in_migrations = True
+
+    def _create_user(self, email, password, **extra_fields):
+        if not email:
+            raise ValueError("Email обязателен")
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_user(self, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", False)
+        extra_fields.setdefault("is_superuser", False)
+        return self._create_user(email, password, **extra_fields)
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("role", UserRole.SYS_ADMIN)
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
+        return self._create_user(email, password, **extra_fields)
+
+
+class UserRole(models.TextChoices):
+    STUDENT = "STUDENT", "Студент"
+    TEACHER = "TEACHER", "Преподаватель"
+    LAB_ADMIN = "LAB_ADMIN", "Сотрудник лаборатории"
+    SYS_ADMIN = "SYS_ADMIN", "Системный администратор"
+
+
+class User(AbstractUser):
+    username = None
+    email = models.EmailField("Email", unique=True)
+    role = models.CharField(
+        max_length=20,
+        choices=UserRole.choices,
+        default=UserRole.STUDENT,
+    )
+
+    objects = UserManager()
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["first_name", "last_name"]
+
+    class Meta:
+        verbose_name = "Пользователь"
+        verbose_name_plural = "Пользователи"
+
+    def __str__(self):
+        return self.email
+
+    @property
+    def full_name(self):
+        return f"{self.last_name} {self.first_name}".strip() or self.email
+
+
+class UserProfile(models.Model):
+    class Gender(models.TextChoices):
+        MALE = "M", "Мужской"
+        FEMALE = "F", "Женский"
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    student_id = models.CharField("ID студента", max_length=64, blank=True)
+    group_name = models.CharField("Группа", max_length=64, blank=True)
+    faculty = models.CharField("Факультет", max_length=128, blank=True)
+    gender = models.CharField(max_length=1, choices=Gender.choices, blank=True)
+    phone = models.CharField(max_length=32, blank=True)
+    dekanat_id = models.CharField("ID в Деканате", max_length=64, blank=True)
+    no_show_count = models.PositiveIntegerField("Количество неявок", default=0)
+
+    class Meta:
+        verbose_name = "Профиль"
+        verbose_name_plural = "Профили"
+
+    def __str__(self):
+        return f"Профиль {self.user.email}"

@@ -1,0 +1,64 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-labbooking}
+      POSTGRES_USER: ${POSTGRES_USER:-labbooking}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-labbooking}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-labbooking}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --reload"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+      - media_data:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - media_data:/app/media:ro
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
+  media_data:

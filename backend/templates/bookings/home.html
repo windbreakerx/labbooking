@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Главная{% endblock %}
+{% block content %}
+<h1>Личный кабинет</h1>
+<p>Добро пожаловать, {{ user.full_name }}.</p>
+<div class="grid">
+    <a class="card" href="{% url 'disciplines' %}">
+        <h2>Учебные дисциплины</h2>
+        <p>Записаться на лабораторную работу</p>
+    </a>
+    <a class="card" href="{% url 'my-bookings' %}">
+        <h2>Мои записи</h2>
+        <p>Просмотр и отмена записей</p>
+    </a>
+    <a class="card" href="{% url 'support' %}">
+        <h2>Технические вопросы</h2>
+        <p>Обращение в лабораторию</p>
+    </a>
+</div>
+{% endblock %}
