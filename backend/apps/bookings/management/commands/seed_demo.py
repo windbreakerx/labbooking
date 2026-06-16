@@ -4,8 +4,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.academics.models import Discipline, LabWork, Semester
-from apps.bookings.models import Holiday
-from apps.scheduling.models import LabSession, LabSessionStatus, Room, TrainingCenter
+from apps.scheduling.models import Holiday, LabSession, LabSessionStatus, Room, TrainingCenter
 from apps.users.models import User, UserRole
 
 

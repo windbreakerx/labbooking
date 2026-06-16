@@ -22,14 +22,44 @@
             <td>{{ b.scheduled_at|date:"d.m.Y H:i" }}</td>
             <td>{{ b.discipline.title }}</td>
             <td>{{ b.lab_work.title }}</td>
-            <td>{{ b.get_current_status_display }}</td>
             <td>
-                {% if b.current_status == 'BOOKED' %}
-                <form method="post" action="{% url 'cancel-booking' b.pk %}" style="display:inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn-link">Отписаться</button>
-                </form>
-                {% endif %}
+                <span class="status-badge
+                    {% if b.current_status == 'BOOKED' %}status-badge--booked
+                    {% elif b.current_status == 'NO_SHOW' %}status-badge--no-show
+                    {% elif b.current_status == 'CANCELLED' %}status-badge--cancelled
+                    {% elif b.current_status == 'REACCESS' %}status-badge--reaccess
+                    {% elif b.current_status == 'VISITED' %}status-badge--visited
+                    {% endif %}">
+                    {% if b.current_status == 'BOOKED' %}
+                    Записан
+                    {% elif b.current_status == 'NO_SHOW' %}
+                    Неявка
+                    {% elif b.current_status == 'CANCELLED' %}
+                    Отменил запись
+                    {% elif b.current_status == 'REACCESS' %}
+                    Повторный доступ
+                    {% elif b.current_status == 'VISITED' %}
+                    Посетил
+                    {% else %}
+                    {{ b.get_current_status_display }}
+                    {% endif %}
+                </span>
+            </td>
+            <td>
+                <details class="row-actions">
+                    <summary class="row-actions__trigger" aria-label="Действия">⋮</summary>
+                    <div class="row-actions__menu">
+                        <a href="{% url 'book-lab-work' b.lab_work_id %}" class="row-actions__item">Просмотр</a>
+                        {% if b.current_status == 'BOOKED' %}
+                        <form method="post" action="{% url 'cancel-booking' b.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="row-actions__item row-actions__item--button">Отписаться</button>
+                        </form>
+                        {% else %}
+                        <span class="row-actions__item row-actions__item--disabled">Отписаться</span>
+                        {% endif %}
+                    </div>
+                </details>
             </td>
         </tr>
         {% empty %}
