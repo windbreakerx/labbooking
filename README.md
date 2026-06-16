@@ -67,13 +67,23 @@ curl -X POST http://localhost:8000/api/v1/auth/token/ \
 - **1 активная запись** на дисциплину
 - Статусы: Записан, Неявка, Отменил запись, Повторный доступ, Посетил
 
-## Production
+## Production / VM (Yandex Cloud)
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+cp .env.vm.example .env
+# отредактируйте ALLOWED_HOSTS, SECRET_KEY, пароли
+bash scripts/deploy-vm.sh
 ```
 
-Установите в `.env`: `DEBUG=0`, надёжный `SECRET_KEY`, `DJANGO_SETTINGS_MODULE=config.settings.prod`.
+Подробно: [docs/DEPLOY_YANDEX_VM.md](docs/DEPLOY_YANDEX_VM.md)  
+Дорожная карта: [docs/ROADMAP.md](docs/ROADMAP.md)
+
+```bash
+# или вручную:
+docker compose -f docker-compose.yml -f docker-compose.vm.yml up -d --build
+```
+
+Установите в `.env`: `DEBUG=0`, `DJANGO_SETTINGS_MODULE=config.settings.prod`, `SECURE_SSL_REDIRECT=0` (до настройки HTTPS).
 
 ## Структура
 
