@@ -1,0 +1,22 @@
+<label>Дата
+    <select name="date"
+            hx-get="{% url 'book-filter' lab_work_id %}"
+            hx-target="#filter-chain"
+            hx-swap="innerHTML"
+            hx-include="#filter-chain">
+        <option value="">—</option>
+        <option value="{{ date }}" selected>{{ date }}</option>
+    </select>
+</label>
+<label>Время
+    <select name="time"
+            hx-get="{% url 'book-filter' lab_work_id %}"
+            hx-target="#filter-chain"
+            hx-swap="innerHTML"
+            hx-include="#filter-chain">
+        <option value="">—</option>
+        {% for opt in options %}
+        <option value="{{ opt.value }}">{{ opt.label }}</option>
+        {% endfor %}
+    </select>
+</label>

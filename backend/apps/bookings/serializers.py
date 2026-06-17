@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from apps.academics.models import Discipline, LabWork
-from apps.bookings.models import Booking, SupportTicket
+from apps.bookings.models import Booking, SupportMessage, SupportTicket, WaitlistEntry
 from apps.scheduling.models import LabSession, Room, TrainingCenter
 
 
@@ -100,8 +100,32 @@ class ManualBookingSerializer(serializers.Serializer):
 class SupportTicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupportTicket
-        fields = ("id", "subject", "body", "status", "created_at", "updated_at")
+        fields = (
+            "id",
+            "subject",
+            "body",
+            "status",
+            "training_center",
+            "created_at",
+            "updated_at",
+        )
         read_only_fields = ("status", "created_at", "updated_at")
+
+
+class SupportMessageSerializer(serializers.ModelSerializer):
+    author_name = serializers.CharField(source="author.full_name", read_only=True)
+
+    class Meta:
+        model = SupportMessage
+        fields = ("id", "body", "author_name", "created_at")
+        read_only_fields = fields
+
+
+class WaitlistEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WaitlistEntry
+        fields = ("id", "lab_session", "position", "created_at")
+        read_only_fields = fields
 
 
 class LabSessionAdminSerializer(serializers.ModelSerializer):

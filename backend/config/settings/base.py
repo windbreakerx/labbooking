@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "apps.academics",
     "apps.scheduling",
     "apps.bookings",
+    "apps.integrations",
 ]
 
 MIDDLEWARE = [
@@ -147,6 +148,20 @@ EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
     default="django.core.mail.backends.console.EmailBackend",
 )
+EMAIL_HOST = env("EMAIL_HOST", default="localhost")
+EMAIL_PORT = env.int("EMAIL_PORT", default=25)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=False)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@labbooking.local")
+
+# SSO (post-pilot)
+SSO_PROVIDER = env("SSO_PROVIDER", default="")
+SSO_CLIENT_ID = env("SSO_CLIENT_ID", default="")
+SSO_CLIENT_SECRET = env("SSO_CLIENT_SECRET", default="")
+SSO_AUTHORIZATION_URL = env("SSO_AUTHORIZATION_URL", default="")
+SSO_TOKEN_URL = env("SSO_TOKEN_URL", default="")
+SSO_USERINFO_URL = env("SSO_USERINFO_URL", default="")
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"

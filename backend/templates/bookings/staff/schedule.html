@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Расписание — staff{% endblock %}
+{% block content %}
+<h1>Расписание на аудиторию</h1>
+<table class="table">
+    <thead>
+        <tr><th>ЛР</th><th>Ауд.</th><th>День</th><th>Время</th><th>Неделя</th><th>Преподаватель</th></tr>
+    </thead>
+    <tbody>
+        {% for e in entries %}
+        <tr>
+            <td>{{ e.lab_work }}</td>
+            <td>{{ e.room }}</td>
+            <td>{{ e.weekday }}</td>
+            <td>{{ e.start_time }}</td>
+            <td>{{ e.get_week_parity_display }}</td>
+            <td>{{ e.teacher.full_name|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">Записей расписания нет. Добавьте через <a href="/admin/">админку</a>.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p class="muted">Генерация слотов: <code>python manage.py generate_sessions</code></p>
+{% endblock %}

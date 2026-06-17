@@ -11,6 +11,7 @@ from apps.bookings.models import (
     RegistrationType,
     WaitlistEntry,
 )
+from apps.bookings.services.session_availability import is_day_open_for_booking
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
 from apps.users.models import User, UserRole
 
@@ -48,13 +49,19 @@ class BookingService:
             note=note,
         )
 
-    def _validate_booking_window(self, session: LabSession):
+    def _validate_booking_window(self, session: LabSession, skip_student_rules: bool = False):
         now = timezone.now()
-        horizon = now + timezone.timedelta(days=settings.BOOKING_HORIZON_DAYS)
-        if session.starts_at > horizon:
-            raise BookingError(
-                f"Запись доступна только на {settings.BOOKING_HORIZON_DAYS} дней вперёд."
-            )
+        if not skip_student_rules:
+            horizon = now + timezone.timedelta(days=settings.BOOKING_HORIZON_DAYS)
+            if session.starts_at > horizon:
+                raise BookingError(
+                    f"Запись доступна только на {settings.BOOKING_HORIZON_DAYS} дней вперёд."
+                )
+            if not is_day_open_for_booking(session.starts_at.date(), now):
+                raise BookingError(
+                    f"Запись на этот день откроется в {settings.BOOKING_DAY_OPENS_AT} "
+                    f"предыдущего дня."
+                )
         if session.starts_at <= now:
             raise BookingError("Нельзя записаться на прошедший слот.")
         if session.status != LabSessionStatus.OPEN:
@@ -94,21 +101,24 @@ class BookingService:
         student: User,
         session_id: int,
         manual: bool = False,
+        skip_student_rules: bool = False,
     ) -> Booking:
         session = (
             LabSession.objects.select_for_update()
             .select_related("lab_work", "lab_work__discipline", "room")
             .get(pk=session_id)
         )
-        self._validate_booking_window(session)
-        self._check_discipline_limit(
-            student,
-            session.lab_work.discipline_id,
-            session.lab_work_id,
-        )
+        skip_rules = skip_student_rules or manual
+        self._validate_booking_window(session, skip_student_rules=skip_rules)
+        if not skip_rules:
+            self._check_discipline_limit(
+                student,
+                session.lab_work.discipline_id,
+                session.lab_work_id,
+            )
 
         booked_count = session.bookings.filter(current_status=BookingStatus.BOOKED).count()
-        if booked_count >= session.capacity:
+        if not skip_rules and booked_count >= session.capacity:
             raise BookingError("Нет свободных мест.")
 
         booking = Booking.objects.create(
@@ -197,6 +207,61 @@ class BookingService:
         except BookingError:
             entry.delete()
 
+    @transaction.atomic
+    def join_waitlist(self, student: User, session_id: int) -> WaitlistEntry:
+        session = LabSession.objects.select_for_update().get(pk=session_id)
+        if session.bookings.filter(current_status=BookingStatus.BOOKED).count() < session.capacity:
+            raise BookingError("В слоте есть свободные места — запишитесь напрямую.")
+        if WaitlistEntry.objects.filter(lab_session=session, student=student).exists():
+            raise BookingError("Вы уже в очереди на этот слот.")
+        position = (
+            WaitlistEntry.objects.filter(lab_session=session).count() + 1
+        )
+        entry = WaitlistEntry.objects.create(
+            lab_session=session,
+            student=student,
+            position=position,
+        )
+        self._log_audit("waitlist.join", "WaitlistEntry", entry.pk)
+        return entry
+
+    @transaction.atomic
+    def cancel_session_with_reaccess(self, session: LabSession, note: str = "") -> int:
+        """Отмена слота: студентам с активной записью — статус REACCESS."""
+        session.status = LabSessionStatus.CANCELLED
+        session.save(update_fields=["status"])
+        count = 0
+        for booking in session.bookings.filter(current_status=BookingStatus.BOOKED):
+            self.change_status(
+                booking,
+                BookingStatus.REACCESS,
+                note=note or "Изменение расписания",
+            )
+            count += 1
+        self._log_audit(
+            "session.cancel",
+            "LabSession",
+            session.pk,
+            {"reaccess_count": count},
+        )
+        return count
+
+    def mark_visited_for_ended_sessions(self) -> int:
+        """Авто-проставление VISITED для завершённых слотов с активными записями."""
+        now = timezone.now()
+        count = 0
+        sessions = LabSession.objects.filter(
+            ends_at__lte=now,
+            status=LabSessionStatus.OPEN,
+        )
+        for session in sessions:
+            for booking in session.bookings.filter(current_status=BookingStatus.BOOKED):
+                self.change_status(booking, BookingStatus.VISITED, note="Автоматически")
+                count += 1
+            session.status = LabSessionStatus.CLOSED
+            session.save(update_fields=["status"])
+        return count
+
     def _send_email(self, booking: Booking, event: str):
         templates = {
             "booked": (
@@ -242,7 +307,14 @@ class BookingService:
         }
         subject, message = templates.get(event, ("Уведомление", ""))
         if message:
-            send_mail(subject, message, None, [booking.student.email], fail_silently=True)
+            from_email = getattr(settings, "DEFAULT_FROM_EMAIL", None)
+            send_mail(
+                subject,
+                message,
+                from_email,
+                [booking.student.email],
+                fail_silently=True,
+            )
 
 
 def is_staff_user(user: User) -> bool:

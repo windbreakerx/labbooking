@@ -1,7 +1,22 @@
 from django.urls import path
 
+from apps.bookings.views.staff import (
+    StaffDisciplinesView,
+    StaffLabWorksView,
+    StaffLabWorkUploadView,
+    StaffPeopleView,
+    StaffReportDownloadView,
+    StaffReportsView,
+    StaffScheduleView,
+    StaffStandCreateView,
+    StaffStandsView,
+    StaffSupportReplyView,
+    StaffSupportView,
+)
 from apps.bookings.views.web import (
+    BookFilterPartialView,
     BookLabWorkWebView,
+    BookingDetailWebView,
     CancelBookingWebView,
     DisciplineListWebView,
     HomeView,
@@ -10,7 +25,9 @@ from apps.bookings.views.web import (
     StaffBookingsWebView,
     StaffStatusUpdateWebView,
     SupportCreateWebView,
+    SupportDetailWebView,
     SupportListWebView,
+    WaitlistJoinWebView,
 )
 
 urlpatterns = [
@@ -22,14 +39,41 @@ urlpatterns = [
         name="lab-works",
     ),
     path("lab-works/<int:lab_work_id>/book/", BookLabWorkWebView.as_view(), name="book-lab-work"),
+    path(
+        "lab-works/<int:lab_work_id>/book/filter/",
+        BookFilterPartialView.as_view(),
+        name="book-filter",
+    ),
+    path("waitlist/join/", WaitlistJoinWebView.as_view(), name="waitlist-join"),
     path("my-bookings/", MyBookingsWebView.as_view(), name="my-bookings"),
+    path("my-bookings/<int:pk>/", BookingDetailWebView.as_view(), name="booking-detail"),
     path("my-bookings/<int:pk>/cancel/", CancelBookingWebView.as_view(), name="cancel-booking"),
     path("support/", SupportListWebView.as_view(), name="support"),
     path("support/create/", SupportCreateWebView.as_view(), name="support-create"),
+    path("support/<int:pk>/", SupportDetailWebView.as_view(), name="support-detail"),
     path("staff/bookings/", StaffBookingsWebView.as_view(), name="staff-bookings"),
     path(
         "staff/bookings/<int:pk>/status/",
         StaffStatusUpdateWebView.as_view(),
         name="staff-booking-status",
+    ),
+    path("staff/disciplines/", StaffDisciplinesView.as_view(), name="staff-disciplines"),
+    path("staff/lab-works/", StaffLabWorksView.as_view(), name="staff-lab-works"),
+    path(
+        "staff/lab-works/<int:pk>/upload/",
+        StaffLabWorkUploadView.as_view(),
+        name="staff-lab-work-upload",
+    ),
+    path("staff/stands/", StaffStandsView.as_view(), name="staff-stands"),
+    path("staff/stands/create/", StaffStandCreateView.as_view(), name="staff-stand-create"),
+    path("staff/schedule/", StaffScheduleView.as_view(), name="staff-schedule"),
+    path("staff/people/", StaffPeopleView.as_view(), name="staff-people"),
+    path("staff/support/", StaffSupportView.as_view(), name="staff-support"),
+    path("staff/support/<int:pk>/reply/", StaffSupportReplyView.as_view(), name="staff-support-reply"),
+    path("staff/reports/", StaffReportsView.as_view(), name="staff-reports"),
+    path(
+        "staff/reports/<str:report_type>/download/",
+        StaffReportDownloadView.as_view(),
+        name="staff-report-download",
     ),
 ]

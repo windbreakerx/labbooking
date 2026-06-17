@@ -1,0 +1,6 @@
+# Overlay для HTTPS: монтирует сертификаты и использует nginx-https.conf
+services:
+  nginx:
+    volumes:
+      - ./nginx/nginx-https.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro

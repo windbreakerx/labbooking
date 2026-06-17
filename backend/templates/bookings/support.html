@@ -6,6 +6,14 @@
 <form method="post" action="{% url 'support-create' %}" class="card">
     {% csrf_token %}
     <h2>Добавить обращение</h2>
+    <label>Учебная лаборатория
+        <select name="training_center" required>
+            <option value="">—</option>
+            {% for tc in training_centers %}
+            <option value="{{ tc.pk }}">УЦ №{{ tc.number }}{% if tc.name %} — {{ tc.name }}{% endif %}</option>
+            {% endfor %}
+        </select>
+    </label>
     <label>Заголовок
         <input type="text" name="subject" required>
     </label>
@@ -18,7 +26,11 @@
 <h2>Мои обращения</h2>
 <ul class="list">
     {% for t in tickets %}
-    <li><strong>{{ t.subject }}</strong> — {{ t.get_status_display }} ({{ t.created_at|date:"d.m.Y" }})</li>
+    <li>
+        <a href="{% url 'support-detail' t.pk %}"><strong>{{ t.subject }}</strong></a>
+        — {{ t.get_status_display }} ({{ t.created_at|date:"d.m.Y" }})
+        {% if t.training_center %}<span class="muted">УЦ №{{ t.training_center.number }}</span>{% endif %}
+    </li>
     {% empty %}
     <li>Обращений нет.</li>
     {% endfor %}

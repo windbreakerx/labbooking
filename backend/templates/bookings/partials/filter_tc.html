@@ -1,0 +1,18 @@
+<label>Дата
+    <input type="hidden" name="date" value="{{ date }}">
+</label>
+<label>Время
+    <input type="hidden" name="time" value="{{ time }}">
+</label>
+<label>Учебный центр
+    <select name="tc"
+            hx-get="{% url 'book-filter' lab_work_id %}"
+            hx-target="#filter-chain"
+            hx-swap="innerHTML"
+            hx-include="#filter-chain">
+        <option value="">—</option>
+        {% for opt in options %}
+        <option value="{{ opt.value }}">{{ opt.label }}</option>
+        {% endfor %}
+    </select>
+</label>

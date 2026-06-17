@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Обращения — staff{% endblock %}
+{% block content %}
+<h1>Технические и организационные вопросы</h1>
+{% for t in tickets %}
+<div class="card">
+    <h3>{{ t.subject }} — {{ t.student.full_name }}</h3>
+    <p class="muted">{{ t.get_status_display }} · {{ t.created_at|date:"d.m.Y H:i" }}
+        {% if t.training_center %}· УЦ №{{ t.training_center.number }}{% endif %}
+    </p>
+    <p>{{ t.body }}</p>
+    {% for msg in t.messages.all %}
+    <div class="thread__message">
+        <strong>{{ msg.author.full_name }}</strong>: {{ msg.body }}
+    </div>
+    {% endfor %}
+    <form method="post" action="{% url 'staff-support-reply' t.pk %}">
+        {% csrf_token %}
+        <textarea name="body" rows="2" placeholder="Ответ завлаба"></textarea>
+        <button type="submit">Ответить</button>
+    </form>
+</div>
+{% empty %}
+<p>Обращений нет.</p>
+{% endfor %}
+{% endblock %}

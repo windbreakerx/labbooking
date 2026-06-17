@@ -6,7 +6,7 @@
 
 - VM в Yandex Cloud (Ubuntu 22.04/24.04, 2 vCPU / 4 GB)
 - Публичный IP
-- Security Group: входящие **22** (SSH), **80** (HTTP)
+- Security Group: входящие **22** (SSH), **80** (HTTP), **443** (HTTPS, при домене)
 - Доступ **дома** (SSH с работы может быть заблокирован)
 
 ## Часть A — на работе (без SSH к VM)
@@ -63,7 +63,7 @@ nano .env
 
 ```env
 SECRET_KEY=<длинная-случайная-строка>
-ALLOWED_HOSTS=<PUBLIC_IP>
+ALLOWED_HOSTS=<DOMAIN>,<PUBLIC_IP>
 POSTGRES_PASSWORD=<сильный-пароль>
 DATABASE_URL=postgres://labbooking:<тот-же-пароль>@db:5432/labbooking
 DEBUG=0
@@ -136,12 +136,44 @@ docker compose -f docker-compose.yml -f docker-compose.vm.yml up -d
 docker compose -f docker-compose.yml -f docker-compose.vm.yml logs -f web
 ```
 
-## HTTPS (позже)
+## HTTPS (домен)
 
-Когда будет домен:
 1. A-запись домена → IP VM
-2. Certbot + nginx
-3. В `.env`: `SECURE_SSL_REDIRECT=1`, `CSRF_TRUSTED_ORIGINS=https://your.domain`
+2. На VM:
+   ```bash
+   sudo bash scripts/setup-https.sh your.domain.ru
+   ```
+3. В `.env`:
+   ```env
+   ALLOWED_HOSTS=your.domain.ru,<PUBLIC_IP>
+   CSRF_TRUSTED_ORIGINS=https://your.domain.ru
+   SECURE_SSL_REDIRECT=1
+   ```
+4. Перезапуск: `bash scripts/deploy-vm.sh`
+
+## Smoke test
+
+```bash
+bash scripts/smoke-test.sh http://127.0.0.1
+# или с доменом:
+bash scripts/smoke-test.sh https://your.domain.ru
+```
+
+## Cron на VM (опционально)
+
+```bash
+# Авто VISITED после окончания слотов — каждый час
+0 * * * * cd ~/labbooking && docker compose -f docker-compose.yml -f docker-compose.vm.yml exec -T web python manage.py mark_visited
+
+# Генерация слотов из расписания — по понедельникам
+0 6 * * 1 cd ~/labbooking && docker compose -f docker-compose.yml -f docker-compose.vm.yml exec -T web python manage.py generate_sessions --weeks=4
+```
+
+## Импорт из Деканата (CSV, до API)
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python manage.py import_dekanat_csv /path/students.csv --type=students
+```
 
 ## Схема на VM
 

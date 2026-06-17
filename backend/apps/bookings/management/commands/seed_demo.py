@@ -22,15 +22,18 @@ class Command(BaseCommand):
         )
 
         discipline, _ = Discipline.objects.get_or_create(
-            title="Физика",
-            defaults={"code": "PHY-101", "semester": semester, "is_published": True},
+            title="Бурение нефтяных и газовых скважин",
+            defaults={"code": "BNGS-101", "semester": semester, "is_published": True},
         )
 
         lab_work, _ = LabWork.objects.get_or_create(
             discipline=discipline,
             number=1,
             defaults={
-                "title": "Изучение закона Ома",
+                "title": (
+                    "Определение категории горных пород по буримости на основе "
+                    "объединенного показателя динамической прочности и абразивности"
+                ),
                 "duration_minutes": 90,
                 "is_published": True,
             },
@@ -70,19 +73,21 @@ class Command(BaseCommand):
             student.profile.group_name = "ГР-21"
             student.profile.save()
 
-        starts = timezone.now().replace(hour=10, minute=0, second=0, microsecond=0) + timezone.timedelta(days=2)
-        LabSession.objects.get_or_create(
-            lab_work=lab_work,
-            room=room,
-            semester=semester,
-            starts_at=starts,
-            defaults={
-                "ends_at": starts + timezone.timedelta(minutes=90),
-                "capacity": 15,
-                "status": LabSessionStatus.OPEN,
-                "teacher": staff,
-            },
-        )
+        base = timezone.now().replace(hour=10, minute=0, second=0, microsecond=0)
+        for day_offset in (2, 3, 4, 5, 6):
+            starts = base + timezone.timedelta(days=day_offset)
+            LabSession.objects.get_or_create(
+                lab_work=lab_work,
+                room=room,
+                semester=semester,
+                starts_at=starts,
+                defaults={
+                    "ends_at": starts + timezone.timedelta(minutes=90),
+                    "capacity": 15,
+                    "status": LabSessionStatus.OPEN,
+                    "teacher": staff,
+                },
+            )
 
         Holiday.objects.get_or_create(date=date(2026, 3, 8), defaults={"name": "8 марта"})
 

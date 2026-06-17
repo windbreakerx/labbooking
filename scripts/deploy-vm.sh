@@ -30,14 +30,22 @@ sleep 5
 echo "==> Демо-данные (если БД пустая — безопасно повторять)..."
 $COMPOSE exec -T web python manage.py seed_demo || true
 
+echo "==> Миграции..."
+$COMPOSE exec -T web python manage.py migrate --noinput
+
+echo "==> Статика..."
+$COMPOSE exec -T web python manage.py collectstatic --noinput
+
 echo ""
-echo "Проверка health (через nginx)..."
-if curl -sf http://127.0.0.1/api/health/ >/dev/null 2>&1; then
-  echo "OK: /api/health/"
+echo "==> Smoke test..."
+if bash scripts/smoke-test.sh http://127.0.0.1; then
+  echo ""
+  echo "Деплой успешен."
 else
-  echo "Проверьте вручную: curl http://127.0.0.1/api/health/"
+  echo "Smoke test не прошёл — проверьте логи: $COMPOSE logs web"
 fi
 echo ""
-echo "Сайт: http://<PUBLIC_IP>/"
+echo "Сайт: http://<PUBLIC_IP>/ или https://<DOMAIN>/"
 echo "Swagger: http://<PUBLIC_IP>/api/docs/"
+echo "HTTPS: sudo bash scripts/setup-https.sh <DOMAIN>"
 echo "Демо: student@stud.spmi.ru / student123"

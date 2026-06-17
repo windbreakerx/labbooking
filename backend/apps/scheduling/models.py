@@ -103,3 +103,72 @@ class Holiday(models.Model):
 
     def __str__(self):
         return f"{self.date} {self.name}".strip()
+
+
+class WeekParity(models.TextChoices):
+    ODD = "ODD", "Нечётная"
+    EVEN = "EVEN", "Чётная"
+    BOTH = "BOTH", "Каждую неделю"
+
+
+class LabStand(models.Model):
+    name = models.CharField("Наименование", max_length=256)
+    inventory_number = models.CharField("Инвентарный номер", max_length=64)
+    training_center = models.ForeignKey(
+        TrainingCenter,
+        on_delete=models.CASCADE,
+        related_name="stands",
+    )
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.PROTECT,
+        related_name="stands",
+    )
+    description = models.TextField("Описание", blank=True)
+
+    class Meta:
+        verbose_name = "Лабораторный стенд"
+        verbose_name_plural = "Лабораторные стенды"
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.inventory_number})"
+
+
+class ScheduleEntry(models.Model):
+    lab_work = models.ForeignKey(
+        LabWork,
+        on_delete=models.CASCADE,
+        related_name="schedule_entries",
+    )
+    room = models.ForeignKey(Room, on_delete=models.PROTECT, related_name="schedule_entries")
+    semester = models.ForeignKey(
+        Semester,
+        on_delete=models.CASCADE,
+        related_name="schedule_entries",
+    )
+    week_parity = models.CharField(
+        max_length=8,
+        choices=WeekParity.choices,
+        default=WeekParity.BOTH,
+    )
+    weekday = models.PositiveSmallIntegerField("День недели (0=Пн)")
+    start_time = models.TimeField("Время начала")
+    duration_minutes = models.PositiveIntegerField("Длительность (мин)", default=90)
+    capacity = models.PositiveIntegerField("Мест", default=30)
+    teacher = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="schedule_entries",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Запись расписания"
+        verbose_name_plural = "Расписание"
+        ordering = ["weekday", "start_time"]
+
+    def __str__(self):
+        return f"{self.lab_work} — день {self.weekday} {self.start_time}"

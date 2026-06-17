@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Отчёты — staff{% endblock %}
+{% block content %}
+<h1>Excel-выгрузки</h1>
+<form class="card">
+    <label>Дата с <input type="date" name="date_from" id="date_from"></label>
+    <label>Дата по <input type="date" name="date_to" id="date_to"></label>
+    <div class="report-links">
+        <a class="button" href="{% url 'staff-report-download' 'bookings' %}" id="link-bookings">Записи на период</a>
+        <a class="button" href="{% url 'staff-report-download' 'attendance' %}" id="link-attendance">Посещаемость</a>
+        <a class="button" href="{% url 'staff-report-download' 'discipline_summary' %}" id="link-summary">Свод по дисциплине</a>
+    </div>
+</form>
+<script>
+function applyDates(link) {
+    const from = document.getElementById('date_from').value;
+    const to = document.getElementById('date_to').value;
+    const params = new URLSearchParams();
+    if (from) params.set('date_from', from);
+    if (to) params.set('date_to', to);
+    const qs = params.toString();
+    return qs ? link.href.split('?')[0] + '?' + qs : link.href;
+}
+['link-bookings', 'link-attendance', 'link-summary'].forEach(id => {
+    document.getElementById(id).addEventListener('click', function(e) {
+        e.preventDefault();
+        window.location.href = applyDates(this);
+    });
+});
+</script>
+{% endblock %}

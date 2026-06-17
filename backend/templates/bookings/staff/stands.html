@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Стенды — staff{% endblock %}
+{% block content %}
+<h1>Лабораторные стенды</h1>
+
+<form method="post" action="{% url 'staff-stand-create' %}" class="card">
+    {% csrf_token %}
+    <h2>Добавить стенд</h2>
+    <label>Наименование <input type="text" name="name" required></label>
+    <label>Инв. номер <input type="text" name="inventory_number" required></label>
+    <label>УЦ
+        <select name="training_center" required>
+            {% for tc in training_centers %}
+            <option value="{{ tc.pk }}">УЦ №{{ tc.number }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Аудитория
+        <select name="room" required>
+            {% for r in rooms %}
+            <option value="{{ r.pk }}">УЦ №{{ r.training_center.number }}, ауд. {{ r.number }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Описание <textarea name="description" rows="2"></textarea></label>
+    <button type="submit">Сохранить</button>
+</form>
+
+<table class="table">
+    <thead><tr><th>Название</th><th>Инв. №</th><th>УЦ</th><th>Ауд.</th></tr></thead>
+    <tbody>
+        {% for s in stands %}
+        <tr>
+            <td>{{ s.name }}</td>
+            <td>{{ s.inventory_number }}</td>
+            <td>{{ s.training_center.number }}</td>
+            <td>{{ s.room.number }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">Стендов нет.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

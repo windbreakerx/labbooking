@@ -1,13 +1,21 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
-from django.views.generic import ListView, TemplateView
+from django.views.generic import DetailView, ListView, TemplateView
 
 from apps.academics.models import Discipline, LabWork
+from apps.academics.querysets import published_disciplines_qs, published_lab_works_qs
 from apps.bookings.models import Booking, SupportTicket
 from apps.bookings.services import BookingError, BookingService, is_staff_user
-from apps.scheduling.models import LabSession, LabSessionStatus
+from apps.bookings.services.session_availability import (
+    bookable_sessions_qs,
+    get_session_filter_options,
+    get_sessions_for_selection,
+)
+from apps.scheduling.models import TrainingCenter
+from apps.users.models import UserRole
 
 
 class HomeView(LoginRequiredMixin, TemplateView):
@@ -19,7 +27,7 @@ class DisciplineListWebView(LoginRequiredMixin, ListView):
     context_object_name = "disciplines"
 
     def get_queryset(self):
-        return Discipline.objects.filter(is_published=True)
+        return published_disciplines_qs()
 
 
 class LabWorkListWebView(LoginRequiredMixin, ListView):
@@ -27,30 +35,42 @@ class LabWorkListWebView(LoginRequiredMixin, ListView):
     context_object_name = "lab_works"
 
     def get_queryset(self):
-        return LabWork.objects.filter(
-            discipline_id=self.kwargs["discipline_id"],
-            is_published=True,
-        )
+        return published_lab_works_qs(self.kwargs["discipline_id"])
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["discipline"] = get_object_or_404(Discipline, pk=self.kwargs["discipline_id"])
+        ctx["discipline"] = get_object_or_404(
+            published_disciplines_qs(),
+            pk=self.kwargs["discipline_id"],
+        )
         return ctx
 
 
 class BookLabWorkWebView(LoginRequiredMixin, View):
     template_name = "bookings/book.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.role != UserRole.STUDENT:
+            messages.error(request, "Запись доступна только студентам.")
+            return redirect("home")
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, lab_work_id):
-        lab_work = get_object_or_404(LabWork, pk=lab_work_id, is_published=True)
-        sessions = LabSession.objects.filter(
-            lab_work=lab_work,
-            status=LabSessionStatus.OPEN,
-        ).select_related("room", "room__training_center")
+        lab_work = get_object_or_404(
+            LabWork,
+            pk=lab_work_id,
+            is_published=True,
+            discipline__semester__is_active=True,
+        )
+        filter_data = get_session_filter_options(lab_work_id)
         return render(
             request,
             self.template_name,
-            {"lab_work": lab_work, "sessions": sessions},
+            {
+                "lab_work": lab_work,
+                "filter_level": filter_data["level"],
+                "filter_options": filter_data["options"],
+            },
         )
 
     def post(self, request, lab_work_id):
@@ -64,9 +84,76 @@ class BookLabWorkWebView(LoginRequiredMixin, View):
         return redirect("my-bookings")
 
 
+class BookFilterPartialView(LoginRequiredMixin, View):
+    """HTMX partial для каскадных фильтров."""
+
+    def get(self, request, lab_work_id):
+        if request.user.role != UserRole.STUDENT:
+            return HttpResponseForbidden()
+        get_object_or_404(LabWork, pk=lab_work_id, is_published=True)
+        date = request.GET.get("date") or None
+        time_str = request.GET.get("time") or None
+        tc_number = request.GET.get("tc") or None
+        room_id = request.GET.get("room") or None
+
+        if room_id and date and time_str:
+            sessions = get_sessions_for_selection(lab_work_id, date, time_str, int(room_id))
+            return render(
+                request,
+                "bookings/partials/session_select.html",
+                {"sessions": sessions},
+            )
+
+        filter_data = get_session_filter_options(lab_work_id, date, time_str, tc_number)
+        template_map = {
+            "date": "bookings/partials/filter_date.html",
+            "time": "bookings/partials/filter_time.html",
+            "training_center": "bookings/partials/filter_tc.html",
+            "room": "bookings/partials/filter_room.html",
+        }
+        return render(
+            request,
+            template_map[filter_data["level"]],
+            {
+                "lab_work_id": lab_work_id,
+                "options": filter_data["options"],
+                "date": date,
+                "time": time_str,
+                "tc": tc_number,
+            },
+        )
+
+
+class WaitlistJoinWebView(LoginRequiredMixin, View):
+    def post(self, request):
+        if request.user.role != UserRole.STUDENT:
+            return redirect("home")
+        session_id = request.POST.get("session_id")
+        service = BookingService(actor=request.user)
+        try:
+            service.join_waitlist(request.user, int(session_id))
+            messages.success(request, "Вы добавлены в очередь.")
+        except (BookingError, ValueError, TypeError) as exc:
+            messages.error(request, str(exc))
+        return redirect("my-bookings")
+
+
 class MyBookingsWebView(LoginRequiredMixin, ListView):
     template_name = "bookings/my_bookings.html"
     context_object_name = "bookings"
+
+    def get_queryset(self):
+        return Booking.objects.filter(student=self.request.user).select_related(
+            "lab_work",
+            "discipline",
+            "room",
+            "room__training_center",
+        )
+
+
+class BookingDetailWebView(LoginRequiredMixin, DetailView):
+    template_name = "bookings/booking_detail.html"
+    context_object_name = "booking"
 
     def get_queryset(self):
         return Booking.objects.filter(student=self.request.user).select_related(
@@ -94,19 +181,60 @@ class SupportListWebView(LoginRequiredMixin, ListView):
     context_object_name = "tickets"
 
     def get_queryset(self):
-        return SupportTicket.objects.filter(student=self.request.user)
+        return (
+            SupportTicket.objects.filter(student=self.request.user)
+            .select_related("training_center")
+            .prefetch_related("messages__author")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["training_centers"] = TrainingCenter.objects.all()
+        return ctx
 
 
 class SupportCreateWebView(LoginRequiredMixin, View):
     def post(self, request):
         subject = request.POST.get("subject", "").strip()
         body = request.POST.get("body", "").strip()
-        if subject and body:
-            SupportTicket.objects.create(student=request.user, subject=subject, body=body)
+        tc_id = request.POST.get("training_center")
+        if subject and body and tc_id:
+            SupportTicket.objects.create(
+                student=request.user,
+                subject=subject,
+                body=body,
+                training_center_id=tc_id,
+            )
             messages.success(request, "Обращение отправлено.")
         else:
-            messages.error(request, "Заполните тему и сообщение.")
+            messages.error(request, "Заполните все поля, включая лабораторию.")
         return redirect("support")
+
+
+class SupportDetailWebView(LoginRequiredMixin, View):
+    template_name = "bookings/support_detail.html"
+
+    def get(self, request, pk):
+        ticket = get_object_or_404(
+            SupportTicket.objects.prefetch_related("messages__author"),
+            pk=pk,
+            student=request.user,
+        )
+        return render(request, self.template_name, {"ticket": ticket})
+
+    def post(self, request, pk):
+        ticket = get_object_or_404(SupportTicket, pk=pk, student=request.user)
+        body = request.POST.get("body", "").strip()
+        if body:
+            from apps.bookings.models import SupportMessage
+
+            SupportMessage.objects.create(
+                ticket=ticket,
+                author=request.user,
+                body=body,
+            )
+            messages.success(request, "Сообщение отправлено.")
+        return redirect("support-detail", pk=pk)
 
 
 class StaffBookingsWebView(LoginRequiredMixin, ListView):

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Обращение — {{ ticket.subject }}{% endblock %}
+{% block content %}
+<h1>{{ ticket.subject }}</h1>
+<p class="muted">Статус: {{ ticket.get_status_display }}</p>
+
+<div class="thread">
+    <div class="thread__message">
+        <strong>Вы</strong> <span class="muted">{{ ticket.created_at|date:"d.m.Y H:i" }}</span>
+        <p>{{ ticket.body }}</p>
+    </div>
+    {% for msg in ticket.messages.all %}
+    <div class="thread__message">
+        <strong>{{ msg.author.full_name }}</strong>
+        <span class="muted">{{ msg.created_at|date:"d.m.Y H:i" }}</span>
+        <p>{{ msg.body }}</p>
+    </div>
+    {% endfor %}
+</div>
+
+<form method="post" class="card">
+    {% csrf_token %}
+    <label>Дополнительное сообщение
+        <textarea name="body" rows="3"></textarea>
+    </label>
+    <button type="submit">Отправить</button>
+</form>
+<p><a href="{% url 'support' %}">← К списку обращений</a></p>
+{% endblock %}

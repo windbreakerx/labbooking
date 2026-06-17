@@ -59,6 +59,10 @@ curl -X POST http://localhost:8000/api/v1/auth/token/ \
 | POST | `/api/v1/bookings/` | Записаться |
 | GET | `/api/v1/me/bookings/` | Мои записи |
 | POST | `/api/v1/bookings/{id}/cancel/` | Отменить запись |
+| GET | `/api/v1/sessions/filters/?lab_work=1` | Каскадные фильтры слотов |
+| POST | `/api/v1/waitlist/` | Встать в очередь |
+| POST | `/api/v1/support/tickets/{id}/messages/` | Сообщение в тикете |
+| GET | `/api/v1/admin/reports/{type}/` | Excel-отчёт (staff) |
 
 ## Бизнес-правила
 

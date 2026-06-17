@@ -1,3 +1,4 @@
+from django.core.validators import FileExtensionValidator
 from django.db import models
 
 
@@ -50,6 +51,12 @@ class LabWork(models.Model):
     description = models.TextField("Описание", blank=True)
     duration_minutes = models.PositiveIntegerField("Длительность (мин)", default=90)
     is_published = models.BooleanField("Опубликовано", default=True)
+    methodics_file = models.FileField(
+        "Методичка (PDF)",
+        upload_to="methodics/",
+        blank=True,
+        validators=[FileExtensionValidator(allowed_extensions=["pdf"])],
+    )
 
     class Meta:
         verbose_name = "Лабораторная работа"

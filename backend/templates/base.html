@@ -17,7 +17,14 @@
                 <a href="{% url 'my-bookings' %}">Мои записи</a>
                 <a href="{% url 'support' %}">Технические вопросы</a>
                 {% if user.role == 'LAB_ADMIN' or user.role == 'TEACHER' or user.role == 'SYS_ADMIN' %}
-                <a href="{% url 'staff-bookings' %}">Записавшиеся студенты</a>
+                <a href="{% url 'staff-bookings' %}">Записавшиеся</a>
+                <a href="{% url 'staff-disciplines' %}">Дисциплины</a>
+                <a href="{% url 'staff-lab-works' %}">Лаб. работы</a>
+                <a href="{% url 'staff-stands' %}">Стенды</a>
+                <a href="{% url 'staff-schedule' %}">Расписание</a>
+                <a href="{% url 'staff-people' %}">Сотрудники</a>
+                <a href="{% url 'staff-support' %}">Обращения</a>
+                <a href="{% url 'staff-reports' %}">Отчёты</a>
                 {% endif %}
                 <a href="{% url 'logout' %}">Выход ({{ user.email }})</a>
             </nav>

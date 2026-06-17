@@ -1,7 +1,7 @@
 from django.db import models
 
 from apps.academics.models import Discipline, LabWork
-from apps.scheduling.models import LabSession, Room
+from apps.scheduling.models import LabSession, Room, TrainingCenter
 from apps.users.models import User
 
 
@@ -141,6 +141,13 @@ class SupportTicket(models.Model):
         CLOSED = "CLOSED", "Закрыт"
 
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="support_tickets")
+    training_center = models.ForeignKey(
+        TrainingCenter,
+        on_delete=models.PROTECT,
+        related_name="support_tickets",
+        null=True,
+        blank=True,
+    )
     subject = models.CharField(max_length=256)
     body = models.TextField()
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN)

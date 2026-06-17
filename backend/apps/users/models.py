@@ -76,6 +76,14 @@ class UserProfile(models.Model):
     phone = models.CharField(max_length=32, blank=True)
     dekanat_id = models.CharField("ID в Деканате", max_length=64, blank=True)
     no_show_count = models.PositiveIntegerField("Количество неявок", default=0)
+    training_center = models.ForeignKey(
+        "scheduling.TrainingCenter",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staff_profiles",
+        verbose_name="Лаборатория",
+    )
 
     class Meta:
         verbose_name = "Профиль"

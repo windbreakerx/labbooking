@@ -1,6 +1,4 @@
 from django.conf import settings
-from django.db.models import Q
-from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 from rest_framework import generics, status, viewsets
@@ -9,7 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.academics.models import Discipline, LabWork
-from apps.bookings.models import Booking, BookingStatus, SupportTicket
+from apps.academics.querysets import published_disciplines_qs
+from apps.bookings.models import Booking, BookingStatus, SupportMessage, SupportTicket, WaitlistEntry
 from apps.bookings.permissions import IsLabStaff, IsStudent
 from apps.bookings.serializers import (
     BookingCreateSerializer,
@@ -21,10 +20,16 @@ from apps.bookings.serializers import (
     LabSessionSerializer,
     LabWorkSerializer,
     ManualBookingSerializer,
+    SupportMessageSerializer,
     SupportTicketSerializer,
+    WaitlistEntrySerializer,
 )
 from apps.bookings.services import BookingError, BookingService
-from apps.scheduling.models import LabSession, LabSessionStatus
+from apps.bookings.services.session_availability import (
+    bookable_sessions_qs,
+    get_session_filter_options,
+)
+from apps.scheduling.models import LabSession
 
 
 def get_client_ip(request):
@@ -34,19 +39,11 @@ def get_client_ip(request):
     return request.META.get("REMOTE_ADDR")
 
 
-class HealthView(APIView):
-    authentication_classes = []
-    permission_classes = []
-
-    def get(self, request):
-        return Response({"status": "ok"})
-
-
 class DisciplineListView(generics.ListAPIView):
     serializer_class = DisciplineSerializer
 
     def get_queryset(self):
-        return Discipline.objects.filter(is_published=True).select_related("semester")
+        return published_disciplines_qs().select_related("semester")
 
 
 class DisciplineLabWorksView(generics.ListAPIView):
@@ -56,6 +53,7 @@ class DisciplineLabWorksView(generics.ListAPIView):
         return LabWork.objects.filter(
             discipline_id=self.kwargs["pk"],
             is_published=True,
+            discipline__semester__is_active=True,
         )
 
 
@@ -63,21 +61,26 @@ class LabSessionListView(generics.ListAPIView):
     serializer_class = LabSessionSerializer
 
     def get_queryset(self):
-        now = timezone.now()
-        horizon = now + timezone.timedelta(days=settings.BOOKING_HORIZON_DAYS)
-        qs = (
-            LabSession.objects.filter(
-                status=LabSessionStatus.OPEN,
-                starts_at__gt=now,
-                starts_at__lte=horizon,
-            )
-            .select_related("lab_work", "room", "room__training_center")
-            .order_by("starts_at")
-        )
         lab_work_id = self.request.query_params.get("lab_work")
         if lab_work_id:
-            qs = qs.filter(lab_work_id=lab_work_id)
-        return qs
+            return bookable_sessions_qs(lab_work_id=int(lab_work_id))
+        return bookable_sessions_qs()
+
+
+class LabSessionFilterView(APIView):
+    """Каскадные фильтры: date → time → training_center → room."""
+
+    def get(self, request):
+        lab_work = request.query_params.get("lab_work")
+        if not lab_work:
+            raise ValidationError({"lab_work": "Обязательный параметр."})
+        data = get_session_filter_options(
+            int(lab_work),
+            date=request.query_params.get("date") or None,
+            time_str=request.query_params.get("time") or None,
+            tc_number=request.query_params.get("tc") or None,
+        )
+        return Response(data)
 
 
 class LabSessionDetailView(generics.RetrieveAPIView):
@@ -137,17 +140,58 @@ class BookingCancelView(APIView):
         return Response(BookingSerializer(booking).data)
 
 
+class WaitlistJoinView(APIView):
+    permission_classes = [IsStudent]
+
+    def post(self, request):
+        session_id = request.data.get("lab_session_id")
+        if not session_id:
+            raise ValidationError({"lab_session_id": "Обязательное поле."})
+        service = BookingService(actor=request.user, ip_address=get_client_ip(request))
+        try:
+            entry = service.join_waitlist(request.user, int(session_id))
+        except BookingError as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+        return Response(WaitlistEntrySerializer(entry).data, status=status.HTTP_201_CREATED)
+
+
 class SupportTicketViewSet(viewsets.ModelViewSet):
     serializer_class = SupportTicketSerializer
 
     def get_queryset(self):
         user = self.request.user
         if IsLabStaff().has_permission(self.request, self):
-            return SupportTicket.objects.all().order_by("-created_at")
+            return SupportTicket.objects.all().select_related("training_center").order_by("-created_at")
         return SupportTicket.objects.filter(student=user).order_by("-created_at")
 
     def perform_create(self, serializer):
         serializer.save(student=self.request.user)
+
+
+class SupportMessageView(APIView):
+    def post(self, request, ticket_id):
+        try:
+            ticket = SupportTicket.objects.get(pk=ticket_id)
+        except SupportTicket.DoesNotExist:
+            return Response({"detail": "Не найдено."}, status=status.HTTP_404_NOT_FOUND)
+
+        is_staff = IsLabStaff().has_permission(request, self)
+        if ticket.student_id != request.user.id and not is_staff:
+            return Response({"detail": "Нет доступа."}, status=status.HTTP_403_FORBIDDEN)
+
+        body = request.data.get("body", "").strip()
+        if not body:
+            raise ValidationError({"body": "Сообщение не может быть пустым."})
+
+        msg = SupportMessage.objects.create(
+            ticket=ticket,
+            author=request.user,
+            body=body,
+        )
+        if is_staff:
+            ticket.status = SupportTicket.Status.ANSWERED
+            ticket.save(update_fields=["status", "updated_at"])
+        return Response(SupportMessageSerializer(msg).data, status=status.HTTP_201_CREATED)
 
 
 class LabSessionAdminViewSet(viewsets.ModelViewSet):
@@ -161,6 +205,8 @@ class AdminBookingListView(generics.ListAPIView):
     serializer_class = BookingSerializer
 
     def get_queryset(self):
+        from django.db.models import Q
+
         qs = Booking.objects.select_related(
             "student",
             "lab_work",
@@ -225,7 +271,29 @@ class ManualBookingView(APIView):
                 student,
                 serializer.validated_data["lab_session_id"],
                 manual=True,
+                skip_student_rules=True,
             )
         except BookingError as exc:
             raise ValidationError({"detail": str(exc)}) from exc
         return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
+
+
+class AdminReportView(APIView):
+    permission_classes = [IsLabStaff]
+
+    def get(self, request, report_type):
+        from apps.bookings.reports import generate_report
+        from django.http import HttpResponse
+
+        content = generate_report(
+            report_type,
+            date_from=request.query_params.get("date_from"),
+            date_to=request.query_params.get("date_to"),
+            discipline_id=request.query_params.get("discipline"),
+        )
+        response = HttpResponse(
+            content,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{report_type}.xlsx"'
+        return response

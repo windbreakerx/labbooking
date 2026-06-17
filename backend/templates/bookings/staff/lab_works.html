@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Лаб. работы — staff{% endblock %}
+{% block content %}
+<h1>Лабораторные работы</h1>
+<table class="table">
+    <thead><tr><th>Дисциплина</th><th>№</th><th>Название</th><th>Методичка</th><th></th></tr></thead>
+    <tbody>
+        {% for lw in lab_works %}
+        <tr>
+            <td>{{ lw.discipline.title }}</td>
+            <td>{{ lw.number }}</td>
+            <td>{{ lw.title }}</td>
+            <td>{% if lw.methodics_file %}<a href="{{ lw.methodics_file.url }}">PDF</a>{% else %}—{% endif %}</td>
+            <td>
+                <form method="post" action="{% url 'staff-lab-work-upload' lw.pk %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="file" name="methodics_file" accept=".pdf">
+                    <button type="submit">Загрузить</button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">Нет лабораторных работ.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

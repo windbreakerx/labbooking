@@ -49,7 +49,7 @@
                 <details class="row-actions">
                     <summary class="row-actions__trigger" aria-label="Действия">⋮</summary>
                     <div class="row-actions__menu">
-                        <a href="{% url 'book-lab-work' b.lab_work_id %}" class="row-actions__item">Просмотр</a>
+                        <a href="{% url 'booking-detail' b.pk %}" class="row-actions__item">Просмотреть</a>
                         {% if b.current_status == 'BOOKED' %}
                         <form method="post" action="{% url 'cancel-booking' b.pk %}">
                             {% csrf_token %}

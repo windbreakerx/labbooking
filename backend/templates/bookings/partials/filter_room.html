@@ -1,0 +1,21 @@
+<label>Дата
+    <input type="hidden" name="date" value="{{ date }}">
+</label>
+<label>Время
+    <input type="hidden" name="time" value="{{ time }}">
+</label>
+<label>Учебный центр
+    <input type="hidden" name="tc" value="{{ tc }}">
+</label>
+<label>Аудитория
+    <select name="room"
+            hx-get="{% url 'book-filter' lab_work_id %}"
+            hx-target="#session-slot"
+            hx-swap="innerHTML"
+            hx-include="#filter-chain">
+        <option value="">—</option>
+        {% for opt in options %}
+        <option value="{{ opt.value }}">{{ opt.label }}</option>
+        {% endfor %}
+    </select>
+</label>
