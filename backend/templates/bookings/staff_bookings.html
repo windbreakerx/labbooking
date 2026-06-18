@@ -2,13 +2,78 @@
 {% block title %}Записавшиеся студенты{% endblock %}
 {% block content %}
 <h1>Записавшиеся студенты</h1>
+
+<section class="card card--form">
+    <h2>Ручная запись</h2>
+    <form method="post" action="{% url 'staff-booking-manual' %}" class="form-row">
+        {% csrf_token %}
+        <label>
+            Email студента
+            <input type="email" name="student_email" required placeholder="student001@stud.local">
+        </label>
+        <label>
+            Слот
+            <select name="session_id" required>
+                <option value="">— выберите —</option>
+                {% for s in manual_sessions %}
+                <option value="{{ s.pk }}">
+                    {{ s.starts_at|date:"d.m.Y H:i" }} — {{ s.lab_work.title }} (ауд. {{ s.room.number }})
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <button type="submit">Записать</button>
+    </form>
+    <p class="muted">Ручная запись обходит лимиты студента (горизонт, 1 запись на дисциплину, вместимость).</p>
+</section>
+
+<section class="card card--form">
+    <h2>Фильтры</h2>
+    <form method="get" class="form-row">
+        <label>
+            Студент
+            <input type="search" name="student" value="{{ filters.student|default:'' }}" placeholder="ФИО или email">
+        </label>
+        <label>
+            Дисциплина
+            <select name="discipline">
+                <option value="">Все</option>
+                {% for d in disciplines %}
+                <option value="{{ d.pk }}" {% if filters.discipline == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.title }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Статус
+            <select name="status">
+                <option value="">Все</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            С
+            <input type="date" name="date_from" value="{{ filters.date_from|default:'' }}">
+        </label>
+        <label>
+            По
+            <input type="date" name="date_to" value="{{ filters.date_to|default:'' }}">
+        </label>
+        <button type="submit">Применить</button>
+        <a class="button button--secondary" href="{% url 'staff-bookings' %}">Сбросить</a>
+    </form>
+</section>
+
 <table class="table">
     <thead>
         <tr>
             <th>Студент</th>
+            <th>Группа</th>
             <th>Дисциплина</th>
             <th>ЛР</th>
             <th>Дата</th>
+            <th>Регистрация</th>
             <th>Статус</th>
             <th>Действия</th>
         </tr>
@@ -16,10 +81,15 @@
     <tbody>
         {% for b in bookings %}
         <tr>
-            <td>{{ b.student.full_name }}</td>
+            <td>{{ b.student.full_name }}<br><span class="muted">{{ b.student.email }}</span></td>
+            <td>{{ b.student.profile.group_name|default:"—" }}</td>
             <td>{{ b.discipline.title }}</td>
             <td>{{ b.lab_work.title }}</td>
             <td>{{ b.scheduled_at|date:"d.m.Y H:i" }}</td>
+            <td>
+                {{ b.get_registration_type_display }}
+                {% if b.registered_by %}<br><span class="muted">{{ b.registered_by.full_name }}</span>{% endif %}
+            </td>
             <td>{{ b.get_current_status_display }}</td>
             <td>
                 <form method="post" action="{% url 'staff-booking-status' b.pk %}">
@@ -34,6 +104,8 @@
                 </form>
             </td>
         </tr>
+        {% empty %}
+        <tr><td colspan="8">Записей не найдено.</td></tr>
         {% endfor %}
     </tbody>
 </table>

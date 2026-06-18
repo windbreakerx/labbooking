@@ -23,6 +23,7 @@ from apps.bookings.views.web import (
     LabWorkListWebView,
     MyBookingsWebView,
     StaffBookingsWebView,
+    StaffManualBookingWebView,
     StaffStatusUpdateWebView,
     SupportCreateWebView,
     SupportDetailWebView,
@@ -52,6 +53,11 @@ urlpatterns = [
     path("support/create/", SupportCreateWebView.as_view(), name="support-create"),
     path("support/<int:pk>/", SupportDetailWebView.as_view(), name="support-detail"),
     path("staff/bookings/", StaffBookingsWebView.as_view(), name="staff-bookings"),
+    path(
+        "staff/bookings/manual/",
+        StaffManualBookingWebView.as_view(),
+        name="staff-booking-manual",
+    ),
     path(
         "staff/bookings/<int:pk>/status/",
         StaffStatusUpdateWebView.as_view(),

@@ -355,3 +355,33 @@ class BookingService:
 
 def is_staff_user(user: User) -> bool:
     return user.role in {UserRole.LAB_ADMIN, UserRole.TEACHER, UserRole.SYS_ADMIN}
+
+
+def staff_lab_filter(qs, user, *, training_center_lookup: str = "room__training_center"):
+    """Ограничивает queryset сотрудника своей лабораторией (SYS_ADMIN видит всё)."""
+    if user.role == UserRole.SYS_ADMIN:
+        return qs
+    tc = getattr(user.profile, "training_center", None)
+    if tc:
+        return qs.filter(**{training_center_lookup: tc})
+    return qs
+
+
+def filter_staff_bookings(qs, params):
+    from django.db.models import Q
+
+    if status_val := params.get("status"):
+        qs = qs.filter(current_status=status_val)
+    if discipline_id := params.get("discipline"):
+        qs = qs.filter(discipline_id=discipline_id)
+    if date_from := params.get("date_from"):
+        qs = qs.filter(scheduled_at__date__gte=date_from)
+    if date_to := params.get("date_to"):
+        qs = qs.filter(scheduled_at__date__lte=date_to)
+    if student_q := params.get("student"):
+        qs = qs.filter(
+            Q(student__email__icontains=student_q)
+            | Q(student__last_name__icontains=student_q)
+            | Q(student__first_name__icontains=student_q)
+        )
+    return qs

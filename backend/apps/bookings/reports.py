@@ -8,6 +8,7 @@ def generate_report(
     date_from: str | None = None,
     date_to: str | None = None,
     discipline_id: str | None = None,
+    staff_user=None,
 ) -> bytes:
     from openpyxl import Workbook
 
@@ -16,10 +17,12 @@ def generate_report(
 
     qs = Booking.objects.select_related(
         "student",
+        "student__profile",
         "lab_work",
         "discipline",
         "room",
         "room__training_center",
+        "registered_by",
     )
     if date_from:
         qs = qs.filter(scheduled_at__date__gte=date_from)
@@ -27,19 +30,39 @@ def generate_report(
         qs = qs.filter(scheduled_at__date__lte=date_to)
     if discipline_id:
         qs = qs.filter(discipline_id=discipline_id)
+    if staff_user is not None:
+        from apps.bookings.services import staff_lab_filter
+
+        qs = staff_lab_filter(qs, staff_user)
 
     if report_type == "bookings":
         ws.title = "Записи"
-        ws.append(["Студент", "Email", "Дисциплина", "ЛР", "Дата", "УЦ", "Ауд.", "Статус"])
+        ws.append([
+            "Студент",
+            "Email",
+            "Группа",
+            "Дисциплина",
+            "ЛР",
+            "Дата",
+            "УЦ",
+            "Ауд.",
+            "Регистрация",
+            "Кем записан",
+            "Статус",
+        ])
         for b in qs.order_by("scheduled_at"):
+            profile = getattr(b.student, "profile", None)
             ws.append([
                 b.student.full_name,
                 b.student.email,
+                profile.group_name if profile else "",
                 b.discipline.title,
                 b.lab_work.title,
                 b.scheduled_at.strftime("%d.%m.%Y %H:%M"),
                 b.room.training_center.number,
                 b.room.number,
+                b.get_registration_type_display(),
+                b.registered_by.full_name if b.registered_by else "",
                 b.get_current_status_display(),
             ])
     elif report_type == "attendance":

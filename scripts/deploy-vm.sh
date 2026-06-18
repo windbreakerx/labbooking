@@ -28,7 +28,7 @@ echo "==> Ожидание готовности web..."
 sleep 5
 
 echo "==> Демо-данные (если БД пустая — безопасно повторять)..."
-$COMPOSE exec -T web python manage.py seed_demo || true
+$COMPOSE exec -T web python manage.py seed_demo --weeks 2 || true
 
 echo "==> Миграции..."
 $COMPOSE exec -T web python manage.py migrate --noinput

@@ -5,19 +5,26 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
 from apps.academics.models import Discipline, LabWork
 from apps.academics.querysets import published_disciplines_qs, published_lab_works_qs
 from apps.bookings.models import Booking, SupportTicket
-from apps.bookings.services import BookingError, BookingService, is_staff_user
+from apps.bookings.services import (
+    BookingError,
+    BookingService,
+    filter_staff_bookings,
+    is_staff_user,
+    staff_lab_filter,
+)
 from apps.bookings.services.session_availability import (
     get_session_filter_options,
     get_sessions_for_selection,
 )
-from apps.scheduling.models import TrainingCenter
-from apps.users.models import UserRole
+from apps.scheduling.models import LabSession, LabSessionStatus, TrainingCenter
+from apps.users.models import User, UserRole
 
 WEEKDAY_HEADERS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 MONTH_NAMES = [
@@ -314,12 +321,65 @@ class StaffBookingsWebView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        return Booking.objects.select_related(
+        qs = Booking.objects.select_related(
             "student",
+            "student__profile",
             "lab_work",
             "discipline",
             "room",
-        ).order_by("-scheduled_at")
+            "room__training_center",
+            "registered_by",
+        )
+        qs = staff_lab_filter(qs, self.request.user)
+        qs = filter_staff_bookings(qs, self.request.GET)
+        return qs.order_by("-scheduled_at")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["filters"] = self.request.GET
+        ctx["disciplines"] = Discipline.objects.filter(
+            semester__is_active=True,
+        ).order_by("title")
+        ctx["status_choices"] = Booking._meta.get_field("current_status").choices
+        sessions_qs = LabSession.objects.filter(
+            status=LabSessionStatus.OPEN,
+            starts_at__gt=timezone.now(),
+        ).select_related("lab_work", "room", "room__training_center")
+        ctx["manual_sessions"] = staff_lab_filter(
+            sessions_qs,
+            self.request.user,
+        ).order_by("starts_at")[:200]
+        return ctx
+
+
+class StaffManualBookingWebView(LoginRequiredMixin, View):
+    def post(self, request):
+        if not is_staff_user(request.user):
+            return redirect("home")
+        student_email = request.POST.get("student_email", "").strip().lower()
+        session_id = request.POST.get("session_id")
+        student = User.objects.filter(email__iexact=student_email, role=UserRole.STUDENT).first()
+        if not student:
+            messages.error(request, "Студент с таким email не найден.")
+            return redirect("staff-bookings")
+        if not session_id:
+            messages.error(request, "Выберите слот для записи.")
+            return redirect("staff-bookings")
+        session = get_object_or_404(LabSession, pk=session_id)
+        scoped = staff_lab_filter(
+            LabSession.objects.filter(pk=session.pk),
+            request.user,
+        )
+        if not scoped.exists():
+            messages.error(request, "Слот недоступен для вашей лаборатории.")
+            return redirect("staff-bookings")
+        service = BookingService(actor=request.user)
+        try:
+            service.create_booking(student, int(session_id), manual=True, skip_student_rules=True)
+            messages.success(request, f"Студент {student.full_name} записан вручную.")
+        except BookingError as exc:
+            messages.error(request, str(exc))
+        return redirect("staff-bookings")
 
 
 class StaffStatusUpdateWebView(LoginRequiredMixin, View):
@@ -327,6 +387,10 @@ class StaffStatusUpdateWebView(LoginRequiredMixin, View):
         if not is_staff_user(request.user):
             return redirect("home")
         booking = get_object_or_404(Booking, pk=pk)
+        scoped = staff_lab_filter(Booking.objects.filter(pk=booking.pk), request.user)
+        if not scoped.exists():
+            messages.error(request, "Запись недоступна для вашей лаборатории.")
+            return redirect("staff-bookings")
         new_status = request.POST.get("status")
         service = BookingService(actor=request.user)
         try:

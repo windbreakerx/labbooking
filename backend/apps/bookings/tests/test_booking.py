@@ -403,3 +403,46 @@ def test_book_page_student_only(staff, lab_work):
     client.force_login(staff)
     response = client.get(f"/lab-works/{lab_work.pk}/book/")
     assert response.status_code == 302
+
+
+@pytest.mark.django_db
+def test_staff_bookings_filters_and_manual_web(staff, student, session):
+    client = Client()
+    client.force_login(staff)
+    response = client.get("/staff/bookings/", {"student": student.email})
+    assert response.status_code == 200
+
+    response = client.post(
+        "/staff/bookings/manual/",
+        {"student_email": student.email, "session_id": session.pk},
+    )
+    assert response.status_code == 302
+    assert student.bookings.filter(lab_session=session).exists()
+
+
+@pytest.mark.django_db
+def test_staff_lab_scope_hides_foreign_booking(staff, student, session, room):
+    staff.profile.training_center = room.training_center
+    staff.profile.save(update_fields=["training_center"])
+    other_tc = TrainingCenter.objects.create(number=99)
+    other_room = Room.objects.create(training_center=other_tc, number="999", capacity=5)
+    other_session = LabSession.objects.create(
+        lab_work=session.lab_work,
+        room=other_room,
+        semester=session.semester,
+        starts_at=session.starts_at,
+        ends_at=session.ends_at,
+        capacity=5,
+        status=LabSessionStatus.OPEN,
+    )
+    BookingService(actor=staff).create_booking(
+        student,
+        other_session.pk,
+        manual=True,
+        skip_student_rules=True,
+    )
+    client = Client()
+    client.force_login(staff)
+    response = client.get("/staff/bookings/")
+    assert response.status_code == 200
+    assert other_room.number.encode() not in response.content

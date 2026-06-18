@@ -8,7 +8,7 @@ from django.views.generic import ListView, TemplateView
 from apps.academics.models import Discipline, LabWork
 from apps.bookings.models import Booking, SupportMessage, SupportTicket
 from apps.bookings.reports import generate_report
-from apps.bookings.services import is_staff_user
+from apps.bookings.services import filter_staff_bookings, is_staff_user, staff_lab_filter
 from apps.scheduling.models import LabStand, ScheduleEntry
 from apps.users.models import User, UserRole
 
@@ -55,7 +55,8 @@ class StaffStandsView(StaffRequiredMixin, ListView):
     context_object_name = "stands"
 
     def get_queryset(self):
-        return LabStand.objects.select_related("training_center", "room")
+        qs = LabStand.objects.select_related("training_center", "room")
+        return staff_lab_filter(qs, self.request.user, training_center_lookup="training_center")
 
     def get_context_data(self, **kwargs):
         from apps.scheduling.models import Room, TrainingCenter
@@ -93,12 +94,13 @@ class StaffScheduleView(StaffRequiredMixin, ListView):
     context_object_name = "entries"
 
     def get_queryset(self):
-        return ScheduleEntry.objects.select_related(
+        qs = ScheduleEntry.objects.select_related(
             "lab_work",
             "room",
             "semester",
             "teacher",
         )
+        return staff_lab_filter(qs, self.request.user)
 
 
 class StaffPeopleView(StaffRequiredMixin, ListView):
@@ -116,10 +118,11 @@ class StaffSupportView(StaffRequiredMixin, ListView):
     context_object_name = "tickets"
 
     def get_queryset(self):
-        return SupportTicket.objects.select_related(
+        qs = SupportTicket.objects.select_related(
             "student",
             "training_center",
         ).prefetch_related("messages__author")
+        return staff_lab_filter(qs, self.request.user, training_center_lookup="training_center")
 
 
 class StaffSupportReplyView(StaffRequiredMixin, View):
@@ -152,6 +155,7 @@ class StaffReportDownloadView(StaffRequiredMixin, View):
             date_from=date_from,
             date_to=date_to,
             discipline_id=discipline_id,
+            staff_user=request.user,
         )
         response = HttpResponse(
             content,
