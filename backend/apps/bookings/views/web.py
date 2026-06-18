@@ -21,7 +21,9 @@ from apps.bookings.services import (
 )
 from apps.bookings.services.session_availability import (
     get_session_filter_options,
+    get_sessions_for_date_time,
     get_sessions_for_selection,
+    pair_meta_by_time,
 )
 from apps.scheduling.models import LabSession, LabSessionStatus, TrainingCenter
 from apps.users.models import User, UserRole
@@ -165,6 +167,49 @@ class BookFilterPartialView(LoginRequiredMixin, View):
         time_str = request.GET.get("time") or None
         tc_number = request.GET.get("tc") or None
         room_id = request.GET.get("room") or None
+
+        if date and time_str and not room_id:
+            sessions = list(
+                get_sessions_for_date_time(lab_work_id, date, time_str).select_related(
+                    "room",
+                    "room__training_center",
+                )
+            )
+            if len(sessions) == 1:
+                pair_label = ""
+                if meta := pair_meta_by_time(time_str):
+                    _, pair_label = meta
+                return render(
+                    request,
+                    "bookings/partials/session_confirm.html",
+                    {
+                        "session": sessions[0],
+                        "date": date,
+                        "time": time_str,
+                        "pair_label": pair_label,
+                    },
+                )
+            if len(sessions) > 1:
+                rooms = {s.room_id: s.room for s in sessions}
+                return render(
+                    request,
+                    "bookings/partials/filter_room.html",
+                    {
+                        "lab_work_id": lab_work_id,
+                        "date": date,
+                        "time": time_str,
+                        "options": [
+                            {
+                                "value": str(room.pk),
+                                "label": (
+                                    f"ауд. {room.number} "
+                                    f"(УЦ №{room.training_center.number})"
+                                ),
+                            }
+                            for room in sorted(rooms.values(), key=lambda r: r.number)
+                        ],
+                    },
+                )
 
         if room_id and date and time_str:
             sessions = get_sessions_for_selection(lab_work_id, date, time_str, int(room_id))

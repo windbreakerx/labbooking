@@ -1,11 +1,22 @@
 from datetime import date, datetime, time, timedelta
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.academics.models import Discipline, LabWork, Semester
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus, LabStand, Room, TrainingCenter
 from apps.users.models import User, UserRole
+
+# Университетские пары (начало слота).
+UNIVERSITY_PAIRS = [
+    (8, 50),
+    (10, 35),
+    (12, 35),
+    (14, 15),
+    (15, 55),
+    (17, 30),
+]
 
 
 class Command(BaseCommand):
@@ -50,15 +61,6 @@ class Command(BaseCommand):
         profile.training_center = training_center
         profile.save()
         return user
-
-    @staticmethod
-    def _build_weekday_datetime(base_date, week_shift: int, weekday: int, hour: int, minute: int):
-        target_date = base_date + timedelta(days=week_shift * 7 + weekday)
-        tz = timezone.get_current_timezone()
-        return timezone.make_aware(
-            datetime.combine(target_date, time(hour=hour, minute=minute)),
-            tz,
-        )
 
     @staticmethod
     def _code(prefix: str, index: int) -> str:
@@ -239,7 +241,6 @@ class Command(BaseCommand):
                     "capacity": 3,
                     "room_number": "1123",
                     "stand_name": "Устройство для врезки под давлением в трубопровод Tonisco B30 Ду 40-200 мм",
-                    "slot": (0, 10, 35),  # Monday, 2nd pair
                     "target_groups": "ТНГ, ГРП, ЭХТ",
                 },
                 {
@@ -248,7 +249,6 @@ class Command(BaseCommand):
                     "capacity": 3,
                     "room_number": "1123",
                     "stand_name": "Аппарат для стыковой сварки полиэтиленовых труб и фитингов Nowatech ZHCN-160CNC",
-                    "slot": (0, 10, 35),  # parallel to previous lab
                     "target_groups": "ТНГ, ГРП, ЭХТ",
                 },
             ],
@@ -259,7 +259,6 @@ class Command(BaseCommand):
                     "capacity": 3,
                     "room_number": "1123",
                     "stand_name": "Газорегуляторная установка ГРУ-036М-07-2ПУ1",
-                    "slot": (1, 10, 35),
                     "target_groups": "ТНГ, ГРП",
                 },
                 {
@@ -268,7 +267,6 @@ class Command(BaseCommand):
                     "capacity": 3,
                     "room_number": "1123",
                     "stand_name": "Газорегуляторная установка ГРУ-036М-07-2ПУ1",
-                    "slot": (1, 12, 35),
                     "target_groups": "ТНГ, ГРП",
                 },
                 {
@@ -277,7 +275,6 @@ class Command(BaseCommand):
                     "capacity": 3,
                     "room_number": "1123",
                     "stand_name": "Газорегуляторная установка ГРУ-036М-07-2ПУ1",
-                    "slot": (2, 10, 35),
                     "target_groups": "ТНГ, ГРП",
                 },
                 {
@@ -286,7 +283,6 @@ class Command(BaseCommand):
                     "capacity": 3,
                     "room_number": "1123",
                     "stand_name": "Газорегуляторная установка ГРУ-036М-07-2ПУ1",
-                    "slot": (2, 12, 35),
                     "target_groups": "ТНГ, ГРП",
                 },
                 {
@@ -295,7 +291,6 @@ class Command(BaseCommand):
                     "capacity": 3,
                     "room_number": "1123",
                     "stand_name": "Газорегуляторная установка ГРУ-036М-07-2ПУ1",
-                    "slot": (3, 10, 35),
                     "target_groups": "ТНГ, ГРП",
                 },
             ],
@@ -306,21 +301,12 @@ class Command(BaseCommand):
                     "capacity": 10,
                     "room_number": "2105",
                     "stand_name": "Прибор ПОАП-2м",
-                    "slot": (0, 14, 15),
                     "target_groups": "НГС-**-*",
                 }
             ],
         }
 
         discipline_counter = 1
-        generic_slots = [
-            (0, 8, 50),
-            (0, 10, 35),
-            (1, 12, 35),
-            (2, 14, 15),
-            (3, 15, 55),
-            (4, 17, 30),
-        ]
         generic_room_numbers = list(rooms.keys())
         lab_session_plan = []
         for department_name, discipline_titles in departments.items():
@@ -339,7 +325,6 @@ class Command(BaseCommand):
 
                 lab_specs = special_lab_specs.get(discipline_title)
                 if lab_specs is None:
-                    slot_weekday, slot_hour, slot_minute = generic_slots[(discipline_counter - 1) % len(generic_slots)]
                     room_number = generic_room_numbers[(discipline_counter - 1) % len(generic_room_numbers)]
                     lab_specs = [
                         {
@@ -348,7 +333,6 @@ class Command(BaseCommand):
                             "capacity": min(12, rooms[room_number].capacity),
                             "room_number": room_number,
                             "stand_name": "",
-                            "slot": (slot_weekday, slot_hour, slot_minute),
                             "target_groups": "Все пилотные группы",
                         }
                     ]
@@ -379,40 +363,44 @@ class Command(BaseCommand):
                             "lab_work": lab_work,
                             "room": rooms[spec["room_number"]],
                             "capacity": spec["capacity"],
-                            "slot": spec["slot"],
                         }
                     )
 
-        # Слоты с понедельника текущей недели, иначе в чт–вс не остаётся дат для записи.
-        current_monday = today - timedelta(days=today.weekday())
+        # Для каждой ЛР — слоты на все будние дни и все пары в пределах горизонта записи.
         now = timezone.now()
+        tz = timezone.get_current_timezone()
+        days_ahead = max(weeks * 7, settings.BOOKING_HORIZON_DAYS + 1)
         created_sessions = 0
-        for week_shift in range(weeks):
-            for index, plan in enumerate(lab_session_plan):
-                teacher = teachers[index % len(teachers)]
-                weekday, hour, minute = plan["slot"]
-                starts_at = self._build_weekday_datetime(
-                    base_date=current_monday,
-                    week_shift=week_shift,
-                    weekday=weekday,
-                    hour=hour,
-                    minute=minute,
-                )
-                if starts_at <= now:
-                    continue
-                created_sessions += 1
-                LabSession.objects.update_or_create(
-                    lab_work=plan["lab_work"],
-                    room=plan["room"],
-                    semester=semester,
-                    starts_at=starts_at,
-                    defaults={
-                        "ends_at": starts_at + timedelta(minutes=plan["lab_work"].duration_minutes),
-                        "capacity": min(plan["capacity"], plan["room"].capacity),
-                        "status": LabSessionStatus.OPEN,
-                        "teacher": teacher,
-                    },
-                )
+        session_index = 0
+        for day_offset in range(1, days_ahead + 1):
+            session_date = today + timedelta(days=day_offset)
+            if session_date.weekday() >= 5:
+                continue
+            for hour, minute in UNIVERSITY_PAIRS:
+                for plan in lab_session_plan:
+                    teacher = teachers[session_index % len(teachers)]
+                    session_index += 1
+                    starts_at = timezone.make_aware(
+                        datetime.combine(session_date, time(hour=hour, minute=minute)),
+                        tz,
+                    )
+                    if starts_at <= now:
+                        continue
+                    created_sessions += 1
+                    LabSession.objects.update_or_create(
+                        lab_work=plan["lab_work"],
+                        room=plan["room"],
+                        semester=semester,
+                        starts_at=starts_at,
+                        defaults={
+                            "ends_at": starts_at + timedelta(
+                                minutes=plan["lab_work"].duration_minutes
+                            ),
+                            "capacity": min(plan["capacity"], plan["room"].capacity),
+                            "status": LabSessionStatus.OPEN,
+                            "teacher": teacher,
+                        },
+                    )
 
         Holiday.objects.get_or_create(date=date(2026, 11, 4), defaults={"name": "День народного единства"})
 

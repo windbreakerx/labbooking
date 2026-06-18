@@ -32,8 +32,8 @@ urlpatterns = [
     path("sessions/<int:pk>/", LabSessionDetailView.as_view(), name="session-detail"),
     path("bookings/", BookingCreateView.as_view(), name="booking-create"),
     path("bookings/<int:pk>/cancel/", BookingCancelView.as_view(), name="booking-cancel"),
-    path("me/bookings/", MyBookingsView.as_view(), name="my-bookings"),
-    path("waitlist/", WaitlistJoinView.as_view(), name="waitlist-join"),
+    path("me/bookings/", MyBookingsView.as_view(), name="api-my-bookings"),
+    path("waitlist/", WaitlistJoinView.as_view(), name="api-waitlist-join"),
     path(
         "support/tickets/<int:ticket_id>/messages/",
         SupportMessageView.as_view(),

@@ -223,13 +223,21 @@ def get_session_filter_options(
     }
 
 
+def get_sessions_for_date_time(
+    lab_work_id: int,
+    date: str,
+    time_str: str,
+) -> QuerySet[LabSession]:
+    qs = bookable_sessions_qs(lab_work_id=lab_work_id)
+    qs = _filter_by_local_date(qs, date)
+    qs = _filter_by_local_time(qs, time_str)
+    return qs
+
+
 def get_sessions_for_selection(
     lab_work_id: int,
     date: str,
     time_str: str,
     room_id: int,
 ) -> QuerySet[LabSession]:
-    qs = bookable_sessions_qs(lab_work_id=lab_work_id).filter(room_id=room_id)
-    qs = _filter_by_local_date(qs, date)
-    qs = _filter_by_local_time(qs, time_str)
-    return qs
+    return get_sessions_for_date_time(lab_work_id, date, time_str).filter(room_id=room_id)

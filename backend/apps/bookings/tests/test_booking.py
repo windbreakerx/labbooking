@@ -342,6 +342,13 @@ class TestSessionAvailability:
 
 
 @pytest.mark.django_db
+def test_my_bookings_web_url_reversal():
+    from django.urls import reverse
+
+    assert reverse("my-bookings") == "/my-bookings/"
+
+
+@pytest.mark.django_db
 def test_health_endpoint():
     client = APIClient()
     response = client.get("/api/health/")

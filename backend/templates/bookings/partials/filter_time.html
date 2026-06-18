@@ -8,7 +8,7 @@
 <label>Время
     <select name="time"
             hx-get="{% url 'book-filter' lab_work_id %}"
-            hx-target="#filter-chain"
+            hx-target="#session-slot"
             hx-swap="innerHTML"
             hx-include="#filter-chain">
         <option value="">—</option>

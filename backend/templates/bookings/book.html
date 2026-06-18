@@ -20,10 +20,15 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         btn.disabled = true;
     }
     if (evt.detail.target.id === 'session-slot') {
+        const hiddenSession = document.querySelector('#session-slot input[name=session_id]');
         const sel = document.querySelector('#session-slot select[name=session_id]');
-        if (sel) {
+        if (hiddenSession) {
+            btn.disabled = false;
+        } else if (sel) {
             btn.disabled = !sel.value;
             sel.addEventListener('change', () => { btn.disabled = !sel.value; });
+        } else {
+            btn.disabled = true;
         }
     }
 });

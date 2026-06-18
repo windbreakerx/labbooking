@@ -1,0 +1,10 @@
+<input type="hidden" name="date" value="{{ date }}">
+<input type="hidden" name="time" value="{{ time }}">
+<input type="hidden" name="session_id" value="{{ session.pk }}">
+<div class="booking-summary">
+    <p><strong>Дата:</strong> {{ session.starts_at|date:"d.m.Y" }}</p>
+    <p><strong>Пара:</strong> {{ pair_label }}</p>
+    <p><strong>Учебный центр:</strong> №{{ session.room.training_center.number }}</p>
+    <p><strong>Аудитория:</strong> {{ session.room.number }}</p>
+    <p><strong>Свободно мест:</strong> {{ session.available_seats }}/{{ session.capacity }}</p>
+</div>

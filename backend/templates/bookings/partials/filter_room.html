@@ -4,9 +4,6 @@
 <label>Время
     <input type="hidden" name="time" value="{{ time }}">
 </label>
-<label>Учебный центр
-    <input type="hidden" name="tc" value="{{ tc }}">
-</label>
 <label>Аудитория
     <select name="room"
             hx-get="{% url 'book-filter' lab_work_id %}"
