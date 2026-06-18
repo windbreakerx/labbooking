@@ -253,6 +253,21 @@ class TestBookingService:
         assert len(mail.outbox) == 1
         assert "записаны" in mail.outbox[0].body.lower()
 
+    def test_create_booking_calls_room_overlap_lock(self, student, session, monkeypatch):
+        called = {"count": 0, "session_id": None}
+        original_lock = BookingService._lock_overlapping_room_sessions
+
+        def lock_spy(self, locked_session):
+            called["count"] += 1
+            called["session_id"] = locked_session.pk
+            return original_lock(self, locked_session)
+
+        monkeypatch.setattr(BookingService, "_lock_overlapping_room_sessions", lock_spy)
+
+        BookingService(actor=student).create_booking(student, session.pk)
+        assert called["count"] == 1
+        assert called["session_id"] == session.pk
+
 
 @pytest.mark.django_db
 class TestSessionAvailability:

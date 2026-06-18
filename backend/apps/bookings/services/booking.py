@@ -85,6 +85,20 @@ class BookingService:
             lab_session__ends_at__gt=session.starts_at,
         ).count()
 
+    def _lock_overlapping_room_sessions(self, session: LabSession):
+        """
+        Блокирует все пересекающиеся слоты аудитории в рамках транзакции.
+        Это предотвращает гонку при одновременной записи на последние места
+        в параллельных ЛР одной аудитории.
+        """
+        overlapping_qs = LabSession.objects.select_for_update().filter(
+            room_id=session.room_id,
+            starts_at__lt=session.ends_at,
+            ends_at__gt=session.starts_at,
+        )
+        # Принудительно выполняем SELECT ... FOR UPDATE.
+        list(overlapping_qs.values_list("id", flat=True))
+
     def _validate_cancel_window(self, booking: Booking, by_staff: bool = False):
         if by_staff:
             return
@@ -124,6 +138,7 @@ class BookingService:
             .select_related("lab_work", "lab_work__discipline", "room")
             .get(pk=session_id)
         )
+        self._lock_overlapping_room_sessions(session)
         skip_rules = skip_student_rules or manual
         self._validate_booking_window(session, skip_student_rules=skip_rules)
         if not skip_rules:
