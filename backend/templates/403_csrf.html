@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Ошибка безопасности{% endblock %}
+{% block content %}
+<div class="card card--narrow">
+    <h1>Не удалось отправить форму</h1>
+    <ul class="messages">
+        <li class="message message--error">
+            Сессия истекла или запрос отклонён системой безопасности (CSRF).
+            Обновите страницу и попробуйте снова.
+        </li>
+    </ul>
+    {% if reason %}
+    <p class="muted">Код: {{ reason }}</p>
+    {% endif %}
+    <p><a href="{% url 'login' %}">Вернуться ко входу</a></p>
+</div>
+{% endblock %}

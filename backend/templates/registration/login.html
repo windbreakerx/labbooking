@@ -4,13 +4,28 @@
 <div class="card card--narrow">
     <h1>Вход в систему</h1>
     <p class="muted">Используйте email и пароль вузовской почты.</p>
-    <form method="post">
+
+    {% if form.non_field_errors %}
+    <ul class="messages">
+        {% for error in form.non_field_errors %}
+        <li class="message message--error">{{ error }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <form method="post" action="{% url 'login' %}">
         {% csrf_token %}
-        <label>Email
-            <input type="email" name="username" required autofocus>
+        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}
+            {{ form.username }}
+            {% if form.username.errors %}
+            <span class="field-error">{{ form.username.errors|join:", " }}</span>
+            {% endif %}
         </label>
-        <label>Пароль
-            <input type="password" name="password" required>
+        <label for="{{ form.password.id_for_label }}">{{ form.password.label }}
+            {{ form.password }}
+            {% if form.password.errors %}
+            <span class="field-error">{{ form.password.errors|join:", " }}</span>
+            {% endif %}
         </label>
         <button type="submit">Войти</button>
     </form>

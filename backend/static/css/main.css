@@ -196,5 +196,6 @@ button:hover { opacity: 0.9; }
 }
 .message--success { background: #e8f7ee; color: var(--success); }
 .message--error { background: #fdecea; color: var(--error); }
+.field-error { display: block; color: var(--error); font-size: 0.875rem; margin-top: 0.25rem; }
 
 .muted { color: #667; }

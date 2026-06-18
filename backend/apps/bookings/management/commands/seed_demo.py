@@ -46,7 +46,7 @@ class Command(BaseCommand):
             defaults={"capacity": 20},
         )
 
-        staff, created = User.objects.get_or_create(
+        staff, _ = User.objects.get_or_create(
             email="staff@spmi.ru",
             defaults={
                 "first_name": "Иван",
@@ -55,11 +55,10 @@ class Command(BaseCommand):
                 "is_staff": True,
             },
         )
-        if created:
-            staff.set_password("staff123")
-            staff.save()
+        staff.set_password("staff123")
+        staff.save()
 
-        student, created = User.objects.get_or_create(
+        student, _ = User.objects.get_or_create(
             email="student@stud.spmi.ru",
             defaults={
                 "first_name": "Пётр",
@@ -67,11 +66,10 @@ class Command(BaseCommand):
                 "role": UserRole.STUDENT,
             },
         )
-        if created:
-            student.set_password("student123")
-            student.save()
-            student.profile.group_name = "ГР-21"
-            student.profile.save()
+        student.set_password("student123")
+        student.save()
+        student.profile.group_name = "ГР-21"
+        student.profile.save()
 
         base = timezone.now().replace(hour=10, minute=0, second=0, microsecond=0)
         for day_offset in (2, 3, 4, 5, 6):
