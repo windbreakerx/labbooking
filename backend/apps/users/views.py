@@ -1,9 +1,12 @@
 from django.contrib.auth.views import LoginView, LogoutView
+from django.shortcuts import render
+from django.views.decorators.csrf import requires_csrf_token
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .forms import EmailAuthenticationForm
 from .sso import SSOAuthError, get_sso_provider
 
 
@@ -32,8 +35,19 @@ class SSOLoginView(APIView):
 
 class WebLoginView(LoginView):
     template_name = "registration/login.html"
+    authentication_form = EmailAuthenticationForm
     redirect_authenticated_user = True
 
 
 class WebLogoutView(LogoutView):
     next_page = "login"
+
+
+@requires_csrf_token
+def csrf_failure(request, reason=""):
+    return render(
+        request,
+        "403_csrf.html",
+        {"reason": reason},
+        status=403,
+    )
