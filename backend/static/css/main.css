@@ -39,6 +39,21 @@ body {
 .nav { display: flex; gap: 1rem; flex-wrap: wrap; }
 .nav a { color: var(--text); text-decoration: none; font-size: 0.95rem; }
 .nav a:hover { color: var(--accent); }
+.nav-logout {
+    display: inline;
+    margin: 0;
+    padding: 0;
+}
+.nav-logout button {
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+.nav-logout button:hover { color: var(--accent); }
 
 .card {
     background: var(--card);

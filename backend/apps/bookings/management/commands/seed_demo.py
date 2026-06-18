@@ -383,18 +383,24 @@ class Command(BaseCommand):
                         }
                     )
 
-        next_monday = today + timedelta(days=(7 - today.weekday()) % 7)
+        # Слоты с понедельника текущей недели, иначе в чт–вс не остаётся дат для записи.
+        current_monday = today - timedelta(days=today.weekday())
+        now = timezone.now()
+        created_sessions = 0
         for week_shift in range(weeks):
             for index, plan in enumerate(lab_session_plan):
                 teacher = teachers[index % len(teachers)]
                 weekday, hour, minute = plan["slot"]
                 starts_at = self._build_weekday_datetime(
-                    base_date=next_monday,
+                    base_date=current_monday,
                     week_shift=week_shift,
                     weekday=weekday,
                     hour=hour,
                     minute=minute,
                 )
+                if starts_at <= now:
+                    continue
+                created_sessions += 1
                 LabSession.objects.update_or_create(
                     lab_work=plan["lab_work"],
                     room=plan["room"],
@@ -411,6 +417,7 @@ class Command(BaseCommand):
         Holiday.objects.get_or_create(date=date(2026, 11, 4), defaults={"name": "День народного единства"})
 
         self.stdout.write(self.style.SUCCESS("Пилотные данные нефтегазовой лаборатории загружены."))
+        self.stdout.write(f"Создано/обновлено будущих слотов: {created_sessions}")
         self.stdout.write("Сотрудники: zavlab.pilot@spmi.ru, operator1.pilot@spmi.ru, operator2.pilot@spmi.ru / pilot123")
         self.stdout.write("Преподаватели: teacher.tng@spmi.ru, teacher.bur@spmi.ru, teacher.razr@spmi.ru, teacher.gas@spmi.ru / pilot123")
         self.stdout.write("Студенты: student001..student090@stud.local / student123")

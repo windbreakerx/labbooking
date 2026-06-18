@@ -15,6 +15,7 @@ from apps.bookings.services.session_availability import (
     is_day_open_for_booking,
     is_pair_time_for_booking,
     is_weekday_for_booking,
+    booking_date_window,
 )
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
 from apps.users.models import User, UserRole
@@ -55,16 +56,14 @@ class BookingService:
 
     def _validate_booking_window(self, session: LabSession, skip_student_rules: bool = False):
         now = timezone.now()
+        session_local_date = timezone.localtime(session.starts_at).date()
         if not skip_student_rules:
-            horizon = now + timezone.timedelta(days=settings.BOOKING_HORIZON_DAYS)
-            if session.starts_at > horizon:
+            if not is_day_open_for_booking(session_local_date, now):
+                min_date, max_date = booking_date_window(now)
                 raise BookingError(
-                    f"Запись доступна только на {settings.BOOKING_HORIZON_DAYS} дней вперёд."
-                )
-            if not is_day_open_for_booking(session.starts_at.date(), now):
-                raise BookingError(
-                    f"Запись на этот день откроется в {settings.BOOKING_DAY_OPENS_AT} "
-                    f"предыдущего дня."
+                    f"Запись сейчас открыта на даты с {min_date:%d.%m.%Y} по {max_date:%d.%m.%Y}. "
+                    f"Ближайший день закрывается в {settings.BOOKING_DAY_CLOSES_AT}, "
+                    f"новый дальний день открывается в {settings.BOOKING_DAY_OPENS_AT}."
                 )
         if session.starts_at <= now:
             raise BookingError("Нельзя записаться на прошедший слот.")

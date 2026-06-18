@@ -26,7 +26,10 @@
                 <a href="{% url 'staff-support' %}">Обращения</a>
                 <a href="{% url 'staff-reports' %}">Отчёты</a>
                 {% endif %}
-                <a href="{% url 'logout' %}">Выход ({{ user.email }})</a>
+                <form method="post" action="{% url 'logout' %}" class="nav-logout">
+                    {% csrf_token %}
+                    <button type="submit">Выход ({{ user.email }})</button>
+                </form>
             </nav>
             {% endif %}
         </div>

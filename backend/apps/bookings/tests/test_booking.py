@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from django.core import mail
 from django.test import Client, override_settings
 from django.utils import timezone
@@ -9,6 +9,7 @@ from apps.academics.models import Discipline, LabWork, Semester
 from apps.bookings.models import BookingStatus, SupportMessage, SupportTicket
 from apps.bookings.services import BookingError, BookingService
 from apps.bookings.services.session_availability import (
+    booking_date_window,
     bookable_sessions_qs,
     is_day_open_for_booking,
 )
@@ -276,19 +277,31 @@ class TestSessionAvailability:
         assert session in qs
         assert far_session not in qs
 
-    def test_day_opens_at_rule(self):
-        session_date = (timezone.now() + timezone.timedelta(days=5)).date()
-        before_open = timezone.make_aware(
-            datetime.combine(
-                session_date - timedelta(days=1),
-                time(21, 0),
-            ),
-            timezone.get_current_timezone(),
-        )
-        assert is_day_open_for_booking(session_date, before_open) is False
+    def test_booking_window_shift_1500_and_2200(self):
+        tz = timezone.get_current_timezone()
+        now_early = timezone.make_aware(datetime(2026, 7, 1, 14, 0), tz)
+        now_after_close = timezone.make_aware(datetime(2026, 7, 1, 15, 1), tz)
+        now_after_open = timezone.make_aware(datetime(2026, 7, 1, 22, 1), tz)
+
+        min_early, max_early = booking_date_window(now_early)
+        assert min_early == date(2026, 7, 2)
+        assert max_early == date(2026, 7, 15)
+
+        min_close, max_close = booking_date_window(now_after_close)
+        assert min_close == date(2026, 7, 3)
+        assert max_close == date(2026, 7, 15)
+
+        min_open, max_open = booking_date_window(now_after_open)
+        assert min_open == date(2026, 7, 3)
+        assert max_open == date(2026, 7, 16)
+
+        assert is_day_open_for_booking(date(2026, 7, 2), now_early) is True
+        assert is_day_open_for_booking(date(2026, 7, 2), now_after_close) is False
+        assert is_day_open_for_booking(date(2026, 7, 16), now_after_close) is False
+        assert is_day_open_for_booking(date(2026, 7, 16), now_after_open) is True
 
     def test_only_weekday_pair_sessions_are_bookable(self, lab_work, room, semester):
-        weekday_pair = next_open_weekday_pair(hour=10, minute=35)
+        weekday_pair = next_open_weekday_pair(days_ahead=3, hour=10, minute=35)
         weekend_pair = weekday_pair
         while weekend_pair.weekday() != 5:
             weekend_pair += timezone.timedelta(days=1)
@@ -395,6 +408,25 @@ def test_disciplines_active_semester_only(student, discipline, inactive_discipli
     assert response.status_code == 200
     assert discipline.title.encode() in response.content
     assert inactive_discipline.title.encode() not in response.content
+
+
+@pytest.mark.django_db
+def test_logout_via_post(student):
+    client = Client()
+    client.force_login(student)
+    response = client.post("/logout/")
+    assert response.status_code == 302
+    assert response.url.endswith("/login/")
+    response = client.get("/disciplines/")
+    assert response.status_code == 302
+
+
+@pytest.mark.django_db
+def test_logout_get_not_allowed(student):
+    client = Client()
+    client.force_login(student)
+    response = client.get("/logout/")
+    assert response.status_code == 405
 
 
 @pytest.mark.django_db

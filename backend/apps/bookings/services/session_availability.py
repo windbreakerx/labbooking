@@ -24,17 +24,41 @@ def _parse_opens_at() -> time:
     return time(int(hour), int(minute))
 
 
-def day_opens_at(session_date) -> datetime:
-    """Момент, когда день session_date становится доступен для записи (22:00 предыдущего дня)."""
-    opens_time = _parse_opens_at()
-    open_date = session_date - timedelta(days=1)
-    tz = timezone.get_current_timezone()
-    return timezone.make_aware(datetime.combine(open_date, opens_time), tz)
+def _parse_closes_at() -> time:
+    raw = settings.BOOKING_DAY_CLOSES_AT
+    hour, minute = raw.split(":")
+    return time(int(hour), int(minute))
+
+
+def booking_date_window(now: datetime | None = None) -> tuple:
+    """
+    Рабочее окно дат записи.
+    - До 15:00: [завтра .. +14 дней]
+    - 15:00–21:59: [послезавтра .. +14 дней]
+    - С 22:00: [послезавтра .. +15 дней]
+    """
+    local_now = timezone.localtime(now or timezone.now())
+    current_date = local_now.date()
+    local_time = local_now.time().replace(second=0, microsecond=0)
+
+    min_date = current_date + timedelta(days=1)
+    max_date = current_date + timedelta(days=settings.BOOKING_HORIZON_DAYS)
+
+    if local_time >= _parse_closes_at():
+        min_date += timedelta(days=1)
+    if local_time >= _parse_opens_at():
+        max_date += timedelta(days=1)
+    return min_date, max_date
+
+
+def max_bookable_session_date(now: datetime | None = None):
+    _, max_date = booking_date_window(now)
+    return max_date
 
 
 def is_day_open_for_booking(session_date, now: datetime | None = None) -> bool:
-    now = now or timezone.now()
-    return now >= day_opens_at(session_date)
+    min_date, max_date = booking_date_window(now)
+    return min_date <= session_date <= max_date
 
 
 def is_weekday_for_booking(session_dt: datetime) -> bool:
@@ -99,14 +123,15 @@ def _filter_by_local_time(qs: QuerySet[LabSession], time_str: str) -> QuerySet[L
 
 def bookable_sessions_qs(lab_work_id: int | None = None) -> QuerySet[LabSession]:
     now = timezone.now()
-    horizon = now + timedelta(days=settings.BOOKING_HORIZON_DAYS)
+    min_date, max_date = booking_date_window(now)
     holiday_dates = set(Holiday.objects.values_list("date", flat=True))
 
     qs = (
         LabSession.objects.filter(
             status=LabSessionStatus.OPEN,
             starts_at__gt=now,
-            starts_at__lte=horizon,
+            starts_at__date__gte=min_date,
+            starts_at__date__lte=max_date,
         )
         .select_related("lab_work", "room", "room__training_center")
         .order_by("starts_at")
