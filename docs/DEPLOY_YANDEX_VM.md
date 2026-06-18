@@ -138,6 +138,25 @@ docker compose -f docker-compose.yml -f docker-compose.vm.yml logs -f web
 
 ## HTTPS (домен)
 
+### Вариант A — сертификат уже выпущен в Yandex Certificate Manager (Issued)
+
+1. A-запись домена → IP VM, порт **443** в Security Group.
+2. На VM установите [yc CLI](https://yandex.cloud/ru/docs/cli/quickstart) и выполните `yc init`.
+3. Скачайте сертификат и включите HTTPS:
+   ```bash
+   bash scripts/setup-https-ycm.sh spmi-lab.ru --name cert-spmi-lab
+   # или по ID: bash scripts/setup-https-ycm.sh spmi-lab.ru fpqxxxxxxxx
+   ```
+4. В `.env`:
+   ```env
+   ALLOWED_HOSTS=spmi-lab.ru,www.spmi-lab.ru,<PUBLIC_IP>,localhost,127.0.0.1
+   CSRF_TRUSTED_ORIGINS=https://spmi-lab.ru,https://www.spmi-lab.ru
+   SECURE_SSL_REDIRECT=1
+   ```
+5. Перезапуск: `docker compose -f docker-compose.yml -f docker-compose.vm.yml -f docker-compose.https.yml up -d`
+
+### Вариант B — certbot на VM (без Certificate Manager)
+
 1. A-запись домена → IP VM
 2. На VM:
    ```bash
