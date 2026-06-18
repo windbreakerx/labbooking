@@ -89,7 +89,22 @@ class LabSession(models.Model):
 
     @property
     def available_seats(self):
-        return max(0, self.capacity - self.booked_count)
+        from apps.bookings.models import Booking, BookingStatus
+
+        session_booked = self.booked_count
+        room_overlap_booked = Booking.objects.filter(
+            current_status=BookingStatus.BOOKED,
+            lab_session__room_id=self.room_id,
+            lab_session__starts_at__lt=self.ends_at,
+            lab_session__ends_at__gt=self.starts_at,
+        ).count()
+        return max(
+            0,
+            min(
+                self.capacity - session_booked,
+                self.room.capacity - room_overlap_booked,
+            ),
+        )
 
 
 class Holiday(models.Model):

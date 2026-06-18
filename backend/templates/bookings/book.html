@@ -7,27 +7,20 @@
 <form method="post" id="booking-form">
     {% csrf_token %}
     <div id="filter-chain">
-        <label>Дата
-            <select name="date"
-                    hx-get="{% url 'book-filter' lab_work.pk %}"
-                    hx-target="#filter-chain"
-                    hx-swap="innerHTML"
-                    hx-include="#filter-chain">
-                <option value="">—</option>
-                {% for opt in filter_options %}
-                <option value="{{ opt.value }}">{{ opt.label }}</option>
-                {% endfor %}
-            </select>
-        </label>
+        {% include "bookings/partials/filter_date_calendar.html" with lab_work_id=lab_work.pk options=filter_options calendar_months=calendar_months %}
     </div>
     <div id="session-slot"></div>
     <button type="submit" id="book-btn" disabled>Записаться</button>
 </form>
 <script>
 document.body.addEventListener('htmx:afterSwap', function(evt) {
+    const btn = document.getElementById('book-btn');
+    if (evt.detail.target.id === 'filter-chain') {
+        document.getElementById('session-slot').innerHTML = '';
+        btn.disabled = true;
+    }
     if (evt.detail.target.id === 'session-slot') {
         const sel = document.querySelector('#session-slot select[name=session_id]');
-        const btn = document.getElementById('book-btn');
         if (sel) {
             btn.disabled = !sel.value;
             sel.addEventListener('change', () => { btn.disabled = !sel.value; });

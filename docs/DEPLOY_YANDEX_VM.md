@@ -192,7 +192,12 @@ bash scripts/smoke-test.sh https://your.domain.ru
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python manage.py import_dekanat_csv /path/students.csv --type=students
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python manage.py import_dekanat_csv /path/staff.csv --type=staff
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python manage.py import_dekanat_csv /path/teachers.csv --type=teachers
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python manage.py import_dekanat_csv /path/disciplines.csv --type=disciplines --semester "Пилот 2026/2027 (нефтегаз)"
 ```
+
+Шаблоны CSV для пилота: `docs/csv_templates/`, сценарий наполнения: `docs/PILOT_DATA_SETUP.md`.
 
 ## Схема на VM
 

@@ -1,0 +1,5 @@
+email,password,last_name,first_name,training_center_number,is_staff
+teacher.tng@spmi.ru,pilot123,Соколова,Ирина,1,0
+teacher.bur@spmi.ru,pilot123,Мартынов,Андрей,1,0
+teacher.razr@spmi.ru,pilot123,Климов,Сергей,1,0
+teacher.gas@spmi.ru,pilot123,Лапина,Виктория,1,0

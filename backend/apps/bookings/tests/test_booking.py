@@ -16,6 +16,29 @@ from apps.scheduling.models import LabSession, LabSessionStatus, Room, TrainingC
 from apps.users.models import User, UserRole
 
 
+@pytest.fixture(autouse=True)
+def _disable_day_open_gate(monkeypatch):
+    monkeypatch.setattr("apps.bookings.services.session_availability.is_day_open_for_booking", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr("apps.bookings.services.booking.is_day_open_for_booking", lambda *_args, **_kwargs: True)
+
+
+def next_open_weekday_pair(days_ahead: int = 1, hour: int = 10, minute: int = 35):
+    now = timezone.now()
+    tz = timezone.get_current_timezone()
+    for day_offset in range(days_ahead, 14):
+        candidate_date = (now + timezone.timedelta(days=day_offset)).date()
+        if candidate_date.weekday() >= 5:
+            continue
+        candidate = timezone.make_aware(
+            datetime.combine(candidate_date, time(hour, minute)),
+            tz,
+        )
+        if candidate <= now:
+            continue
+        return candidate
+    raise RuntimeError("Не удалось подобрать открытую пару для теста.")
+
+
 @pytest.fixture
 def semester(db):
     return Semester.objects.create(
@@ -61,8 +84,7 @@ def room():
 
 @pytest.fixture
 def session(lab_work, room, semester):
-    starts = timezone.now() + timezone.timedelta(days=3)
-    starts = starts.replace(hour=10, minute=0, second=0, microsecond=0)
+    starts = next_open_weekday_pair(days_ahead=2, hour=10, minute=35)
     return LabSession.objects.create(
         lab_work=lab_work,
         room=room,
@@ -77,6 +99,7 @@ def session(lab_work, room, semester):
 @pytest.fixture
 def far_session(lab_work, room, semester):
     starts = timezone.now() + timezone.timedelta(days=20)
+    starts = starts.replace(hour=10, minute=35, second=0, microsecond=0)
     return LabSession.objects.create(
         lab_work=lab_work,
         room=room,
@@ -140,7 +163,7 @@ class TestBookingService:
 
     def test_one_booking_per_discipline(self, student, session, lab_work, room, semester):
         BookingService().create_booking(student, session.pk)
-        starts2 = timezone.now() + timezone.timedelta(days=4)
+        starts2 = session.starts_at
         session2 = LabSession.objects.create(
             lab_work=lab_work,
             room=room,
@@ -170,14 +193,50 @@ class TestBookingService:
         cancelled = service.cancel_booking(booking)
         assert cancelled.current_status == BookingStatus.CANCELLED
 
+    @override_settings(BOOKING_CANCEL_HOURS=200)
     def test_cancel_after_deadline_denied(self, student, session):
-        session.starts_at = timezone.now() + timezone.timedelta(hours=2)
         session.ends_at = session.starts_at + timezone.timedelta(minutes=90)
         session.save()
         service = BookingService(actor=student)
         booking = service.create_booking(student, session.pk)
-        with pytest.raises(BookingError, match="24"):
+        with pytest.raises(BookingError, match="200"):
             service.cancel_booking(booking)
+
+    def test_room_parallel_capacity_limit(self, student, session, lab_work, room, semester):
+        other_student = User.objects.create_user(
+            email="s2@stud.spmi.ru",
+            password="pass",
+            first_name="I",
+            last_name="II",
+            role=UserRole.STUDENT,
+        )
+        third_student = User.objects.create_user(
+            email="s3@stud.spmi.ru",
+            password="pass",
+            first_name="III",
+            last_name="IV",
+            role=UserRole.STUDENT,
+        )
+        second_lab_work = LabWork.objects.create(
+            discipline=lab_work.discipline,
+            number=2,
+            title="ЛР 2",
+            duration_minutes=90,
+            is_published=True,
+        )
+        parallel_session = LabSession.objects.create(
+            lab_work=second_lab_work,
+            room=room,
+            semester=semester,
+            starts_at=session.starts_at,
+            ends_at=session.ends_at,
+            capacity=2,
+            status=LabSessionStatus.OPEN,
+        )
+        BookingService().create_booking(student, session.pk)
+        BookingService().create_booking(other_student, parallel_session.pk)
+        with pytest.raises(BookingError, match="Аудитория"):
+            BookingService().create_booking(third_student, parallel_session.pk)
 
     def test_staff_status_change(self, student, session, staff):
         booking = BookingService(actor=student).create_booking(student, session.pk)
@@ -212,6 +271,46 @@ class TestSessionAvailability:
             timezone.get_current_timezone(),
         )
         assert is_day_open_for_booking(session_date, before_open) is False
+
+    def test_only_weekday_pair_sessions_are_bookable(self, lab_work, room, semester):
+        weekday_pair = next_open_weekday_pair(hour=10, minute=35)
+        weekend_pair = weekday_pair
+        while weekend_pair.weekday() != 5:
+            weekend_pair += timezone.timedelta(days=1)
+        non_pair_weekday = weekday_pair.replace(hour=11, minute=0)
+
+        s1 = LabSession.objects.create(
+            lab_work=lab_work,
+            room=room,
+            semester=semester,
+            starts_at=weekday_pair,
+            ends_at=weekday_pair + timezone.timedelta(minutes=90),
+            capacity=2,
+            status=LabSessionStatus.OPEN,
+        )
+        s2 = LabSession.objects.create(
+            lab_work=lab_work,
+            room=room,
+            semester=semester,
+            starts_at=weekend_pair,
+            ends_at=weekend_pair + timezone.timedelta(minutes=90),
+            capacity=2,
+            status=LabSessionStatus.OPEN,
+        )
+        s3 = LabSession.objects.create(
+            lab_work=lab_work,
+            room=room,
+            semester=semester,
+            starts_at=non_pair_weekday,
+            ends_at=non_pair_weekday + timezone.timedelta(minutes=90),
+            capacity=2,
+            status=LabSessionStatus.OPEN,
+        )
+
+        qs = bookable_sessions_qs(lab_work_id=lab_work.pk)
+        assert s1 in qs
+        assert s2 not in qs
+        assert s3 not in qs
 
 
 @pytest.mark.django_db

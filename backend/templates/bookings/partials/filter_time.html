@@ -1,13 +1,10 @@
-<label>Дата
-    <select name="date"
-            hx-get="{% url 'book-filter' lab_work_id %}"
-            hx-target="#filter-chain"
-            hx-swap="innerHTML"
-            hx-include="#filter-chain">
-        <option value="">—</option>
-        <option value="{{ date }}" selected>{{ date }}</option>
-    </select>
-</label>
+<input type="hidden" name="date" value="{{ date }}">
+<p><strong>Выбранный день:</strong> {{ date }}</p>
+<button type="button"
+        class="btn-link"
+        hx-get="{% url 'book-filter' lab_work_id %}"
+        hx-target="#filter-chain"
+        hx-swap="innerHTML">Выбрать другой день</button>
 <label>Время
     <select name="time"
             hx-get="{% url 'book-filter' lab_work_id %}"

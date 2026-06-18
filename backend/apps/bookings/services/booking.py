@@ -11,7 +11,11 @@ from apps.bookings.models import (
     RegistrationType,
     WaitlistEntry,
 )
-from apps.bookings.services.session_availability import is_day_open_for_booking
+from apps.bookings.services.session_availability import (
+    is_day_open_for_booking,
+    is_pair_time_for_booking,
+    is_weekday_for_booking,
+)
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
 from apps.users.models import User, UserRole
 
@@ -64,10 +68,22 @@ class BookingService:
                 )
         if session.starts_at <= now:
             raise BookingError("Нельзя записаться на прошедший слот.")
+        if not is_weekday_for_booking(session.starts_at):
+            raise BookingError("Запись доступна только в будние дни.")
+        if not is_pair_time_for_booking(session.starts_at):
+            raise BookingError("Запись доступна только на университетские пары.")
         if session.status != LabSessionStatus.OPEN:
             raise BookingError("Слот недоступен для записи.")
         if Holiday.objects.filter(date=session.starts_at.date()).exists():
             raise BookingError("Запись в праздничный день недоступна.")
+
+    def _room_overlap_booked(self, session: LabSession) -> int:
+        return Booking.objects.filter(
+            current_status=BookingStatus.BOOKED,
+            lab_session__room_id=session.room_id,
+            lab_session__starts_at__lt=session.ends_at,
+            lab_session__ends_at__gt=session.starts_at,
+        ).count()
 
     def _validate_cancel_window(self, booking: Booking, by_staff: bool = False):
         if by_staff:
@@ -120,6 +136,11 @@ class BookingService:
         booked_count = session.bookings.filter(current_status=BookingStatus.BOOKED).count()
         if not skip_rules and booked_count >= session.capacity:
             raise BookingError("Нет свободных мест.")
+        room_overlap_booked = self._room_overlap_booked(session)
+        if room_overlap_booked >= session.room.capacity:
+            raise BookingError(
+                f"Аудитория {session.room.number} заполнена на это время. Выберите другую пару."
+            )
 
         booking = Booking.objects.create(
             student=student,

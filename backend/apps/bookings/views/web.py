@@ -1,3 +1,6 @@
+import calendar
+from datetime import datetime
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseForbidden
@@ -10,12 +13,71 @@ from apps.academics.querysets import published_disciplines_qs, published_lab_wor
 from apps.bookings.models import Booking, SupportTicket
 from apps.bookings.services import BookingError, BookingService, is_staff_user
 from apps.bookings.services.session_availability import (
-    bookable_sessions_qs,
     get_session_filter_options,
     get_sessions_for_selection,
 )
 from apps.scheduling.models import TrainingCenter
 from apps.users.models import UserRole
+
+WEEKDAY_HEADERS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+MONTH_NAMES = [
+    "",
+    "Январь",
+    "Февраль",
+    "Март",
+    "Апрель",
+    "Май",
+    "Июнь",
+    "Июль",
+    "Август",
+    "Сентябрь",
+    "Октябрь",
+    "Ноябрь",
+    "Декабрь",
+]
+
+
+def build_calendar_months(date_options: list[dict]) -> list[dict]:
+    option_by_date = {}
+    parsed_dates = []
+    for option in date_options:
+        value = option.get("value")
+        if not value:
+            continue
+        parsed = datetime.fromisoformat(value).date()
+        option_by_date[parsed] = option
+        parsed_dates.append(parsed)
+
+    if not parsed_dates:
+        return []
+
+    month_keys = sorted({(d.year, d.month) for d in parsed_dates})
+    months = []
+    for year, month in month_keys:
+        month_calendar = calendar.Calendar(firstweekday=0).monthdatescalendar(year, month)
+        weeks = []
+        for week in month_calendar:
+            cells = []
+            for day in week:
+                option = option_by_date.get(day)
+                cells.append(
+                    {
+                        "day": day.day,
+                        "is_current_month": day.month == month,
+                        "is_available": bool(option),
+                        "value": option.get("value") if option else "",
+                        "label": option.get("label") if option else "",
+                    }
+                )
+            weeks.append(cells)
+        months.append(
+            {
+                "title": f"{MONTH_NAMES[month]} {year}",
+                "weeks": weeks,
+                "weekday_headers": WEEKDAY_HEADERS,
+            }
+        )
+    return months
 
 
 class HomeView(LoginRequiredMixin, TemplateView):
@@ -70,6 +132,7 @@ class BookLabWorkWebView(LoginRequiredMixin, View):
                 "lab_work": lab_work,
                 "filter_level": filter_data["level"],
                 "filter_options": filter_data["options"],
+                "calendar_months": build_calendar_months(filter_data["options"]),
             },
         )
 
@@ -106,21 +169,24 @@ class BookFilterPartialView(LoginRequiredMixin, View):
 
         filter_data = get_session_filter_options(lab_work_id, date, time_str, tc_number)
         template_map = {
-            "date": "bookings/partials/filter_date.html",
+            "date": "bookings/partials/filter_date_calendar.html",
             "time": "bookings/partials/filter_time.html",
             "training_center": "bookings/partials/filter_tc.html",
             "room": "bookings/partials/filter_room.html",
         }
+        context = {
+            "lab_work_id": lab_work_id,
+            "options": filter_data["options"],
+            "date": date,
+            "time": time_str,
+            "tc": tc_number,
+        }
+        if filter_data["level"] == "date":
+            context["calendar_months"] = build_calendar_months(filter_data["options"])
         return render(
             request,
             template_map[filter_data["level"]],
-            {
-                "lab_work_id": lab_work_id,
-                "options": filter_data["options"],
-                "date": date,
-                "time": time_str,
-                "tc": tc_number,
-            },
+            context,
         )
 
 
