@@ -23,34 +23,59 @@
     <button type="button" class="button button--secondary" id="manual-booking-open">Ручная запись</button>
 </div>
 
-<dialog id="manual-booking-dialog" class="app-dialog" aria-labelledby="manual-booking-title">
+<dialog id="manual-booking-dialog" class="app-dialog app-dialog--wide" aria-labelledby="manual-booking-title">
     <div class="app-dialog__header">
         <h2 class="card__title" id="manual-booking-title">Ручная запись</h2>
-        <p class="muted">Для исключительных ситуаций и оперативной помощи студенту.</p>
+        <p class="muted">Поиск студента, выбор лабораторной работы и слота в календаре.</p>
     </div>
-    <form method="post" action="{% url 'staff-booking-manual' %}" class="form-grid manual-booking__form">
+    <form method="post" action="{% url 'staff-booking-manual' %}" class="form-grid manual-booking__form" id="manual-booking-form">
         {% csrf_token %}
-        <label>
-            Email студента
-            <input type="email" name="student_email" required placeholder="student001@stud.local" autocomplete="off">
-        </label>
-        <label>
-            Слот
-            <select name="session_id" required>
-                <option value="">— выберите слот —</option>
-                {% for s in manual_sessions %}
-                <option value="{{ s.pk }}">
-                    {{ s.starts_at|date:"d.m.Y H:i" }} — {{ s.lab_work.title }} (ауд. {{ s.room.number }})
-                </option>
+        <input type="hidden" name="student_id" id="manual-student-id" value="">
+
+        <div class="manual-booking__section">
+            <label for="manual-student-query">Студент</label>
+            <input
+                type="search"
+                id="manual-student-query"
+                name="q"
+                placeholder="ФИО, группа или email"
+                autocomplete="off"
+                hx-get="{% url 'staff-manual-student-search' %}"
+                hx-trigger="input changed delay:300ms, search"
+                hx-target="#manual-student-results"
+                hx-swap="innerHTML"
+            >
+            <div id="manual-student-results" class="manual-student-search"></div>
+            <div id="manual-selected-student" class="manual-student-selected" hidden>
+                <span class="manual-student-selected__label">Выбран:</span>
+                <strong id="manual-selected-student-name"></strong>
+                <span class="muted" id="manual-selected-student-meta"></span>
+                <button type="button" class="btn-link" id="manual-student-clear">Изменить</button>
+            </div>
+        </div>
+
+        <div class="manual-booking__section">
+            <label for="manual-lab-work">Лабораторная работа</label>
+            <select id="manual-lab-work" disabled>
+                <option value="">— сначала выберите студента —</option>
+                {% for lw in manual_lab_works %}
+                <option value="{{ lw.pk }}">{{ lw.discipline.title }} — {{ lw.title }}</option>
                 {% endfor %}
             </select>
-        </label>
-        <div class="app-dialog__actions">
-            <button type="submit">Записать</button>
+        </div>
+
+        <div id="manual-filter-chain" class="manual-booking__calendar"></div>
+        <div id="manual-session-slot"></div>
+
+        <div class="app-dialog__actions manual-booking__actions">
+            <button type="submit" id="manual-book-btn" disabled>Записать</button>
             <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
         </div>
     </form>
-    <p class="admin-note muted">Ручная запись обходит лимиты студента (горизонт, 1 запись на дисциплину, вместимость).</p>
+    <div class="admin-note muted">
+        <p><strong>Обходится при ручной записи:</strong> горизонт записи (14 дней), лимит «1 активная запись на дисциплину», вместимость слота.</p>
+        <p><strong>Сохраняется:</strong> только будущие слоты, будни и университетские пары, статус OPEN, запрет праздников, лимит пересечений по аудитории, привязка к вашей лаборатории.</p>
+    </div>
 </dialog>
 
 <section class="card card--form filter-panel staff-filters">
@@ -199,6 +224,105 @@
 (function () {
     var dialog = document.getElementById('manual-booking-dialog');
     var openBtn = document.getElementById('manual-booking-open');
+    var studentIdInput = document.getElementById('manual-student-id');
+    var studentQuery = document.getElementById('manual-student-query');
+    var studentResults = document.getElementById('manual-student-results');
+    var selectedStudent = document.getElementById('manual-selected-student');
+    var selectedStudentName = document.getElementById('manual-selected-student-name');
+    var selectedStudentMeta = document.getElementById('manual-selected-student-meta');
+    var studentClearBtn = document.getElementById('manual-student-clear');
+    var labWorkSelect = document.getElementById('manual-lab-work');
+    var filterChain = document.getElementById('manual-filter-chain');
+    var sessionSlot = document.getElementById('manual-session-slot');
+    var bookBtn = document.getElementById('manual-book-btn');
+
+    function resetManualSlotSelection() {
+        if (sessionSlot) {
+            sessionSlot.innerHTML = '';
+        }
+        if (bookBtn) {
+            bookBtn.disabled = true;
+        }
+    }
+
+    function resetManualCalendar() {
+        if (filterChain) {
+            filterChain.innerHTML = '';
+        }
+        resetManualSlotSelection();
+    }
+
+    function updateManualBookButton() {
+        if (!bookBtn) {
+            return;
+        }
+        var hiddenSession = sessionSlot && sessionSlot.querySelector('input[name=session_id][type=hidden]');
+        var selectSession = sessionSlot && sessionSlot.querySelector('select[name=session_id]');
+        if (hiddenSession) {
+            bookBtn.disabled = false;
+        } else if (selectSession) {
+            bookBtn.disabled = !selectSession.value;
+        } else {
+            bookBtn.disabled = true;
+        }
+    }
+
+    function loadManualCalendar(labWorkId) {
+        if (!labWorkId || !filterChain || typeof htmx === 'undefined') {
+            resetManualCalendar();
+            return;
+        }
+        resetManualSlotSelection();
+        htmx.ajax('GET', '/staff/bookings/manual/filter/' + labWorkId + '/', {
+            target: '#manual-filter-chain',
+            swap: 'innerHTML',
+        });
+    }
+
+    function selectStudent(button) {
+        if (!button || !studentIdInput) {
+            return;
+        }
+        studentIdInput.value = button.getAttribute('data-student-id') || '';
+        if (selectedStudentName) {
+            selectedStudentName.textContent = button.getAttribute('data-student-name') || '';
+        }
+        if (selectedStudentMeta) {
+            var meta = button.getAttribute('data-student-email') || '';
+            var group = button.getAttribute('data-student-group') || '';
+            selectedStudentMeta.textContent = group ? meta + ' · гр. ' + group : meta;
+        }
+        if (selectedStudent) {
+            selectedStudent.hidden = false;
+        }
+        if (studentQuery) {
+            studentQuery.value = '';
+        }
+        if (studentResults) {
+            studentResults.innerHTML = '';
+        }
+        if (labWorkSelect) {
+            labWorkSelect.disabled = false;
+            if (labWorkSelect.options.length === 2) {
+                labWorkSelect.selectedIndex = 1;
+                loadManualCalendar(labWorkSelect.value);
+            }
+        }
+    }
+
+    function clearStudentSelection() {
+        if (studentIdInput) {
+            studentIdInput.value = '';
+        }
+        if (selectedStudent) {
+            selectedStudent.hidden = true;
+        }
+        if (labWorkSelect) {
+            labWorkSelect.disabled = true;
+            labWorkSelect.selectedIndex = 0;
+        }
+        resetManualCalendar();
+    }
 
     if (dialog && openBtn) {
         openBtn.addEventListener('click', function () {
@@ -217,6 +341,41 @@
             });
         });
     }
+
+    if (studentResults) {
+        studentResults.addEventListener('click', function (e) {
+            var button = e.target.closest('.manual-student-search__item');
+            if (button) {
+                selectStudent(button);
+            }
+        });
+    }
+
+    if (studentClearBtn) {
+        studentClearBtn.addEventListener('click', clearStudentSelection);
+    }
+
+    if (labWorkSelect) {
+        labWorkSelect.addEventListener('change', function () {
+            loadManualCalendar(this.value);
+        });
+    }
+
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+        if (!evt.detail.target) {
+            return;
+        }
+        if (evt.detail.target.id === 'manual-filter-chain') {
+            resetManualSlotSelection();
+        }
+        if (evt.detail.target.id === 'manual-session-slot') {
+            updateManualBookButton();
+            var sel = sessionSlot && sessionSlot.querySelector('select[name=session_id]');
+            if (sel) {
+                sel.addEventListener('change', updateManualBookButton);
+            }
+        }
+    });
 
     document.querySelectorAll('.status-select-form--confirm').forEach(function (form) {
         var select = form.querySelector('select[name="status"]');

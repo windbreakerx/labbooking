@@ -31,8 +31,8 @@
                         class="calendar-day calendar-day--available"
                         style="--heat: {{ cell.heat }}%;"
                         title="{{ cell.label }} — {{ cell.available_seats }} своб. мест"
-                        hx-get="{% url 'book-filter' lab_work_id %}?date={{ cell.value }}"
-                        hx-target="#filter-chain"
+                        hx-get="{% url filter_route|default:'book-filter' lab_work_id %}?date={{ cell.value }}"
+                        hx-target="{{ filter_chain_selector|default:'#filter-chain' }}"
                         hx-swap="innerHTML"
                     >
                         {{ cell.day }}

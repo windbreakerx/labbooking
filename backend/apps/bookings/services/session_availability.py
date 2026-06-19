@@ -145,14 +145,47 @@ def bookable_sessions_qs(lab_work_id: int | None = None) -> QuerySet[LabSession]
     return _filter_sessions_with_free_seats(qs)
 
 
+def staff_manual_sessions_qs(lab_work_id: int) -> QuerySet[LabSession]:
+    """
+    Слоты для ручной записи сотрудником: без горизонта записи и фильтра по свободным местам,
+    но с ограничениями расписания (будни, пары, праздники, только будущие OPEN-слоты).
+    """
+    now = timezone.now()
+    holiday_dates = set(Holiday.objects.values_list("date", flat=True))
+    qs = (
+        LabSession.objects.filter(
+            status=LabSessionStatus.OPEN,
+            starts_at__gt=now,
+            lab_work_id=lab_work_id,
+        )
+        .select_related("lab_work", "room", "room__training_center")
+        .order_by("starts_at")
+    )
+    if holiday_dates:
+        qs = qs.exclude(starts_at__date__in=holiday_dates)
+
+    session_ids = []
+    for session in qs:
+        if not is_weekday_for_booking(session.starts_at):
+            continue
+        if not is_pair_time_for_booking(session.starts_at):
+            continue
+        session_ids.append(session.pk)
+    if not session_ids:
+        return qs.none()
+    return qs.filter(pk__in=session_ids)
+
+
 def get_session_filter_options(
     lab_work_id: int,
     date: str | None = None,
     time_str: str | None = None,
     tc_number: str | None = None,
+    *,
+    sessions_qs: QuerySet[LabSession] | None = None,
 ) -> dict:
     """Каскадные опции: date → time → training_center → room → sessions."""
-    qs = bookable_sessions_qs(lab_work_id=lab_work_id)
+    qs = sessions_qs if sessions_qs is not None else bookable_sessions_qs(lab_work_id=lab_work_id)
 
     if date:
         qs = _filter_by_local_date(qs, date)
@@ -230,8 +263,10 @@ def get_sessions_for_date_time(
     lab_work_id: int,
     date: str,
     time_str: str,
+    *,
+    sessions_qs: QuerySet[LabSession] | None = None,
 ) -> QuerySet[LabSession]:
-    qs = bookable_sessions_qs(lab_work_id=lab_work_id)
+    qs = sessions_qs if sessions_qs is not None else bookable_sessions_qs(lab_work_id=lab_work_id)
     qs = _filter_by_local_date(qs, date)
     qs = _filter_by_local_time(qs, time_str)
     return qs
@@ -242,5 +277,12 @@ def get_sessions_for_selection(
     date: str,
     time_str: str,
     room_id: int,
+    *,
+    sessions_qs: QuerySet[LabSession] | None = None,
 ) -> QuerySet[LabSession]:
-    return get_sessions_for_date_time(lab_work_id, date, time_str).filter(room_id=room_id)
+    return get_sessions_for_date_time(
+        lab_work_id,
+        date,
+        time_str,
+        sessions_qs=sessions_qs,
+    ).filter(room_id=room_id)

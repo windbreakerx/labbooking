@@ -1,0 +1,26 @@
+{% if query|length < 2 %}
+<p class="muted manual-student-search__hint">Введите минимум 2 символа: ФИО, группу или email.</p>
+{% elif students %}
+<ul class="manual-student-search__list" role="listbox" aria-label="Результаты поиска студентов">
+    {% for s in students %}
+    <li>
+        <button
+            type="button"
+            class="manual-student-search__item"
+            data-student-id="{{ s.pk }}"
+            data-student-name="{{ s.full_name }}"
+            data-student-email="{{ s.email }}"
+            data-student-group="{% if s.profile.student_group %}{{ s.profile.student_group.name }}{% else %}{{ s.profile.group_name|default:'' }}{% endif %}"
+        >
+            <strong>{{ s.full_name }}</strong>
+            <span class="muted">{{ s.email }}</span>
+            {% if s.profile.student_group or s.profile.group_name %}
+            <span class="manual-student-search__group">гр. {% if s.profile.student_group %}{{ s.profile.student_group.name }}{% else %}{{ s.profile.group_name }}{% endif %}</span>
+            {% endif %}
+        </button>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="muted">Студенты не найдены. Уточните запрос.</p>
+{% endif %}

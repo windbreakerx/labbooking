@@ -5,7 +5,6 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
@@ -15,6 +14,7 @@ from apps.academics.querysets import (
     staff_disciplines_qs,
     staff_lab_works_qs,
     staff_managed_disciplines_qs,
+    staff_managed_lab_works_qs,
     student_disciplines_qs,
     student_lab_works_qs,
     student_support_training_centers_qs,
@@ -25,6 +25,7 @@ from apps.bookings.services import (
     BookingService,
     filter_staff_bookings,
     is_staff_user,
+    search_students_for_staff,
     staff_can_access_scoped_object,
     staff_lab_filter,
 )
@@ -33,8 +34,9 @@ from apps.bookings.services.session_availability import (
     get_sessions_for_date_time,
     get_sessions_for_selection,
     pair_meta_by_time,
+    staff_manual_sessions_qs,
 )
-from apps.scheduling.models import LabSession, LabSessionStatus, TrainingCenter
+from apps.scheduling.models import LabSession, TrainingCenter
 from apps.users.models import User, UserRole
 
 WEEKDAY_HEADERS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
@@ -101,6 +103,108 @@ def build_calendar_months(date_options: list[dict]) -> list[dict]:
             }
         )
     return months
+
+
+MANUAL_BOOKING_PARTIAL_CONTEXT = {
+    "filter_route": "staff-manual-filter",
+    "filter_chain_selector": "#manual-filter-chain",
+    "session_slot_selector": "#manual-session-slot",
+    "book_btn_id": "manual-book-btn",
+    "manual_mode": True,
+}
+
+
+def _staff_manual_sessions_qs(user, lab_work_id: int):
+    return staff_lab_filter(staff_manual_sessions_qs(lab_work_id), user)
+
+
+def _render_manual_filter_partial(request, lab_work_id: int, date, time_str, tc_number, room_id):
+    sessions_qs = _staff_manual_sessions_qs(request.user, lab_work_id)
+    ctx = {**MANUAL_BOOKING_PARTIAL_CONTEXT, "lab_work_id": lab_work_id}
+
+    if date and time_str and not room_id:
+        sessions = list(
+            get_sessions_for_date_time(
+                lab_work_id,
+                date,
+                time_str,
+                sessions_qs=sessions_qs,
+            ).select_related("room", "room__training_center")
+        )
+        if len(sessions) == 1:
+            pair_label = ""
+            if meta := pair_meta_by_time(time_str):
+                _, pair_label = meta
+            return render(
+                request,
+                "bookings/partials/session_confirm.html",
+                {
+                    **ctx,
+                    "session": sessions[0],
+                    "date": date,
+                    "time": time_str,
+                    "pair_label": pair_label,
+                },
+            )
+        if len(sessions) > 1:
+            rooms = {s.room_id: s.room for s in sessions}
+            return render(
+                request,
+                "bookings/partials/filter_room.html",
+                {
+                    **ctx,
+                    "date": date,
+                    "time": time_str,
+                    "options": [
+                        {
+                            "value": str(room.pk),
+                            "label": (
+                                f"ауд. {room.number} "
+                                f"(УЦ №{room.training_center.number})"
+                            ),
+                        }
+                        for room in sorted(rooms.values(), key=lambda r: r.number)
+                    ],
+                },
+            )
+
+    if room_id and date and time_str:
+        sessions = get_sessions_for_selection(
+            lab_work_id,
+            date,
+            time_str,
+            int(room_id),
+            sessions_qs=sessions_qs,
+        )
+        return render(
+            request,
+            "bookings/partials/session_select.html",
+            {**ctx, "sessions": sessions},
+        )
+
+    filter_data = get_session_filter_options(
+        lab_work_id,
+        date,
+        time_str,
+        tc_number,
+        sessions_qs=sessions_qs,
+    )
+    template_map = {
+        "date": "bookings/partials/filter_date_calendar.html",
+        "time": "bookings/partials/filter_time.html",
+        "training_center": "bookings/partials/filter_tc.html",
+        "room": "bookings/partials/filter_room.html",
+    }
+    context = {
+        **ctx,
+        "options": filter_data["options"],
+        "date": date,
+        "time": time_str,
+        "tc": tc_number,
+    }
+    if filter_data["level"] == "date":
+        context["calendar_months"] = build_calendar_months(filter_data["options"])
+    return render(request, template_map[filter_data["level"]], context)
 
 
 class HomeView(LoginRequiredMixin, TemplateView):
@@ -424,26 +528,59 @@ class StaffBookingsWebView(LoginRequiredMixin, ListView):
             semester__is_active=True,
         )
         ctx["status_choices"] = Booking._meta.get_field("current_status").choices
-        sessions_qs = LabSession.objects.filter(
-            status=LabSessionStatus.OPEN,
-            starts_at__gt=timezone.now(),
-        ).select_related("lab_work", "room", "room__training_center")
-        ctx["manual_sessions"] = staff_lab_filter(
-            sessions_qs,
-            self.request.user,
-        ).order_by("starts_at")[:200]
+        ctx["manual_lab_works"] = staff_managed_lab_works_qs(self.request.user).filter(
+            discipline__semester__is_active=True,
+            is_published=True,
+        )
         return ctx
+
+
+class StaffManualStudentSearchView(LoginRequiredMixin, View):
+    def get(self, request):
+        if not is_staff_user(request.user):
+            return HttpResponseForbidden()
+        query = request.GET.get("q", "").strip()
+        students = search_students_for_staff(query)
+        return render(
+            request,
+            "bookings/partials/staff_manual_student_results.html",
+            {"students": students, "query": query},
+        )
+
+
+class StaffManualFilterPartialView(LoginRequiredMixin, View):
+    """HTMX partial: календарный выбор слота для ручной записи (staff/lab scope)."""
+
+    def get(self, request, lab_work_id):
+        if not is_staff_user(request.user):
+            return HttpResponseForbidden()
+        get_object_or_404(staff_lab_works_qs(request.user), pk=lab_work_id)
+        date = request.GET.get("date") or None
+        time_str = request.GET.get("time") or None
+        tc_number = request.GET.get("tc") or None
+        room_id = request.GET.get("room") or None
+        return _render_manual_filter_partial(
+            request,
+            lab_work_id,
+            date,
+            time_str,
+            tc_number,
+            room_id,
+        )
 
 
 class StaffManualBookingWebView(LoginRequiredMixin, View):
     def post(self, request):
         if not is_staff_user(request.user):
             return redirect("home")
-        student_email = request.POST.get("student_email", "").strip().lower()
+        student_id = request.POST.get("student_id")
         session_id = request.POST.get("session_id")
-        student = User.objects.filter(email__iexact=student_email, role=UserRole.STUDENT).first()
+        if not student_id:
+            messages.error(request, "Выберите студента из результатов поиска.")
+            return redirect("staff-bookings")
+        student = User.objects.filter(pk=student_id, role=UserRole.STUDENT).first()
         if not student:
-            messages.error(request, "Студент с таким email не найден.")
+            messages.error(request, "Студент не найден.")
             return redirect("staff-bookings")
         if not session_id:
             messages.error(request, "Выберите слот для записи.")
@@ -455,6 +592,9 @@ class StaffManualBookingWebView(LoginRequiredMixin, View):
         )
         if not scoped.exists():
             messages.error(request, "Слот недоступен для вашей лаборатории.")
+            return redirect("staff-bookings")
+        if not staff_lab_works_qs(request.user).filter(pk=session.lab_work_id).exists():
+            messages.error(request, "Лабораторная работа недоступна для вашей лаборатории.")
             return redirect("staff-bookings")
         service = BookingService(actor=request.user)
         try:

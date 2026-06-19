@@ -397,9 +397,40 @@ def filter_staff_bookings(qs, params):
     if date_to := params.get("date_to"):
         qs = qs.filter(scheduled_at__date__lte=date_to)
     if student_q := params.get("student"):
-        qs = qs.filter(
-            Q(student__email__icontains=student_q)
-            | Q(student__last_name__icontains=student_q)
-            | Q(student__first_name__icontains=student_q)
-        )
+        qs = qs.filter(_student_search_q(student_q, prefix="student__"))
     return qs
+
+
+def _student_search_q(query: str, *, prefix: str = ""):
+    from django.db.models import Q
+
+    query = query.strip()
+    parts = query.split()
+    if len(parts) >= 2:
+        return (
+            Q(**{f"{prefix}last_name__icontains": parts[0], f"{prefix}first_name__icontains": parts[-1]})
+            | Q(**{f"{prefix}email__icontains": query})
+            | Q(**{f"{prefix}profile__group_name__icontains": query})
+            | Q(**{f"{prefix}profile__student_group__name__icontains": query})
+        )
+    return (
+        Q(**{f"{prefix}email__icontains": query})
+        | Q(**{f"{prefix}last_name__icontains": query})
+        | Q(**{f"{prefix}first_name__icontains": query})
+        | Q(**{f"{prefix}profile__group_name__icontains": query})
+        | Q(**{f"{prefix}profile__student_group__name__icontains": query})
+    )
+
+
+def search_students_for_staff(query: str, limit: int = 15):
+    from django.db.models import Q
+
+    query = (query or "").strip()
+    if len(query) < 2:
+        return User.objects.none()
+    return (
+        User.objects.filter(role=UserRole.STUDENT)
+        .select_related("profile", "profile__student_group")
+        .filter(_student_search_q(query))
+        .order_by("last_name", "first_name", "email")[:limit]
+    )

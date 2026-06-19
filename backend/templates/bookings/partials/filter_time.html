@@ -4,18 +4,18 @@
         <span class="badge badge--muted booking-step-badge">Шаг 2</span>
         <button type="button"
                 class="btn-link"
-                hx-get="{% url 'book-filter' lab_work_id %}"
-                hx-target="#filter-chain"
+                hx-get="{% url filter_route|default:'book-filter' lab_work_id %}"
+                hx-target="{{ filter_chain_selector|default:'#filter-chain' }}"
                 hx-swap="innerHTML">← Выбрать другой день</button>
     </div>
     <p class="selected-value"><span>Выбранный день</span> {{ date }}</p>
     <label>Время
         <select name="time"
                 class="booking-select"
-                hx-get="{% url 'book-filter' lab_work_id %}"
-                hx-target="#session-slot"
+                hx-get="{% url filter_route|default:'book-filter' lab_work_id %}"
+                hx-target="{{ session_slot_selector|default:'#session-slot' }}"
                 hx-swap="innerHTML"
-                hx-include="#filter-chain">
+                hx-include="{{ filter_chain_selector|default:'#filter-chain' }}">
             <option value="">—</option>
             {% for opt in options %}
             <option value="{{ opt.value }}">{{ opt.label }}</option>

@@ -4,7 +4,7 @@
         <span class="badge badge--muted booking-step-badge">Шаг 4</span>
     </div>
     <label>Слот
-        <select name="session_id" required onchange="document.getElementById('book-btn').disabled = !this.value">
+        <select name="session_id" required onchange="document.getElementById('{{ book_btn_id|default:'book-btn' }}').disabled = !this.value">
             <option value="">—</option>
             {% for s in sessions %}
             <option value="{{ s.pk }}">
@@ -14,7 +14,7 @@
         </select>
     </label>
     <p class="muted booking-step-panel__hint">Выберите конкретный слот. После выбора станет доступна кнопка записи.</p>
-    {% if sessions.0.available_seats == 0 %}
+    {% if not manual_mode and sessions.0.available_seats == 0 %}
     <div class="waitlist-card">
         <p class="waitlist-card__text">Свободных мест нет — можно встать в очередь.</p>
         <form method="post" action="{% url 'waitlist-join' %}">

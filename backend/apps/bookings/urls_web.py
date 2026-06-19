@@ -24,6 +24,8 @@ from apps.bookings.views.web import (
     MyBookingsWebView,
     StaffBookingsWebView,
     StaffManualBookingWebView,
+    StaffManualFilterPartialView,
+    StaffManualStudentSearchView,
     StaffStatusUpdateWebView,
     SupportCreateWebView,
     SupportDetailWebView,
@@ -57,6 +59,16 @@ urlpatterns = [
         "staff/bookings/manual/",
         StaffManualBookingWebView.as_view(),
         name="staff-booking-manual",
+    ),
+    path(
+        "staff/bookings/manual/search/",
+        StaffManualStudentSearchView.as_view(),
+        name="staff-manual-student-search",
+    ),
+    path(
+        "staff/bookings/manual/filter/<int:lab_work_id>/",
+        StaffManualFilterPartialView.as_view(),
+        name="staff-manual-filter",
     ),
     path(
         "staff/bookings/<int:pk>/status/",

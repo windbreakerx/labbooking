@@ -12,10 +12,10 @@
     <label>Аудитория
         <select name="room"
                 class="booking-select"
-                hx-get="{% url 'book-filter' lab_work_id %}"
-                hx-target="#session-slot"
+                hx-get="{% url filter_route|default:'book-filter' lab_work_id %}"
+                hx-target="{{ session_slot_selector|default:'#session-slot' }}"
                 hx-swap="innerHTML"
-                hx-include="#filter-chain">
+                hx-include="{{ filter_chain_selector|default:'#filter-chain' }}">
             <option value="">—</option>
             {% for opt in options %}
             <option value="{{ opt.value }}">{{ opt.label }}</option>

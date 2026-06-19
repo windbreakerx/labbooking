@@ -1979,6 +1979,71 @@ button.calendar-day--available {
     background: var(--color-surface);
 }
 
+.app-dialog--wide {
+    max-width: 42rem;
+}
+
+.manual-booking__section {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.manual-booking__calendar {
+    min-width: 0;
+}
+
+.manual-student-search {
+    max-height: 12rem;
+    overflow: auto;
+    margin-top: var(--space-2);
+}
+
+.manual-student-search__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-1);
+}
+
+.manual-student-search__item {
+    width: 100%;
+    display: grid;
+    gap: 0.15rem;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    text-align: left;
+    cursor: pointer;
+}
+
+.manual-student-search__item:hover,
+.manual-student-search__item:focus-visible {
+    border-color: var(--color-primary);
+    background: var(--color-primary-soft);
+}
+
+.manual-student-search__group {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+
+.manual-student-selected {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+}
+
+.manual-student-selected__label {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+
 .app-dialog::backdrop {
     background: rgba(15, 23, 42, 0.45);
 }

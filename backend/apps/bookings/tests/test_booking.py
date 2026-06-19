@@ -482,6 +482,7 @@ def test_book_page_student_only(staff, student_group, lab_work):
 def test_staff_bookings_filters_and_manual_web(staff, student, session):
     staff.profile.training_center = session.room.training_center
     staff.profile.save(update_fields=["training_center"])
+    session.lab_work.training_centers.add(session.room.training_center)
     client = Client()
     client.force_login(staff)
     response = client.get("/staff/bookings/", {"student": student.email})
@@ -489,7 +490,7 @@ def test_staff_bookings_filters_and_manual_web(staff, student, session):
 
     response = client.post(
         "/staff/bookings/manual/",
-        {"student_email": student.email, "session_id": session.pk},
+        {"student_id": student.pk, "session_id": session.pk},
     )
     assert response.status_code == 302
     assert student.bookings.filter(lab_session=session).exists()
