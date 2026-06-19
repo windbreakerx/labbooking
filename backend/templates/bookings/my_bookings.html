@@ -9,7 +9,7 @@
     </div>
 </header>
 
-<div class="table-wrap">
+<div class="table-wrap table-wrap--menus">
     <table class="table responsive-table">
         <thead>
             <tr>
@@ -61,10 +61,10 @@
                             {% if b.current_status == 'BOOKED' %}
                             <form method="post" action="{% url 'cancel-booking' b.pk %}">
                                 {% csrf_token %}
-                                <button type="submit" class="row-actions__item row-actions__item--button">Отписаться</button>
+                                <button type="submit" class="row-actions__item row-actions__item--button">Отменить запись</button>
                             </form>
                             {% else %}
-                            <span class="row-actions__item row-actions__item--disabled">Отписаться</span>
+                            <span class="row-actions__item row-actions__item--disabled">Отменить запись</span>
                             {% endif %}
                         </div>
                     </details>
