@@ -10,7 +10,7 @@
 </header>
 
 <div class="support-layout">
-    <form method="post" action="{% url 'support-create' %}" class="card">
+    <form method="post" action="{% url 'support-create' %}" class="card card--form support-form">
         {% csrf_token %}
         <h2 class="card__title">Новое обращение</h2>
         <label>Учебная лаборатория
@@ -22,26 +22,41 @@
             </select>
         </label>
         <label>Заголовок
-            <input type="text" name="subject" required>
+            <input type="text" name="subject" required placeholder="Кратко опишите вопрос">
         </label>
         <label>Сообщение
-            <textarea name="body" rows="4" required></textarea>
+            <textarea name="body" rows="4" required placeholder="Подробности обращения"></textarea>
         </label>
-        <button type="submit">Сохранить</button>
+        <div class="form-actions">
+            <button type="submit">Отправить обращение</button>
+        </div>
     </form>
 
-    <section>
+    <section class="support-tickets">
         <h2 class="card__title">Мои обращения</h2>
         <div class="ticket-list">
             {% for t in tickets %}
-            <article class="card ticket-card">
-                <div>
-                    <a href="{% url 'support-detail' t.pk %}"><strong>{{ t.subject }}</strong></a>
-                    <p class="muted">{{ t.get_status_display }} · {{ t.created_at|date:"d.m.Y" }}{% if t.training_center %} · УЦ №{{ t.training_center.number }}{% endif %}</p>
+            <article class="card card--interactive ticket-card">
+                <div class="ticket-card__header">
+                    <a class="ticket-card__subject" href="{% url 'support-detail' t.pk %}">{{ t.subject }}</a>
+                    <span class="status-badge status-badge--with-dot
+                        {% if t.status == 'OPEN' %}status-badge--open
+                        {% elif t.status == 'ANSWERED' %}status-badge--answered
+                        {% elif t.status == 'CLOSED' %}status-badge--closed
+                        {% endif %}">
+                        {{ t.get_status_display }}
+                    </span>
                 </div>
+                <p class="ticket-card__meta muted">
+                    {{ t.created_at|date:"d.m.Y H:i" }}
+                    {% if t.training_center %} · УЦ №{{ t.training_center.number }}{% endif %}
+                </p>
             </article>
             {% empty %}
-            <div class="empty-state">Обращений нет.</div>
+            <div class="empty-state empty-state--icon">
+                <p>Обращений пока нет.</p>
+                <p class="muted">Заполните форму слева, чтобы задать вопрос сотрудникам лаборатории.</p>
+            </div>
             {% endfor %}
         </div>
     </section>

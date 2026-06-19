@@ -13,13 +13,22 @@
 <div class="discipline-grid">
     {% for d in disciplines %}
     <a class="card card--interactive discipline-card" href="{% url 'lab-works' d.pk %}">
-        <span class="badge badge--muted">Дисциплина</span>
+        <div class="discipline-card__top">
+            <span class="discipline-card__badge badge badge--muted">Дисциплина</span>
+            {% if d.code %}<span class="discipline-card__code">{{ d.code }}</span>{% endif %}
+        </div>
         <h2 class="discipline-card__title">{{ d.title }}</h2>
-        <span class="discipline-card__action">Открыть лабораторные работы</span>
+        {% if d.description %}
+        <p class="discipline-card__desc">{{ d.description|truncatewords:18 }}</p>
+        {% endif %}
+        <span class="discipline-card__action">Открыть лабораторные работы →</span>
     </a>
     {% endfor %}
 </div>
 {% else %}
-<div class="empty-state">Нет доступных дисциплин.</div>
+<div class="empty-state empty-state--icon">
+    <p>Нет доступных дисциплин.</p>
+    <p class="muted">Обратитесь к сотруднику лаборатории, если дисциплина должна быть доступна.</p>
+</div>
 {% endif %}
 {% endblock %}

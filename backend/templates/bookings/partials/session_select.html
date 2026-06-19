@@ -1,5 +1,8 @@
 {% if sessions %}
 <section class="session-card">
+    <div class="booking-step-panel__header">
+        <span class="badge badge--muted booking-step-badge">Шаг 4</span>
+    </div>
     <label>Слот
         <select name="session_id" required onchange="document.getElementById('book-btn').disabled = !this.value">
             <option value="">—</option>
@@ -10,17 +13,20 @@
             {% endfor %}
         </select>
     </label>
-    <p class="muted">Выберите конкретный слот. После выбора станет доступна кнопка записи.</p>
+    <p class="muted booking-step-panel__hint">Выберите конкретный слот. После выбора станет доступна кнопка записи.</p>
     {% if sessions.0.available_seats == 0 %}
     <div class="waitlist-card">
+        <p class="waitlist-card__text">Свободных мест нет — можно встать в очередь.</p>
         <form method="post" action="{% url 'waitlist-join' %}">
             {% csrf_token %}
             <input type="hidden" name="session_id" value="{{ sessions.0.pk }}">
-            <button type="submit">Встать в очередь</button>
+            <button type="submit" class="button button--secondary">Встать в очередь</button>
         </form>
     </div>
     {% endif %}
 </section>
 {% else %}
-<div class="empty-state">Нет доступных слотов для выбранных параметров.</div>
+<div class="empty-state empty-state--icon">
+    <p>Нет доступных слотов для выбранных параметров.</p>
+</div>
 {% endif %}

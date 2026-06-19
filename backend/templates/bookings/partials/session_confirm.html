@@ -1,11 +1,25 @@
 <input type="hidden" name="date" value="{{ date }}">
 <input type="hidden" name="time" value="{{ time }}">
 <input type="hidden" name="session_id" value="{{ session.pk }}">
-<div class="booking-summary">
-    <h2 class="card__title">Подтверждение слота</h2>
-    <p><strong>Дата:</strong> {{ session.starts_at|date:"d.m.Y" }}</p>
-    <p><strong>Пара:</strong> {{ pair_label }}</p>
-    <p><strong>Учебный центр:</strong> №{{ session.room.training_center.number }}</p>
-    <p><strong>Аудитория:</strong> {{ session.room.number }}</p>
-    <p><strong>Свободно мест:</strong> {{ session.available_seats }}/{{ session.capacity }}</p>
+<div class="booking-summary booking-summary--confirm">
+    <div class="booking-summary__header">
+        <span class="booking-summary__icon" aria-hidden="true">✓</span>
+        <div>
+            <span class="badge badge--muted booking-step-badge">Шаг 4</span>
+            <h2 class="card__title">Подтверждение слота</h2>
+        </div>
+    </div>
+    <dl class="detail-list booking-summary__list">
+        <dt>Дата</dt>
+        <dd>{{ session.starts_at|date:"d.m.Y" }}</dd>
+        <dt>Пара</dt>
+        <dd>{{ pair_label }}</dd>
+        <dt>Учебный центр</dt>
+        <dd>№{{ session.room.training_center.number }}</dd>
+        <dt>Аудитория</dt>
+        <dd>{{ session.room.number }}</dd>
+        <dt>Свободно мест</dt>
+        <dd><strong>{{ session.available_seats }}/{{ session.capacity }}</strong></dd>
+    </dl>
+    <p class="muted booking-step-panel__hint">Нажмите «Записаться», чтобы подтвердить запись на этот слот.</p>
 </div>

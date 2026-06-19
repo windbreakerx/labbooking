@@ -3,9 +3,9 @@
 {% block breadcrumbs %}
 <nav class="breadcrumbs" aria-label="Навигация">
     <a href="{% url 'disciplines' %}">Дисциплины</a>
-    <span>/</span>
+    <span aria-hidden="true">/</span>
     <a href="{% url 'lab-works' lab_work.discipline.pk %}">{{ lab_work.discipline.title }}</a>
-    <span>/</span>
+    <span aria-hidden="true">/</span>
     <span class="breadcrumbs__current">{{ lab_work.title }}</span>
 </nav>
 {% endblock %}
@@ -25,7 +25,7 @@
                 <p class="page-eyebrow">Вы записываетесь</p>
                 <h2 class="card__title">{{ lab_work.title }}</h2>
             </div>
-            <span class="badge badge--muted">ЛР</span>
+            <span class="badge badge--muted">ЛР {{ lab_work.number }}</span>
         </div>
         <dl class="detail-list">
             <dt>Дисциплина</dt>
@@ -33,14 +33,27 @@
             <dt>Порядок</dt>
             <dd>Дата → время → учебный центр → аудитория</dd>
         </dl>
+        <p class="booking-context__hint muted">Кнопка «Записаться» станет активной после выбора доступного слота.</p>
     </aside>
 
     <section class="card booking-wizard">
         <div class="booking-stepper" aria-label="Этапы записи">
-            <span class="booking-step booking-step--active">1. Дата</span>
-            <span class="booking-step">2. Время</span>
-            <span class="booking-step">3. Место</span>
-            <span class="booking-step">4. Подтверждение</span>
+            <span class="booking-step booking-step--active" data-step="1">
+                <span class="booking-step__num">1</span>
+                <span class="booking-step__label">Дата</span>
+            </span>
+            <span class="booking-step" data-step="2">
+                <span class="booking-step__num">2</span>
+                <span class="booking-step__label">Время</span>
+            </span>
+            <span class="booking-step" data-step="3">
+                <span class="booking-step__num">3</span>
+                <span class="booking-step__label">Место</span>
+            </span>
+            <span class="booking-step" data-step="4">
+                <span class="booking-step__num">4</span>
+                <span class="booking-step__label">Подтверждение</span>
+            </span>
         </div>
         <form method="post" id="booking-form">
             {% csrf_token %}
@@ -50,7 +63,7 @@
             <div id="session-slot"></div>
             <div class="booking-actions">
                 <button type="submit" id="book-btn" disabled>Записаться</button>
-                <span class="muted">Кнопка станет активной после выбора доступного слота.</span>
+                <span class="booking-actions__hint muted">Кнопка станет активной после выбора доступного слота.</span>
             </div>
         </form>
     </section>
@@ -74,6 +87,34 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
             btn.disabled = true;
         }
     }
+    updateBookingStepper();
 });
+
+function updateBookingStepper() {
+    const steps = document.querySelectorAll('.booking-stepper [data-step]');
+    if (!steps.length) return;
+
+    const chain = document.getElementById('filter-chain');
+    const slot = document.getElementById('session-slot');
+    let active = 1;
+
+    if (slot.querySelector('.booking-summary') || slot.querySelector('input[name=session_id][type=hidden]')) {
+        active = 4;
+    } else if (slot.querySelector('select[name=session_id]') || slot.querySelector('select[name=room]')) {
+        active = 4;
+    } else if (chain.querySelector('select[name=tc]') || chain.querySelector('select[name=room]')) {
+        active = 3;
+    } else if (chain.querySelector('select[name=time]') || chain.querySelector('input[name=date][type=hidden]')) {
+        active = 2;
+    } else if (chain.querySelector('.calendar-card')) {
+        active = 1;
+    }
+
+    steps.forEach(function(el) {
+        const n = parseInt(el.getAttribute('data-step'), 10);
+        el.classList.toggle('booking-step--active', n === active);
+        el.classList.toggle('booking-step--done', n < active);
+    });
+}
 </script>
 {% endblock %}

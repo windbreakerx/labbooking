@@ -3,7 +3,7 @@
 {% block breadcrumbs %}
 <nav class="breadcrumbs" aria-label="Навигация">
     <a href="{% url 'disciplines' %}">Дисциплины</a>
-    <span>/</span>
+    <span aria-hidden="true">/</span>
     <span class="breadcrumbs__current">{{ discipline.title }}</span>
 </nav>
 {% endblock %}
@@ -19,16 +19,26 @@
 {% if lab_works %}
 <div class="lab-grid">
     {% for lw in lab_works %}
-    <article class="card card--interactive lab-card">
-        <span class="lab-card__number">ЛР {{ lw.number }}</span>
+    <article class="card lab-card">
+        <div class="lab-card__header">
+            <span class="lab-card__number">ЛР {{ lw.number }}</span>
+            {% if lw.duration_minutes %}
+            <span class="lab-card__duration badge badge--muted">{{ lw.duration_minutes }} мин</span>
+            {% endif %}
+        </div>
         <h2 class="lab-card__title">{{ lw.title }}</h2>
-        <div class="card__actions">
+        {% if lw.description %}
+        <p class="lab-card__desc muted">{{ lw.description|truncatewords:22 }}</p>
+        {% endif %}
+        <div class="lab-card__footer">
             <a class="button" href="{% url 'book-lab-work' lw.pk %}">Записаться</a>
         </div>
     </article>
     {% endfor %}
 </div>
 {% else %}
-<div class="empty-state">Лабораторные работы не добавлены.</div>
+<div class="empty-state empty-state--icon">
+    <p>Лабораторные работы не добавлены.</p>
+</div>
 {% endif %}
 {% endblock %}

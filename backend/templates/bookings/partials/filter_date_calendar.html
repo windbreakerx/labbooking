@@ -5,6 +5,7 @@
             <h2 class="card__title">Выберите дату</h2>
             <p class="muted">Активны только дни, где есть свободные слоты для записи.</p>
         </div>
+        <span class="badge badge--muted booking-step-badge">Шаг 1</span>
     </div>
     <div class="calendar-legend" aria-label="Легенда календаря">
         <span class="calendar-legend__item"><span class="calendar-legend__swatch"></span>Доступно</span>
@@ -36,7 +37,7 @@
                         {{ cell.day }}
                     </button>
                     {% else %}
-                    <span class="calendar-day calendar-day--disabled">{{ cell.day }}</span>
+                    <span class="calendar-day calendar-day--disabled" aria-hidden="true">{{ cell.day }}</span>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -47,5 +48,7 @@
     </div>
 </section>
 {% else %}
-<div class="empty-state">Нет доступных дат для записи на выбранную лабораторную работу.</div>
+<div class="empty-state empty-state--icon">
+    <p>Нет доступных дат для записи на выбранную лабораторную работу.</p>
+</div>
 {% endif %}

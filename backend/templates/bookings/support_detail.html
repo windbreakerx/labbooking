@@ -3,7 +3,7 @@
 {% block breadcrumbs %}
 <nav class="breadcrumbs" aria-label="Навигация">
     <a href="{% url 'support' %}">Обращения</a>
-    <span>/</span>
+    <span aria-hidden="true">/</span>
     <span class="breadcrumbs__current">{{ ticket.subject }}</span>
 </nav>
 {% endblock %}
@@ -12,19 +12,33 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Обращение</p>
         <h1 class="page-title">{{ ticket.subject }}</h1>
-        <p class="page-description">Статус: {{ ticket.get_status_display }}</p>
+        <p class="page-description">
+            <span class="status-badge status-badge--with-dot
+                {% if ticket.status == 'OPEN' %}status-badge--open
+                {% elif ticket.status == 'ANSWERED' %}status-badge--answered
+                {% elif ticket.status == 'CLOSED' %}status-badge--closed
+                {% endif %}">
+                {{ ticket.get_status_display }}
+            </span>
+            · создано {{ ticket.created_at|date:"d.m.Y H:i" }}
+        </p>
     </div>
 </header>
 
 <div class="thread">
     <div class="thread__message thread__message--own">
-        <strong>Вы</strong> <span class="muted">{{ ticket.created_at|date:"d.m.Y H:i" }}</span>
+        <div class="thread__message-header">
+            <strong>Вы</strong>
+            <time class="muted" datetime="{{ ticket.created_at|date:'c' }}">{{ ticket.created_at|date:"d.m.Y H:i" }}</time>
+        </div>
         <p>{{ ticket.body }}</p>
     </div>
     {% for msg in ticket.messages.all %}
     <div class="thread__message">
-        <strong>{{ msg.author.full_name }}</strong>
-        <span class="muted">{{ msg.created_at|date:"d.m.Y H:i" }}</span>
+        <div class="thread__message-header">
+            <strong>{{ msg.author.full_name }}</strong>
+            <time class="muted" datetime="{{ msg.created_at|date:'c' }}">{{ msg.created_at|date:"d.m.Y H:i" }}</time>
+        </div>
         <p>{{ msg.body }}</p>
     </div>
     {% endfor %}
@@ -34,9 +48,13 @@
     {% csrf_token %}
     <h2 class="card__title">Дополнить обращение</h2>
     <label>Дополнительное сообщение
-        <textarea name="body" rows="3"></textarea>
+        <textarea name="body" rows="3" placeholder="Добавьте уточнение или новый вопрос"></textarea>
     </label>
-    <button type="submit">Отправить</button>
+    <div class="form-actions">
+        <button type="submit">Отправить</button>
+    </div>
 </form>
-<p><a class="button button--secondary" href="{% url 'support' %}">К списку обращений</a></p>
+<p class="page-actions">
+    <a class="button button--secondary" href="{% url 'support' %}">К списку обращений</a>
+</p>
 {% endblock %}

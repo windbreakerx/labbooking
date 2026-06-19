@@ -10,43 +10,49 @@
 
 <div class="quick-actions">
     <a class="card card--interactive action-card" href="{% url 'staff-bookings' %}">
-        <span class="action-card__icon">01</span>
+        <span class="action-card__icon" aria-hidden="true">01</span>
         <h2 class="action-card__title">Записавшиеся</h2>
         <p class="action-card__text">Список записей, фильтры, ручная запись и смена статусов.</p>
+        <span class="action-card__cta">Открыть раздел</span>
     </a>
     <a class="card card--interactive action-card" href="{% url 'staff-support' %}">
-        <span class="action-card__icon">02</span>
+        <span class="action-card__icon" aria-hidden="true">02</span>
         <h2 class="action-card__title">Обращения</h2>
         <p class="action-card__text">Ответы на вопросы студентов по лаборатории.</p>
+        <span class="action-card__cta">Открыть раздел</span>
     </a>
     <a class="card card--interactive action-card" href="{% url 'staff-reports' %}">
-        <span class="action-card__icon">03</span>
+        <span class="action-card__icon" aria-hidden="true">03</span>
         <h2 class="action-card__title">Отчёты</h2>
         <p class="action-card__text">Excel-выгрузки по записям и посещаемости.</p>
+        <span class="action-card__cta">Открыть раздел</span>
     </a>
 </div>
 {% else %}
-<section class="hero-card">
+<section class="hero-card hero-card--student">
     <p class="page-eyebrow">Личный кабинет</p>
     <h1>Добро пожаловать, {{ user.full_name }}.</h1>
     <p>Выберите дисциплину, запишитесь на лабораторную работу или проверьте свои активные записи.</p>
 </section>
 
-<div class="quick-actions">
-    <a class="card card--interactive action-card" href="{% url 'disciplines' %}">
-        <span class="action-card__icon">01</span>
+<div class="quick-actions quick-actions--student">
+    <a class="card card--interactive action-card action-card--primary" href="{% url 'disciplines' %}">
+        <span class="action-card__icon" aria-hidden="true">📚</span>
         <h2 class="action-card__title">Учебные дисциплины</h2>
         <p class="action-card__text">Перейти к списку дисциплин и выбрать лабораторную работу для записи.</p>
+        <span class="action-card__cta">Выбрать дисциплину</span>
     </a>
     <a class="card card--interactive action-card" href="{% url 'my-bookings' %}">
-        <span class="action-card__icon">02</span>
+        <span class="action-card__icon" aria-hidden="true">📅</span>
         <h2 class="action-card__title">Мои записи</h2>
         <p class="action-card__text">Посмотреть дату, аудиторию, статус и при необходимости отменить запись.</p>
+        <span class="action-card__cta">Открыть записи</span>
     </a>
     <a class="card card--interactive action-card" href="{% url 'support' %}">
-        <span class="action-card__icon">03</span>
+        <span class="action-card__icon" aria-hidden="true">💬</span>
         <h2 class="action-card__title">Обращения</h2>
         <p class="action-card__text">Задать технический или организационный вопрос сотрудникам лаборатории.</p>
+        <span class="action-card__cta">Написать вопрос</span>
     </a>
 </div>
 {% endif %}

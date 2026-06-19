@@ -1,11 +1,14 @@
 <input type="hidden" name="date" value="{{ date }}">
 <section class="booking-step-panel">
+    <div class="booking-step-panel__header">
+        <span class="badge badge--muted booking-step-badge">Шаг 2</span>
+        <button type="button"
+                class="btn-link"
+                hx-get="{% url 'book-filter' lab_work_id %}"
+                hx-target="#filter-chain"
+                hx-swap="innerHTML">← Выбрать другой день</button>
+    </div>
     <p class="selected-value"><span>Выбранный день</span> {{ date }}</p>
-    <button type="button"
-            class="btn-link"
-            hx-get="{% url 'book-filter' lab_work_id %}"
-            hx-target="#filter-chain"
-            hx-swap="innerHTML">Выбрать другой день</button>
     <label>Время
         <select name="time"
                 class="booking-select"
@@ -19,5 +22,5 @@
             {% endfor %}
         </select>
     </label>
-    <p class="muted">После выбора времени система покажет доступные учебные центры или слоты.</p>
+    <p class="muted booking-step-panel__hint">После выбора времени система покажет доступные учебные центры или слоты.</p>
 </section>

@@ -5,6 +5,9 @@
     <input type="hidden" name="time" value="{{ time }}">
 </label>
 <section class="booking-step-panel">
+    <div class="booking-step-panel__header">
+        <span class="badge badge--muted booking-step-badge">Шаг 3</span>
+    </div>
     <p class="selected-value"><span>Время</span> {{ time }}</p>
     <label>Аудитория
         <select name="room"
@@ -19,5 +22,5 @@
             {% endfor %}
         </select>
     </label>
-    <p class="muted">После выбора аудитории появится подтверждение доступного слота.</p>
+    <p class="muted booking-step-panel__hint">После выбора аудитории появится подтверждение доступного слота.</p>
 </section>
