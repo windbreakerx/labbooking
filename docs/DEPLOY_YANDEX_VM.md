@@ -114,6 +114,17 @@ git pull
 bash scripts/deploy-vm.sh
 ```
 
+`deploy-vm.sh` автоматически подключает `docker-compose.https.yml`, если:
+- в `nginx/ssl/` есть `fullchain.pem` и `privkey.pem`, **или**
+- в `.env` указано `USE_HTTPS=1`.
+
+Рекомендуется после настройки HTTPS добавить в `.env`:
+```env
+USE_HTTPS=1
+SITE_URL=https://spmi-lab.ru
+SECURE_SSL_REDIRECT=1
+```
+
 ## Остановка / перезапуск
 
 ```bash

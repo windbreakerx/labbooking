@@ -13,7 +13,11 @@ check() {
   local url="$2"
   local expected="${3:-200}"
   local code
-  code=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
+  local curl_opts=(-s -o /dev/null -w "%{http_code}")
+  if [[ "$url" == https://127.0.0.1* || "$url" == https://localhost* ]]; then
+    curl_opts=(-k "${curl_opts[@]}")
+  fi
+  code=$(curl "${curl_opts[@]}" "$url" || echo "000")
   if [[ "$code" == "$expected" ]]; then
     echo "OK  $name ($code)"
   else
