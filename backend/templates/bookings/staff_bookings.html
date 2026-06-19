@@ -303,9 +303,14 @@
         }
         if (labWorkSelect) {
             labWorkSelect.disabled = false;
+            if (labWorkSelect.options.length > 0) {
+                labWorkSelect.options[0].textContent = '— выберите лабораторную работу —';
+            }
             if (labWorkSelect.options.length === 2) {
                 labWorkSelect.selectedIndex = 1;
                 loadManualCalendar(labWorkSelect.value);
+            } else {
+                labWorkSelect.selectedIndex = 0;
             }
         }
     }
@@ -320,6 +325,9 @@
         if (labWorkSelect) {
             labWorkSelect.disabled = true;
             labWorkSelect.selectedIndex = 0;
+            if (labWorkSelect.options.length > 0) {
+                labWorkSelect.options[0].textContent = '— сначала выберите студента —';
+            }
         }
         resetManualCalendar();
     }
