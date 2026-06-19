@@ -149,6 +149,7 @@ class Command(BaseCommand):
         )
         if not user:
             return 0, 0
+        UserProfile.objects.get_or_create(user=user)
         UserProfile.objects.filter(user=user).update(
             group_name=self._clean(row, "group"),
             dekanat_id=self._clean(row, "dekanat_id"),
@@ -172,8 +173,9 @@ class Command(BaseCommand):
         if training_center_number.isdigit():
             training_center = TrainingCenter.objects.filter(number=int(training_center_number)).first()
             if training_center:
-                user.profile.training_center = training_center
-                user.profile.save(update_fields=["training_center"])
+                profile, _ = UserProfile.objects.get_or_create(user=user)
+                profile.training_center = training_center
+                profile.save(update_fields=["training_center"])
         return int(created), int(not created)
 
     def _import_staff(self, row, *, default_password):
@@ -193,8 +195,9 @@ class Command(BaseCommand):
         if training_center_number.isdigit():
             training_center = TrainingCenter.objects.filter(number=int(training_center_number)).first()
             if training_center:
-                user.profile.training_center = training_center
-                user.profile.save(update_fields=["training_center"])
+                profile, _ = UserProfile.objects.get_or_create(user=user)
+                profile.training_center = training_center
+                profile.save(update_fields=["training_center"])
         return int(created), int(not created)
 
     def _import_discipline(self, row, *, semester_name):
