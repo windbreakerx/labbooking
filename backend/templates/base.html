@@ -19,12 +19,14 @@
             </a>
             {% if user.is_authenticated %}
             <nav class="nav">
+                {% if user.role == 'STUDENT' %}
                 <div class="nav__section">
                     <span class="nav__section-title">Студент</span>
                     <a class="nav__link" href="{% url 'disciplines' %}">Дисциплины</a>
                     <a class="nav__link" href="{% url 'my-bookings' %}">Мои записи</a>
                     <a class="nav__link" href="{% url 'support' %}">Обращения</a>
                 </div>
+                {% endif %}
                 {% if user.role == 'LAB_ADMIN' or user.role == 'TEACHER' or user.role == 'SYS_ADMIN' %}
                 <div class="nav__section">
                     <span class="nav__section-title">Студенты</span>
