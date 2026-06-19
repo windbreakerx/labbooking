@@ -9,6 +9,92 @@
     </div>
 </header>
 
+<section class="card card--form filter-panel staff-filters">
+    <div class="card__header">
+        <h2 class="card__title">Фильтры</h2>
+    </div>
+    <form method="get" class="form-grid filter-panel__form">
+        <label>
+            Студент
+            <input type="search" name="student" value="{{ filters.student|default:'' }}" placeholder="ФИО или email">
+        </label>
+        <label>
+            Дисциплина
+            <select name="discipline">
+                <option value="">Все</option>
+                {% for d in disciplines %}
+                <option value="{{ d.pk }}" {% if filters.discipline == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.title }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Статус
+            <select name="status">
+                <option value="">Все</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            С
+            <input type="date" name="date_from" value="{{ filters.date_from|default:'' }}">
+        </label>
+        <label>
+            По
+            <input type="date" name="date_to" value="{{ filters.date_to|default:'' }}">
+        </label>
+        <div class="filter-panel__actions">
+            <button type="submit">Применить</button>
+            <a class="button button--secondary" href="{% url 'staff-bookings' %}">Сбросить</a>
+        </div>
+    </form>
+    {% if filters.student or filters.discipline or filters.status or filters.date_from or filters.date_to %}
+    <div class="filter-chips" aria-label="Активные фильтры">
+        {% if filters.student %}<span class="filter-chip">Студент: {{ filters.student }}</span>{% endif %}
+        {% if filters.discipline %}
+        {% for d in disciplines %}{% if filters.discipline == d.pk|stringformat:"s" %}<span class="filter-chip">Дисциплина: {{ d.title }}</span>{% endif %}{% endfor %}
+        {% endif %}
+        {% if filters.status %}
+        {% for value, label in status_choices %}{% if filters.status == value %}<span class="filter-chip">Статус: {{ label }}</span>{% endif %}{% endfor %}
+        {% endif %}
+        {% if filters.date_from %}<span class="filter-chip">С {{ filters.date_from }}</span>{% endif %}
+        {% if filters.date_to %}<span class="filter-chip">По {{ filters.date_to }}</span>{% endif %}
+    </div>
+    {% endif %}
+</section>
+
+<section class="card card--form manual-booking">
+    <div class="card__header">
+        <div>
+            <h2 class="card__title">Ручная запись</h2>
+            <p class="muted">Для исключительных ситуаций и оперативной помощи студенту.</p>
+        </div>
+    </div>
+    <form method="post" action="{% url 'staff-booking-manual' %}" class="form-row manual-booking__form">
+        {% csrf_token %}
+        <label>
+            Email студента
+            <input type="email" name="student_email" required placeholder="student001@stud.local" autocomplete="off">
+        </label>
+        <label>
+            Слот
+            <select name="session_id" required>
+                <option value="">— выберите слот —</option>
+                {% for s in manual_sessions %}
+                <option value="{{ s.pk }}">
+                    {{ s.starts_at|date:"d.m.Y H:i" }} — {{ s.lab_work.title }} (ауд. {{ s.room.number }})
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="form-actions manual-booking__actions">
+            <button type="submit">Записать</button>
+        </div>
+    </form>
+    <p class="admin-note muted">Ручная запись обходит лимиты студента (горизонт, 1 запись на дисциплину, вместимость).</p>
+</section>
+
 <div class="staff-results-bar">
     <div>
         <h2 class="card__title">Результаты</h2>
@@ -16,209 +102,112 @@
             {% if bookings %}
             Найдено записей: <strong>{{ bookings|length }}</strong>
             {% else %}
-            Используйте фильтры слева, чтобы сузить список.
+            Используйте фильтры выше, чтобы сузить список.
             {% endif %}
         </p>
     </div>
 </div>
 
-<div class="staff-layout">
-    <aside class="staff-panel">
-        <section class="card card--form manual-booking">
-            <div class="card__header">
-                <div>
-                    <h2 class="card__title">Ручная запись</h2>
-                    <p class="muted">Для исключительных ситуаций и оперативной помощи студенту.</p>
-                </div>
+<section class="staff-results">
+    {% if bookings %}
+    <div class="staff-cards staff-cards--mobile" aria-label="Список записей">
+        {% for b in bookings %}
+        <article class="staff-booking-card">
+            <div class="staff-booking-card__header">
+                <time class="staff-booking-card__datetime" datetime="{{ b.scheduled_at|date:'c' }}">{{ b.scheduled_at|date:"d.m.Y H:i" }}</time>
+                <span class="status-badge status-badge--with-dot
+                    {% if b.current_status == 'BOOKED' %}status-badge--booked
+                    {% elif b.current_status == 'NO_SHOW' %}status-badge--no-show
+                    {% elif b.current_status == 'CANCELLED' %}status-badge--cancelled
+                    {% elif b.current_status == 'REACCESS' %}status-badge--reaccess
+                    {% elif b.current_status == 'VISITED' %}status-badge--visited
+                    {% endif %}">
+                    {{ b.get_current_status_display }}
+                </span>
             </div>
-            <form method="post" action="{% url 'staff-booking-manual' %}" class="form-grid manual-booking__form">
+            <dl class="staff-booking-card__details">
+                <div><dt>Студент</dt><dd><strong>{{ b.student.full_name }}</strong><br><span class="muted">{{ b.student.email }}</span></dd></div>
+                <div><dt>Группа</dt><dd>{{ b.student.profile.group_name|default:"—" }}</dd></div>
+                <div><dt>Дисциплина</dt><dd>{{ b.discipline.title }}</dd></div>
+                <div><dt>ЛР</dt><dd>{{ b.lab_work.title }}</dd></div>
+                <div><dt>Регистрация</dt><dd>{{ b.get_registration_type_display }}{% if b.registered_by %} · {{ b.registered_by.full_name }}{% endif %}</dd></div>
+            </dl>
+            <form method="post" action="{% url 'staff-booking-status' b.pk %}" class="status-select-form staff-booking-card__actions">
                 {% csrf_token %}
-                <label>
-                    Email студента
-                    <input type="email" name="student_email" required placeholder="student001@stud.local" autocomplete="off">
-                </label>
-                <label>
-                    Слот
-                    <select name="session_id" required>
-                        <option value="">— выберите слот —</option>
-                        {% for s in manual_sessions %}
-                        <option value="{{ s.pk }}">
-                            {{ s.starts_at|date:"d.m.Y H:i" }} — {{ s.lab_work.title }} (ауд. {{ s.room.number }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <div class="form-actions manual-booking__actions">
-                    <button type="submit">Записать</button>
-                </div>
+                <select name="status" aria-label="Новый статус для {{ b.student.full_name }}">
+                    <option value="VISITED" {% if b.current_status == 'VISITED' %}selected{% endif %}>Посетил</option>
+                    <option value="NO_SHOW" {% if b.current_status == 'NO_SHOW' %}selected{% endif %}>Неявка</option>
+                    <option value="REACCESS" {% if b.current_status == 'REACCESS' %}selected{% endif %}>Повторный доступ</option>
+                    <option value="CANCELLED" {% if b.current_status == 'CANCELLED' %}selected{% endif %}>Отменил запись</option>
+                </select>
+                <button type="submit" class="button--sm">Применить</button>
             </form>
-            <p class="admin-note muted">Ручная запись обходит лимиты студента (горизонт, 1 запись на дисциплину, вместимость).</p>
-        </section>
+        </article>
+        {% endfor %}
+    </div>
 
-        <section class="card card--form filter-panel">
-            <div class="card__header">
-                <h2 class="card__title">Фильтры</h2>
-            </div>
-            <form method="get" class="form-grid filter-panel__form">
-                <label>
-                    Студент
-                    <input type="search" name="student" value="{{ filters.student|default:'' }}" placeholder="ФИО или email">
-                </label>
-                <label>
-                    Дисциплина
-                    <select name="discipline">
-                        <option value="">Все</option>
-                        {% for d in disciplines %}
-                        <option value="{{ d.pk }}" {% if filters.discipline == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.title }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label>
-                    Статус
-                    <select name="status">
-                        <option value="">Все</option>
-                        {% for value, label in status_choices %}
-                        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label>
-                    С
-                    <input type="date" name="date_from" value="{{ filters.date_from|default:'' }}">
-                </label>
-                <label>
-                    По
-                    <input type="date" name="date_to" value="{{ filters.date_to|default:'' }}">
-                </label>
-                <div class="filter-panel__actions">
-                    <button type="submit">Применить</button>
-                    <a class="button button--secondary" href="{% url 'staff-bookings' %}">Сбросить</a>
-                </div>
-            </form>
-            {% if filters.student or filters.discipline or filters.status or filters.date_from or filters.date_to %}
-            <div class="filter-chips" aria-label="Активные фильтры">
-                {% if filters.student %}<span class="filter-chip">Студент: {{ filters.student }}</span>{% endif %}
-                {% if filters.discipline %}
-                {% for d in disciplines %}{% if filters.discipline == d.pk|stringformat:"s" %}<span class="filter-chip">Дисциплина: {{ d.title }}</span>{% endif %}{% endfor %}
-                {% endif %}
-                {% if filters.status %}
-                {% for value, label in status_choices %}{% if filters.status == value %}<span class="filter-chip">Статус: {{ label }}</span>{% endif %}{% endfor %}
-                {% endif %}
-                {% if filters.date_from %}<span class="filter-chip">С {{ filters.date_from }}</span>{% endif %}
-                {% if filters.date_to %}<span class="filter-chip">По {{ filters.date_to }}</span>{% endif %}
-            </div>
-            {% endif %}
-        </section>
-    </aside>
-
-    <section class="staff-results">
-        {% if bookings %}
-        <div class="staff-cards staff-cards--mobile" aria-label="Список записей">
-            {% for b in bookings %}
-            <article class="staff-booking-card">
-                <div class="staff-booking-card__header">
-                    <time class="staff-booking-card__datetime" datetime="{{ b.scheduled_at|date:'c' }}">{{ b.scheduled_at|date:"d.m.Y H:i" }}</time>
-                    <span class="status-badge status-badge--with-dot
-                        {% if b.current_status == 'BOOKED' %}status-badge--booked
-                        {% elif b.current_status == 'NO_SHOW' %}status-badge--no-show
-                        {% elif b.current_status == 'CANCELLED' %}status-badge--cancelled
-                        {% elif b.current_status == 'REACCESS' %}status-badge--reaccess
-                        {% elif b.current_status == 'VISITED' %}status-badge--visited
-                        {% endif %}">
-                        {{ b.get_current_status_display }}
-                    </span>
-                </div>
-                <dl class="staff-booking-card__details">
-                    <div><dt>Студент</dt><dd><strong>{{ b.student.full_name }}</strong><br><span class="muted">{{ b.student.email }}</span></dd></div>
-                    <div><dt>Группа</dt><dd>{{ b.student.profile.group_name|default:"—" }}</dd></div>
-                    <div><dt>Дисциплина</dt><dd>{{ b.discipline.title }}</dd></div>
-                    <div><dt>ЛР</dt><dd>{{ b.lab_work.title }}</dd></div>
-                    <div><dt>Регистрация</dt><dd>{{ b.get_registration_type_display }}{% if b.registered_by %} · {{ b.registered_by.full_name }}{% endif %}</dd></div>
-                </dl>
-                <form method="post" action="{% url 'staff-booking-status' b.pk %}" class="status-select-form staff-booking-card__actions">
-                    {% csrf_token %}
-                    <select name="status" aria-label="Новый статус для {{ b.student.full_name }}">
-                        <option value="VISITED" {% if b.current_status == 'VISITED' %}selected{% endif %}>Посетил</option>
-                        <option value="NO_SHOW" {% if b.current_status == 'NO_SHOW' %}selected{% endif %}>Неявка</option>
-                        <option value="REACCESS" {% if b.current_status == 'REACCESS' %}selected{% endif %}>Повторный доступ</option>
-                        <option value="CANCELLED" {% if b.current_status == 'CANCELLED' %}selected{% endif %}>Отменил запись</option>
-                    </select>
-                    <button type="submit" class="button--sm">Применить</button>
-                </form>
-            </article>
-            {% endfor %}
-        </div>
-
-        <div class="table-wrap staff-table">
-            <table class="table table--compact table--staff table--sticky responsive-table">
-                <thead>
-                    <tr>
-                        <th>Студент</th>
-                        <th>Группа</th>
-                        <th>Дисциплина</th>
-                        <th>ЛР</th>
-                        <th>Дата</th>
-                        <th>Рег.</th>
-                        <th>Статус</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for b in bookings %}
-                    <tr>
-                        <td class="cell-student" data-label="Студент">
-                            <span class="cell-student__name">{{ b.student.full_name }}</span>
-                            <span class="cell-student__email muted">{{ b.student.email }}</span>
-                        </td>
-                        <td data-label="Группа">{{ b.student.profile.group_name|default:"—" }}</td>
-                        <td class="cell-truncate" data-label="Дисциплина" title="{{ b.discipline.title }}">{{ b.discipline.title }}</td>
-                        <td class="cell-truncate" data-label="ЛР" title="{{ b.lab_work.title }}">{{ b.lab_work.title }}</td>
-                        <td class="cell-nowrap" data-label="Дата">{{ b.scheduled_at|date:"d.m.Y H:i" }}</td>
-                        <td class="cell-truncate" data-label="Регистрация" title="{{ b.get_registration_type_display }}{% if b.registered_by %} · {{ b.registered_by.full_name }}{% endif %}">
-                            {{ b.get_registration_type_display }}
-                            {% if b.registered_by %}<span class="muted"> · {{ b.registered_by.full_name }}</span>{% endif %}
-                        </td>
-                        <td data-label="Статус">
-                            <span class="status-badge status-badge--with-dot
-                                {% if b.current_status == 'BOOKED' %}status-badge--booked
-                                {% elif b.current_status == 'NO_SHOW' %}status-badge--no-show
-                                {% elif b.current_status == 'CANCELLED' %}status-badge--cancelled
-                                {% elif b.current_status == 'REACCESS' %}status-badge--reaccess
-                                {% elif b.current_status == 'VISITED' %}status-badge--visited
-                                {% endif %}">
-                                {{ b.get_current_status_display }}
-                            </span>
-                        </td>
-                        <td data-label="Действия">
-                            <form method="post" action="{% url 'staff-booking-status' b.pk %}" class="status-select-form">
-                                {% csrf_token %}
-                                <select name="status" aria-label="Новый статус для {{ b.student.full_name }}">
-                                    <option value="VISITED" {% if b.current_status == 'VISITED' %}selected{% endif %}>Посетил</option>
-                                    <option value="NO_SHOW" {% if b.current_status == 'NO_SHOW' %}selected{% endif %}>Неявка</option>
-                                    <option value="REACCESS" {% if b.current_status == 'REACCESS' %}selected{% endif %}>Повторный доступ</option>
-                                    <option value="CANCELLED" {% if b.current_status == 'CANCELLED' %}selected{% endif %}>Отменил запись</option>
-                                </select>
-                                <button type="submit" class="button--sm">Применить</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="8">
-                        <div class="empty-state empty-state--icon">
-                            <p>Записей не найдено.</p>
-                            <p class="muted">Измените фильтры или создайте ручную запись слева.</p>
-                        </div>
-                    </td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="empty-state empty-state--icon staff-empty-state">
-            <p>Записей не найдено.</p>
-            <p class="muted">Измените фильтры или создайте ручную запись слева.</p>
-        </div>
-        {% endif %}
-    </section>
-</div>
+    <div class="table-wrap staff-table">
+        <table class="table table--compact table--staff table--sticky">
+            <thead>
+                <tr>
+                    <th>Студент</th>
+                    <th>Группа</th>
+                    <th>Дисциплина</th>
+                    <th>ЛР</th>
+                    <th>Дата</th>
+                    <th>Регистрация</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td class="cell-student">
+                        <span class="cell-student__name">{{ b.student.full_name }}</span>
+                        <span class="cell-student__email muted">{{ b.student.email }}</span>
+                    </td>
+                    <td>{{ b.student.profile.group_name|default:"—" }}</td>
+                    <td class="cell-truncate" title="{{ b.discipline.title }}">{{ b.discipline.title }}</td>
+                    <td class="cell-truncate" title="{{ b.lab_work.title }}">{{ b.lab_work.title }}</td>
+                    <td class="cell-nowrap">{{ b.scheduled_at|date:"d.m.Y H:i" }}</td>
+                    <td class="cell-registration">
+                        {{ b.get_registration_type_display }}
+                        {% if b.registered_by %}<span class="muted"> · {{ b.registered_by.full_name }}</span>{% endif %}
+                    </td>
+                    <td class="cell-status">
+                        <span class="status-badge status-badge--with-dot
+                            {% if b.current_status == 'BOOKED' %}status-badge--booked
+                            {% elif b.current_status == 'NO_SHOW' %}status-badge--no-show
+                            {% elif b.current_status == 'CANCELLED' %}status-badge--cancelled
+                            {% elif b.current_status == 'REACCESS' %}status-badge--reaccess
+                            {% elif b.current_status == 'VISITED' %}status-badge--visited
+                            {% endif %}">
+                            {{ b.get_current_status_display }}
+                        </span>
+                    </td>
+                    <td class="cell-actions">
+                        <form method="post" action="{% url 'staff-booking-status' b.pk %}" class="status-select-form">
+                            {% csrf_token %}
+                            <select name="status" aria-label="Новый статус для {{ b.student.full_name }}">
+                                <option value="VISITED" {% if b.current_status == 'VISITED' %}selected{% endif %}>Посетил</option>
+                                <option value="NO_SHOW" {% if b.current_status == 'NO_SHOW' %}selected{% endif %}>Неявка</option>
+                                <option value="REACCESS" {% if b.current_status == 'REACCESS' %}selected{% endif %}>Повторный доступ</option>
+                                <option value="CANCELLED" {% if b.current_status == 'CANCELLED' %}selected{% endif %}>Отменил запись</option>
+                            </select>
+                            <button type="submit" class="button--sm">Применить</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state empty-state--icon staff-empty-state">
+        <p>Записей не найдено.</p>
+        <p class="muted">Измените фильтры или создайте ручную запись выше.</p>
+    </div>
+    {% endif %}
+</section>
 {% endblock %}
