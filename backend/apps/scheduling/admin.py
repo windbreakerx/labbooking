@@ -6,6 +6,7 @@ from .models import Holiday, LabSession, LabStand, Room, ScheduleEntry, Training
 @admin.register(TrainingCenter)
 class TrainingCenterAdmin(admin.ModelAdmin):
     list_display = ("number", "name")
+    search_fields = ("number", "name")
 
 
 @admin.register(Room)
