@@ -5,29 +5,52 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Лаборатория</p>
         <h1 class="page-title">Лабораторные работы</h1>
-        <p class="page-description">Список лабораторных работ и загрузка PDF-методичек.</p>
+        <p class="page-description">Список лабораторных работ и загрузка PDF-методичек (до 10 МБ).</p>
     </div>
 </header>
-<div class="table-wrap">
-    <table class="table table--compact table--sticky responsive-table">
-        <thead><tr><th>Дисциплина</th><th>№</th><th>Название</th><th>Методичка</th><th></th></tr></thead>
+
+<div class="table-wrap table-wrap--menus">
+    <table class="table table--compact table--sticky responsive-table lab-works-table">
+        <thead>
+            <tr>
+                <th>Дисциплина</th>
+                <th>№</th>
+                <th>Название</th>
+                <th>Методичка</th>
+                <th>Загрузка PDF</th>
+            </tr>
+        </thead>
         <tbody>
             {% for lw in lab_works %}
             <tr>
                 <td data-label="Дисциплина">{{ lw.discipline.title }}</td>
                 <td data-label="№"><span class="badge badge--muted">ЛР {{ lw.number }}</span></td>
                 <td data-label="Название"><strong>{{ lw.title }}</strong></td>
-                <td data-label="Методичка">{% if lw.methodics_file %}<a class="button button--secondary button--sm" href="{{ lw.methodics_file.url }}">PDF</a>{% else %}—{% endif %}</td>
-                <td data-label="Загрузка">
-                    <form method="post" action="{% url 'staff-lab-work-upload' lw.pk %}" enctype="multipart/form-data" class="upload-inline">
+                <td data-label="Методичка">
+                    {% if lw.methodics_file %}
+                    <a class="button button--secondary button--sm" href="{{ lw.methodics_file.url }}" target="_blank" rel="noopener">Скачать PDF</a>
+                    {% else %}
+                    <span class="badge badge--warning">Нет файла</span>
+                    {% endif %}
+                </td>
+                <td data-label="Загрузка PDF">
+                    <form method="post" action="{% url 'staff-lab-work-upload' lw.pk %}" enctype="multipart/form-data" class="upload-inline upload-form">
                         {% csrf_token %}
-                        <input type="file" name="methodics_file" accept=".pdf">
+                        <label class="upload-form__label">
+                            <span class="sr-only">PDF для {{ lw.title }}</span>
+                            <input type="file" name="methodics_file" accept=".pdf,application/pdf" class="upload-form__input">
+                        </label>
                         <button type="submit" class="button--sm">Загрузить</button>
                     </form>
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5">Нет лабораторных работ.</td></tr>
+            <tr><td colspan="5">
+                <div class="empty-state empty-state--icon">
+                    <p>Нет лабораторных работ.</p>
+                    <p class="muted">Добавьте работы через <a href="/admin/">админку</a>.</p>
+                </div>
+            </td></tr>
             {% endfor %}
         </tbody>
     </table>

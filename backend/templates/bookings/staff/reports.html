@@ -5,20 +5,40 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Отчёты</p>
         <h1 class="page-title">Excel-выгрузки</h1>
-        <p class="page-description">Выберите период и скачайте нужный отчет. Даты применяются к выбранной выгрузке.</p>
+        <p class="page-description">Выберите период и скачайте нужный отчёт. Даты применяются к выбранной выгрузке.</p>
     </div>
 </header>
+
 <form class="card report-panel">
-    <div class="form-grid">
+    <h2 class="card__title">Период выгрузки</h2>
+    <div class="form-grid report-panel__dates">
         <label>Дата с <input type="date" name="date_from" id="date_from"></label>
         <label>Дата по <input type="date" name="date_to" id="date_to"></label>
     </div>
+    <p class="muted report-panel__hint">Оставьте поля пустыми, чтобы выгрузить все доступные данные.</p>
+
     <div class="report-links report-grid">
-        <a class="button report-card" href="{% url 'staff-report-download' 'bookings' %}" id="link-bookings">Записи на период</a>
-        <a class="button report-card" href="{% url 'staff-report-download' 'attendance' %}" id="link-attendance">Посещаемость</a>
-        <a class="button report-card" href="{% url 'staff-report-download' 'discipline_summary' %}" id="link-summary">Свод по дисциплине</a>
+        <a class="report-card report-card--link" href="{% url 'staff-report-download' 'bookings' %}" id="link-bookings">
+            <span class="report-card__icon" aria-hidden="true">📋</span>
+            <span class="report-card__title">Записи на период</span>
+            <span class="report-card__desc">Полный список записей с ФИО, группой, дисциплиной и статусом.</span>
+            <span class="report-card__cta">Скачать XLSX</span>
+        </a>
+        <a class="report-card report-card--link" href="{% url 'staff-report-download' 'attendance' %}" id="link-attendance">
+            <span class="report-card__icon" aria-hidden="true">✓</span>
+            <span class="report-card__title">Посещаемость</span>
+            <span class="report-card__desc">Только посещения и неявки за выбранный период.</span>
+            <span class="report-card__cta">Скачать XLSX</span>
+        </a>
+        <a class="report-card report-card--link" href="{% url 'staff-report-download' 'discipline_summary' %}" id="link-summary">
+            <span class="report-card__icon" aria-hidden="true">📊</span>
+            <span class="report-card__title">Свод по дисциплине</span>
+            <span class="report-card__desc">Агрегированная статистика по дисциплинам и лабораторным работам.</span>
+            <span class="report-card__cta">Скачать XLSX</span>
+        </a>
     </div>
 </form>
+
 <script>
 function applyDates(link) {
     const from = document.getElementById('date_from').value;

@@ -8,19 +8,26 @@
         <p class="page-description">Пользователи с ролями сотрудников и их привязка к учебным центрам.</p>
     </div>
 </header>
+
 <div class="table-wrap">
     <table class="table table--compact table--sticky responsive-table">
-        <thead><tr><th>ФИО</th><th>Email</th><th>Роль</th><th>Лаборатория</th></tr></thead>
+        <thead>
+            <tr><th>ФИО</th><th>Email</th><th>Роль</th><th>Лаборатория</th></tr>
+        </thead>
         <tbody>
             {% for u in people %}
             <tr>
                 <td data-label="ФИО"><strong>{{ u.full_name }}</strong></td>
-                <td data-label="Email">{{ u.email }}</td>
+                <td data-label="Email"><span class="muted">{{ u.email }}</span></td>
                 <td data-label="Роль"><span class="badge badge--muted">{{ u.get_role_display }}</span></td>
                 <td data-label="Лаборатория">{% if u.profile.training_center %}УЦ №{{ u.profile.training_center.number }}{% else %}—{% endif %}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="4">Нет сотрудников.</td></tr>
+            <tr><td colspan="4">
+                <div class="empty-state empty-state--icon">
+                    <p>Нет сотрудников.</p>
+                </div>
+            </td></tr>
             {% endfor %}
         </tbody>
     </table>

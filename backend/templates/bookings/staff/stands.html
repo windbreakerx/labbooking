@@ -5,16 +5,16 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Лаборатория</p>
         <h1 class="page-title">Лабораторные стенды</h1>
-        <p class="page-description">Учет стендов, инвентарных номеров и привязки к аудиториям.</p>
+        <p class="page-description">Учёт стендов, инвентарных номеров и привязки к аудиториям.</p>
     </div>
 </header>
 
-<form method="post" action="{% url 'staff-stand-create' %}" class="card create-panel stand-form">
+<form method="post" action="{% url 'staff-stand-create' %}" class="card card--form create-panel stand-form">
     {% csrf_token %}
     <h2 class="card__title">Добавить стенд</h2>
     <div class="form-grid">
-        <label>Наименование <input type="text" name="name" required></label>
-        <label>Инв. номер <input type="text" name="inventory_number" required></label>
+        <label>Наименование <input type="text" name="name" required placeholder="Название стенда"></label>
+        <label>Инв. номер <input type="text" name="inventory_number" required placeholder="000000"></label>
         <label>УЦ
             <select name="training_center" required>
                 {% for tc in training_centers %}
@@ -29,7 +29,7 @@
                 {% endfor %}
             </select>
         </label>
-        <label>Описание <textarea name="description" rows="2"></textarea></label>
+        <label class="form-grid__full">Описание <textarea name="description" rows="2" placeholder="Краткое описание (необязательно)"></textarea></label>
     </div>
     <div class="form-actions">
         <button type="submit">Сохранить</button>
@@ -38,17 +38,24 @@
 
 <div class="table-wrap">
     <table class="table table--compact table--sticky responsive-table stand-table">
-        <thead><tr><th>Название</th><th>Инв. №</th><th>УЦ</th><th>Ауд.</th></tr></thead>
+        <thead>
+            <tr><th>Название</th><th>Инв. №</th><th>УЦ</th><th>Ауд.</th></tr>
+        </thead>
         <tbody>
             {% for s in stands %}
             <tr>
                 <td data-label="Название"><strong>{{ s.name }}</strong></td>
-                <td data-label="Инв. №">{{ s.inventory_number }}</td>
+                <td data-label="Инв. №"><code>{{ s.inventory_number }}</code></td>
                 <td data-label="УЦ">№{{ s.training_center.number }}</td>
                 <td data-label="Ауд.">{{ s.room.number }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="4">Стендов нет.</td></tr>
+            <tr><td colspan="4">
+                <div class="empty-state empty-state--icon">
+                    <p>Стендов нет.</p>
+                    <p class="muted">Добавьте первый стенд с помощью формы выше.</p>
+                </div>
+            </td></tr>
             {% endfor %}
         </tbody>
     </table>
