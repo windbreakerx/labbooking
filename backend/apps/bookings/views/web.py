@@ -10,7 +10,12 @@ from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
 from apps.academics.models import Discipline, LabWork
-from apps.academics.querysets import published_disciplines_qs, published_lab_works_qs
+from apps.academics.querysets import (
+    published_disciplines_qs,
+    student_disciplines_qs,
+    student_lab_works_qs,
+    student_support_training_centers_qs,
+)
 from apps.bookings.models import Booking, BookingStatus, SupportTicket
 from apps.bookings.services import (
     BookingError,
@@ -103,6 +108,9 @@ class DisciplineListWebView(LoginRequiredMixin, ListView):
     context_object_name = "disciplines"
 
     def get_queryset(self):
+        user = self.request.user
+        if user.role == UserRole.STUDENT:
+            return student_disciplines_qs(user)
         return published_disciplines_qs()
 
 
@@ -111,14 +119,23 @@ class LabWorkListWebView(LoginRequiredMixin, ListView):
     context_object_name = "lab_works"
 
     def get_queryset(self):
-        return published_lab_works_qs(self.kwargs["discipline_id"])
+        user = self.request.user
+        discipline_id = self.kwargs["discipline_id"]
+        if user.role == UserRole.STUDENT:
+            return student_lab_works_qs(user, discipline_id=discipline_id)
+        from apps.academics.querysets import published_lab_works_qs
+
+        return published_lab_works_qs(discipline_id)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["discipline"] = get_object_or_404(
-            published_disciplines_qs(),
-            pk=self.kwargs["discipline_id"],
-        )
+        user = self.request.user
+        discipline_id = self.kwargs["discipline_id"]
+        if user.role == UserRole.STUDENT:
+            discipline_qs = student_disciplines_qs(user)
+        else:
+            discipline_qs = published_disciplines_qs()
+        ctx["discipline"] = get_object_or_404(discipline_qs, pk=discipline_id)
         return ctx
 
 
@@ -133,10 +150,8 @@ class BookLabWorkWebView(LoginRequiredMixin, View):
 
     def get(self, request, lab_work_id):
         lab_work = get_object_or_404(
-            LabWork,
+            student_lab_works_qs(request.user),
             pk=lab_work_id,
-            is_published=True,
-            discipline__semester__is_active=True,
         )
         filter_data = get_session_filter_options(lab_work_id)
         return render(
@@ -167,7 +182,7 @@ class BookFilterPartialView(LoginRequiredMixin, View):
     def get(self, request, lab_work_id):
         if request.user.role != UserRole.STUDENT:
             return HttpResponseForbidden()
-        get_object_or_404(LabWork, pk=lab_work_id, is_published=True)
+        get_object_or_404(student_lab_works_qs(request.user), pk=lab_work_id)
         date = request.GET.get("date") or None
         time_str = request.GET.get("time") or None
         tc_number = request.GET.get("tc") or None
@@ -312,7 +327,11 @@ class SupportListWebView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["training_centers"] = TrainingCenter.objects.all()
+        user = self.request.user
+        if user.role == UserRole.STUDENT:
+            ctx["training_centers"] = student_support_training_centers_qs(user)
+        else:
+            ctx["training_centers"] = TrainingCenter.objects.all()
         return ctx
 
 
@@ -322,11 +341,15 @@ class SupportCreateWebView(LoginRequiredMixin, View):
         body = request.POST.get("body", "").strip()
         tc_id = request.POST.get("training_center")
         if subject and body and tc_id:
+            allowed_tc = student_support_training_centers_qs(request.user).filter(pk=tc_id).first()
+            if not allowed_tc:
+                messages.error(request, "Выбранная лаборатория недоступна для вашей группы.")
+                return redirect("support")
             SupportTicket.objects.create(
                 student=request.user,
                 subject=subject,
                 body=body,
-                training_center_id=tc_id,
+                training_center=allowed_tc,
             )
             messages.success(request, "Обращение отправлено.")
         else:

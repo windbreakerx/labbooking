@@ -2,12 +2,17 @@ from django.conf import settings
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 from rest_framework import generics, status, viewsets
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.academics.models import Discipline, LabWork
-from apps.academics.querysets import published_disciplines_qs
+from apps.academics.querysets import (
+    published_disciplines_qs,
+    student_can_access_lab_work,
+    student_disciplines_qs,
+    student_lab_works_qs,
+)
 from apps.bookings.models import Booking, BookingStatus, SupportMessage, SupportTicket, WaitlistEntry
 from apps.bookings.permissions import IsLabStaff, IsStudent
 from apps.bookings.serializers import (
@@ -30,6 +35,7 @@ from apps.bookings.services.session_availability import (
     get_session_filter_options,
 )
 from apps.scheduling.models import LabSession
+from apps.users.models import UserRole
 
 
 def get_client_ip(request):
@@ -43,6 +49,9 @@ class DisciplineListView(generics.ListAPIView):
     serializer_class = DisciplineSerializer
 
     def get_queryset(self):
+        user = self.request.user
+        if user.role == UserRole.STUDENT:
+            return student_disciplines_qs(user).select_related("semester")
         return published_disciplines_qs().select_related("semester")
 
 
@@ -50,8 +59,14 @@ class DisciplineLabWorksView(generics.ListAPIView):
     serializer_class = LabWorkSerializer
 
     def get_queryset(self):
+        user = self.request.user
+        discipline_id = self.kwargs["pk"]
+        if user.role == UserRole.STUDENT:
+            if not student_disciplines_qs(user).filter(pk=discipline_id).exists():
+                raise NotFound()
+            return student_lab_works_qs(user, discipline_id=discipline_id)
         return LabWork.objects.filter(
-            discipline_id=self.kwargs["pk"],
+            discipline_id=discipline_id,
             is_published=True,
             discipline__semester__is_active=True,
         )
@@ -62,6 +77,14 @@ class LabSessionListView(generics.ListAPIView):
 
     def get_queryset(self):
         lab_work_id = self.request.query_params.get("lab_work")
+        user = self.request.user
+        if user.role == UserRole.STUDENT:
+            accessible = student_lab_works_qs(user)
+            if lab_work_id:
+                if not accessible.filter(pk=int(lab_work_id)).exists():
+                    return LabSession.objects.none()
+                return bookable_sessions_qs(lab_work_id=int(lab_work_id))
+            return bookable_sessions_qs().filter(lab_work__in=accessible)
         if lab_work_id:
             return bookable_sessions_qs(lab_work_id=int(lab_work_id))
         return bookable_sessions_qs()
@@ -74,6 +97,11 @@ class LabSessionFilterView(APIView):
         lab_work = request.query_params.get("lab_work")
         if not lab_work:
             raise ValidationError({"lab_work": "Обязательный параметр."})
+        if request.user.role == UserRole.STUDENT and not student_can_access_lab_work(
+            request.user,
+            int(lab_work),
+        ):
+            raise NotFound()
         data = get_session_filter_options(
             int(lab_work),
             date=request.query_params.get("date") or None,
@@ -85,11 +113,17 @@ class LabSessionFilterView(APIView):
 
 class LabSessionDetailView(generics.RetrieveAPIView):
     serializer_class = LabSessionSerializer
-    queryset = LabSession.objects.select_related(
-        "lab_work",
-        "room",
-        "room__training_center",
-    )
+
+    def get_queryset(self):
+        qs = LabSession.objects.select_related(
+            "lab_work",
+            "room",
+            "room__training_center",
+        )
+        user = self.request.user
+        if user.role == UserRole.STUDENT:
+            return qs.filter(lab_work__in=student_lab_works_qs(user))
+        return qs
 
 
 class MyBookingsView(generics.ListAPIView):
@@ -165,7 +199,14 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         return SupportTicket.objects.filter(student=user).order_by("-created_at")
 
     def perform_create(self, serializer):
-        serializer.save(student=self.request.user)
+        user = self.request.user
+        if user.role == UserRole.STUDENT:
+            from apps.academics.querysets import student_support_training_centers_qs
+
+            tc = serializer.validated_data.get("training_center")
+            if tc and not student_support_training_centers_qs(user).filter(pk=tc.pk).exists():
+                raise ValidationError({"training_center": "Лаборатория недоступна для вашей группы."})
+        serializer.save(student=user)
 
 
 class SupportMessageView(APIView):

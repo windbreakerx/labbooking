@@ -20,7 +20,6 @@ from apps.bookings.services.session_availability import (
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
 from apps.users.models import User, UserRole
 
-
 class BookingError(Exception):
     pass
 
@@ -140,6 +139,11 @@ class BookingService:
         self._lock_overlapping_room_sessions(session)
         skip_rules = skip_student_rules or manual
         self._validate_booking_window(session, skip_student_rules=skip_rules)
+        if not skip_rules and student.role == UserRole.STUDENT:
+            from apps.academics.querysets import student_can_access_lab_work
+
+            if not student_can_access_lab_work(student, session.lab_work_id):
+                raise BookingError("Лабораторная работа недоступна для вашей группы.")
         if not skip_rules:
             self._check_discipline_limit(
                 student,
@@ -245,6 +249,11 @@ class BookingService:
     @transaction.atomic
     def join_waitlist(self, student: User, session_id: int) -> WaitlistEntry:
         session = LabSession.objects.select_for_update().get(pk=session_id)
+        if student.role == UserRole.STUDENT:
+            from apps.academics.querysets import student_can_access_lab_work
+
+            if not student_can_access_lab_work(student, session.lab_work_id):
+                raise BookingError("Лабораторная работа недоступна для вашей группы.")
         if session.bookings.filter(current_status=BookingStatus.BOOKED).count() < session.capacity:
             raise BookingError("В слоте есть свободные места — запишитесь напрямую.")
         if WaitlistEntry.objects.filter(lab_session=session, student=student).exists():

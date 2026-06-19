@@ -5,7 +5,7 @@ from django.test import Client, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.academics.models import Discipline, LabWork, Semester
+from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
 from apps.bookings.models import BookingStatus, SupportMessage, SupportTicket
 from apps.bookings.services import BookingError, BookingService
 from apps.bookings.services.session_availability import (
@@ -113,7 +113,14 @@ def far_session(lab_work, room, semester):
 
 
 @pytest.fixture
-def student(db):
+def student_group(discipline):
+    group = StudentGroup.objects.create(name="TEST-24")
+    group.disciplines.add(discipline)
+    return group
+
+
+@pytest.fixture
+def student(db, student_group):
     user = User.objects.create_user(
         email="s@stud.spmi.ru",
         password="pass",
@@ -121,6 +128,14 @@ def student(db):
         last_name="B",
         role=UserRole.STUDENT,
     )
+    user.profile.student_group = student_group
+    user.profile.save(update_fields=["student_group"])
+    return user
+
+
+def _assign_student_group(user, student_group):
+    user.profile.student_group = student_group
+    user.profile.save(update_fields=["student_group"])
     return user
 
 
@@ -142,20 +157,26 @@ class TestBookingService:
         booking = BookingService(actor=student).create_booking(student, session.pk)
         assert booking.current_status == BookingStatus.BOOKED
 
-    def test_capacity_limit(self, student, session, db):
-        other = User.objects.create_user(
-            email="o@stud.spmi.ru",
-            password="p",
-            first_name="O",
-            last_name="T",
-            role=UserRole.STUDENT,
+    def test_capacity_limit(self, student, session, db, student_group):
+        other = _assign_student_group(
+            User.objects.create_user(
+                email="o@stud.spmi.ru",
+                password="p",
+                first_name="O",
+                last_name="T",
+                role=UserRole.STUDENT,
+            ),
+            student_group,
         )
-        third = User.objects.create_user(
-            email="t@stud.spmi.ru",
-            password="p",
-            first_name="T",
-            last_name="H",
-            role=UserRole.STUDENT,
+        third = _assign_student_group(
+            User.objects.create_user(
+                email="t@stud.spmi.ru",
+                password="p",
+                first_name="T",
+                last_name="H",
+                role=UserRole.STUDENT,
+            ),
+            student_group,
         )
         BookingService().create_booking(student, session.pk)
         BookingService().create_booking(other, session.pk)
@@ -203,20 +224,26 @@ class TestBookingService:
         with pytest.raises(BookingError, match="200"):
             service.cancel_booking(booking)
 
-    def test_room_parallel_capacity_limit(self, student, session, lab_work, room, semester):
-        other_student = User.objects.create_user(
-            email="s2@stud.spmi.ru",
-            password="pass",
-            first_name="I",
-            last_name="II",
-            role=UserRole.STUDENT,
+    def test_room_parallel_capacity_limit(self, student, session, lab_work, room, semester, student_group):
+        other_student = _assign_student_group(
+            User.objects.create_user(
+                email="s2@stud.spmi.ru",
+                password="pass",
+                first_name="I",
+                last_name="II",
+                role=UserRole.STUDENT,
+            ),
+            student_group,
         )
-        third_student = User.objects.create_user(
-            email="s3@stud.spmi.ru",
-            password="pass",
-            first_name="III",
-            last_name="IV",
-            role=UserRole.STUDENT,
+        third_student = _assign_student_group(
+            User.objects.create_user(
+                email="s3@stud.spmi.ru",
+                password="pass",
+                first_name="III",
+                last_name="IV",
+                role=UserRole.STUDENT,
+            ),
+            student_group,
         )
         second_lab_work = LabWork.objects.create(
             discipline=lab_work.discipline,
@@ -408,7 +435,7 @@ def test_support_message_api(student, staff):
 
 
 @pytest.mark.django_db
-def test_disciplines_active_semester_only(student, discipline, inactive_discipline):
+def test_disciplines_active_semester_only(student, student_group, discipline, inactive_discipline):
     client = Client()
     client.force_login(student)
     response = client.get("/disciplines/")
@@ -437,7 +464,9 @@ def test_logout_get_not_allowed(student):
 
 
 @pytest.mark.django_db
-def test_book_page_student_only(staff, lab_work):
+def test_book_page_student_only(staff, student_group, lab_work):
+    staff.profile.training_center = None
+    staff.profile.save(update_fields=["training_center"])
     client = Client()
     client.force_login(staff)
     response = client.get(f"/lab-works/{lab_work.pk}/book/")

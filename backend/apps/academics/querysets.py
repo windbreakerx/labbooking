@@ -1,6 +1,8 @@
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
-from apps.academics.models import Discipline, LabWork
+from apps.academics.models import Discipline, LabWork, StudentGroup
+from apps.scheduling.models import TrainingCenter
+from apps.users.models import User, UserRole
 
 
 def published_disciplines_qs():
@@ -16,3 +18,63 @@ def published_lab_works_qs(discipline_id: int):
         is_published=True,
         discipline__semester__is_active=True,
     )
+
+
+def resolve_student_group(user: User) -> StudentGroup | None:
+    profile = getattr(user, "profile", None)
+    if not profile:
+        return None
+    if profile.student_group_id:
+        return profile.student_group
+    if profile.group_name:
+        return StudentGroup.objects.filter(name=profile.group_name).first()
+    return None
+
+
+def student_disciplines_qs(user: User) -> QuerySet[Discipline]:
+    qs = published_disciplines_qs()
+    group = resolve_student_group(user)
+    if not group:
+        return qs.none()
+    return qs.filter(student_groups=group)
+
+
+def student_lab_works_qs(user: User, discipline_id: int | None = None) -> QuerySet[LabWork]:
+    group = resolve_student_group(user)
+    if not group:
+        return LabWork.objects.none()
+
+    qs = LabWork.objects.filter(
+        is_published=True,
+        discipline__semester__is_active=True,
+    )
+    if discipline_id is not None:
+        qs = qs.filter(discipline_id=discipline_id)
+
+    if group.lab_works.exists():
+        return qs.filter(student_groups=group)
+    return qs.filter(discipline__student_groups=group)
+
+
+def student_can_access_discipline(user: User, discipline_id: int) -> bool:
+    if user.role != UserRole.STUDENT:
+        return True
+    return student_disciplines_qs(user).filter(pk=discipline_id).exists()
+
+
+def student_can_access_lab_work(user: User, lab_work_id: int) -> bool:
+    if user.role != UserRole.STUDENT:
+        return True
+    return student_lab_works_qs(user).filter(pk=lab_work_id).exists()
+
+
+def student_support_training_centers_qs(user: User) -> QuerySet[TrainingCenter]:
+    group = resolve_student_group(user)
+    if not group:
+        return TrainingCenter.objects.none()
+
+    discipline_ids = student_disciplines_qs(user).values_list("pk", flat=True)
+    lab_work_ids = student_lab_works_qs(user).values_list("pk", flat=True)
+    return TrainingCenter.objects.filter(
+        Q(disciplines__in=discipline_ids) | Q(lab_works__in=lab_work_ids)
+    ).distinct()
