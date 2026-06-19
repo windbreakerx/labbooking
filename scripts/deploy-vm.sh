@@ -55,6 +55,12 @@ $COMPOSE exec -T web python manage.py migrate --noinput
 echo "==> Статика..."
 $COMPOSE exec -T web python manage.py collectstatic --noinput
 
+if $COMPOSE exec -T web test -f /app/staticfiles/img/spmi-logo.png; then
+  echo "==> Логотип: staticfiles/img/spmi-logo.png найден"
+else
+  echo "WARN: логотип не найден в staticfiles. Проверьте backend/static/img/spmi-logo.png"
+fi
+
 SMOKE_URL="http://127.0.0.1"
 if [[ "$USE_HTTPS" -eq 1 ]]; then
   SMOKE_URL=$(grep -E '^SITE_URL=' .env 2>/dev/null | cut -d= -f2- | tr -d ' "'\''' || true)

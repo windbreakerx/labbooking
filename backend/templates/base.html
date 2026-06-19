@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -5,13 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Запись на лабораторные{% endblock %}</title>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
 </head>
 <body>
     <header class="header">
         <div class="container header__inner">
             <a href="{% url 'home' %}" class="header__brand logo">
-                <img src="/static/img/spmi-logo.svg" alt="" class="header__brand-logo" width="48" height="48">
+                <img src="{% static 'img/spmi-logo.png' %}" alt="Санкт-Петербургский горный университет" class="header__brand-logo" width="48" height="48">
                 <span>
                     <span class="header__brand-title">Запись на лабораторные работы</span>
                     <span class="header__brand-subtitle">Санкт-Петербургский горный университет</span>
