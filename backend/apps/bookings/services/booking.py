@@ -362,7 +362,12 @@ class BookingService:
 
 
 def is_staff_user(user: User) -> bool:
-    return user.role in {UserRole.LAB_ADMIN, UserRole.TEACHER, UserRole.SYS_ADMIN}
+    return user.role in {
+        UserRole.LAB_ADMIN,
+        UserRole.LAB_HEAD,
+        UserRole.TEACHER,
+        UserRole.SYS_ADMIN,
+    }
 
 
 def staff_lab_filter(qs, user, *, training_center_lookup: str = "room__training_center"):
@@ -370,9 +375,14 @@ def staff_lab_filter(qs, user, *, training_center_lookup: str = "room__training_
     if user.role == UserRole.SYS_ADMIN:
         return qs
     tc = getattr(user.profile, "training_center", None)
-    if tc:
-        return qs.filter(**{training_center_lookup: tc})
-    return qs
+    if not tc:
+        return qs.none()
+    lookup_value = tc.pk if training_center_lookup in {"pk", "id"} else tc
+    return qs.filter(**{training_center_lookup: lookup_value})
+
+
+def staff_can_access_scoped_object(user: User, qs, *, training_center_lookup: str = "room__training_center") -> bool:
+    return staff_lab_filter(qs, user, training_center_lookup=training_center_lookup).exists()
 
 
 def filter_staff_bookings(qs, params):

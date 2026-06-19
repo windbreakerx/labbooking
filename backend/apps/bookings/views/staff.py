@@ -5,10 +5,13 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
-from apps.academics.models import Discipline, LabWork
-from apps.bookings.models import Booking, SupportMessage, SupportTicket
+from apps.academics.querysets import (
+    staff_managed_disciplines_qs,
+    staff_managed_lab_works_qs,
+)
+from apps.bookings.models import SupportMessage, SupportTicket
 from apps.bookings.reports import generate_report
-from apps.bookings.services import filter_staff_bookings, is_staff_user, staff_lab_filter
+from apps.bookings.services import is_staff_user, staff_lab_filter
 from apps.scheduling.models import LabStand, ScheduleEntry
 from apps.users.models import User, UserRole
 
@@ -26,7 +29,7 @@ class StaffDisciplinesView(StaffRequiredMixin, ListView):
     context_object_name = "disciplines"
 
     def get_queryset(self):
-        return Discipline.objects.select_related("semester").order_by("title")
+        return staff_managed_disciplines_qs(self.request.user)
 
 
 class StaffLabWorksView(StaffRequiredMixin, ListView):
@@ -34,12 +37,12 @@ class StaffLabWorksView(StaffRequiredMixin, ListView):
     context_object_name = "lab_works"
 
     def get_queryset(self):
-        return LabWork.objects.select_related("discipline").order_by("discipline", "number")
+        return staff_managed_lab_works_qs(self.request.user)
 
 
 class StaffLabWorkUploadView(StaffRequiredMixin, View):
     def post(self, request, pk):
-        lab_work = get_object_or_404(LabWork, pk=pk)
+        lab_work = get_object_or_404(staff_managed_lab_works_qs(request.user), pk=pk)
         if file := request.FILES.get("methodics_file"):
             if file.size > 10 * 1024 * 1024:
                 messages.error(request, "Файл не должен превышать 10 МБ.")
@@ -62,8 +65,16 @@ class StaffStandsView(StaffRequiredMixin, ListView):
         from apps.scheduling.models import Room, TrainingCenter
 
         ctx = super().get_context_data(**kwargs)
-        ctx["training_centers"] = TrainingCenter.objects.all()
-        ctx["rooms"] = Room.objects.select_related("training_center")
+        ctx["training_centers"] = staff_lab_filter(
+            TrainingCenter.objects.all(),
+            self.request.user,
+            training_center_lookup="pk",
+        )
+        ctx["rooms"] = staff_lab_filter(
+            Room.objects.select_related("training_center"),
+            self.request.user,
+            training_center_lookup="training_center",
+        )
         return ctx
 
 
@@ -76,11 +87,24 @@ class StaffStandCreateView(StaffRequiredMixin, View):
         tc_id = request.POST.get("training_center")
         room_id = request.POST.get("room")
         if name and inv and tc_id and room_id:
+            tc = staff_lab_filter(
+                TrainingCenter.objects.filter(pk=tc_id),
+                request.user,
+                training_center_lookup="pk",
+            ).first()
+            room = staff_lab_filter(
+                Room.objects.filter(pk=room_id),
+                request.user,
+                training_center_lookup="training_center",
+            ).first()
+            if not tc or not room:
+                messages.error(request, "Лаборатория или аудитория недоступны.")
+                return redirect("staff-stands")
             LabStand.objects.create(
                 name=name,
                 inventory_number=inv,
-                training_center_id=tc_id,
-                room_id=room_id,
+                training_center=tc,
+                room=room,
                 description=request.POST.get("description", ""),
             )
             messages.success(request, "Стенд добавлен.")
@@ -127,7 +151,14 @@ class StaffSupportView(StaffRequiredMixin, ListView):
 
 class StaffSupportReplyView(StaffRequiredMixin, View):
     def post(self, request, pk):
-        ticket = get_object_or_404(SupportTicket, pk=pk)
+        ticket = get_object_or_404(
+            staff_lab_filter(
+                SupportTicket.objects.all(),
+                request.user,
+                training_center_lookup="training_center",
+            ),
+            pk=pk,
+        )
         body = request.POST.get("body", "").strip()
         if body:
             SupportMessage.objects.create(

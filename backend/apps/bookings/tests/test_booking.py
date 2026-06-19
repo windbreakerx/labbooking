@@ -406,6 +406,8 @@ def test_session_filters_api(student, session, lab_work):
 
 @pytest.mark.django_db
 def test_manual_booking_api(staff, student, session):
+    staff.profile.training_center = session.room.training_center
+    staff.profile.save(update_fields=["training_center"])
     client = APIClient()
     client.force_authenticate(user=staff)
     response = client.post(
@@ -417,11 +419,14 @@ def test_manual_booking_api(staff, student, session):
 
 
 @pytest.mark.django_db
-def test_support_message_api(student, staff):
+def test_support_message_api(student, staff, room):
+    staff.profile.training_center = room.training_center
+    staff.profile.save(update_fields=["training_center"])
     ticket = SupportTicket.objects.create(
         student=student,
         subject="Проблема",
         body="Не работает",
+        training_center=room.training_center,
     )
     client = APIClient()
     client.force_authenticate(user=staff)
@@ -475,6 +480,8 @@ def test_book_page_student_only(staff, student_group, lab_work):
 
 @pytest.mark.django_db
 def test_staff_bookings_filters_and_manual_web(staff, student, session):
+    staff.profile.training_center = session.room.training_center
+    staff.profile.save(update_fields=["training_center"])
     client = Client()
     client.force_login(staff)
     response = client.get("/staff/bookings/", {"student": student.email})

@@ -12,6 +12,9 @@ from django.views.generic import DetailView, ListView, TemplateView
 from apps.academics.models import Discipline, LabWork
 from apps.academics.querysets import (
     published_disciplines_qs,
+    staff_disciplines_qs,
+    staff_lab_works_qs,
+    staff_managed_disciplines_qs,
     student_disciplines_qs,
     student_lab_works_qs,
     student_support_training_centers_qs,
@@ -22,6 +25,7 @@ from apps.bookings.services import (
     BookingService,
     filter_staff_bookings,
     is_staff_user,
+    staff_can_access_scoped_object,
     staff_lab_filter,
 )
 from apps.bookings.services.session_availability import (
@@ -111,6 +115,8 @@ class DisciplineListWebView(LoginRequiredMixin, ListView):
         user = self.request.user
         if user.role == UserRole.STUDENT:
             return student_disciplines_qs(user)
+        if is_staff_user(user):
+            return staff_disciplines_qs(user)
         return published_disciplines_qs()
 
 
@@ -123,6 +129,8 @@ class LabWorkListWebView(LoginRequiredMixin, ListView):
         discipline_id = self.kwargs["discipline_id"]
         if user.role == UserRole.STUDENT:
             return student_lab_works_qs(user, discipline_id=discipline_id)
+        if is_staff_user(user):
+            return staff_lab_works_qs(user, discipline_id=discipline_id)
         from apps.academics.querysets import published_lab_works_qs
 
         return published_lab_works_qs(discipline_id)
@@ -133,6 +141,8 @@ class LabWorkListWebView(LoginRequiredMixin, ListView):
         discipline_id = self.kwargs["discipline_id"]
         if user.role == UserRole.STUDENT:
             discipline_qs = student_disciplines_qs(user)
+        elif is_staff_user(user):
+            discipline_qs = staff_disciplines_qs(user)
         else:
             discipline_qs = published_disciplines_qs()
         ctx["discipline"] = get_object_or_404(discipline_qs, pk=discipline_id)
@@ -410,9 +420,9 @@ class StaffBookingsWebView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["filters"] = self.request.GET
-        ctx["disciplines"] = Discipline.objects.filter(
+        ctx["disciplines"] = staff_managed_disciplines_qs(self.request.user).filter(
             semester__is_active=True,
-        ).order_by("title")
+        )
         ctx["status_choices"] = Booking._meta.get_field("current_status").choices
         sessions_qs = LabSession.objects.filter(
             status=LabSessionStatus.OPEN,

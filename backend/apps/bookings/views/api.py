@@ -6,9 +6,12 @@ from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.academics.models import Discipline, LabWork
 from apps.academics.querysets import (
     published_disciplines_qs,
+    published_lab_works_qs,
+    staff_can_access_lab_work,
+    staff_disciplines_qs,
+    staff_lab_works_qs,
     student_can_access_lab_work,
     student_disciplines_qs,
     student_lab_works_qs,
@@ -29,7 +32,7 @@ from apps.bookings.serializers import (
     SupportTicketSerializer,
     WaitlistEntrySerializer,
 )
-from apps.bookings.services import BookingError, BookingService
+from apps.bookings.services import BookingError, BookingService, is_staff_user, staff_can_access_scoped_object, staff_lab_filter
 from apps.bookings.services.session_availability import (
     bookable_sessions_qs,
     get_session_filter_options,
@@ -52,6 +55,8 @@ class DisciplineListView(generics.ListAPIView):
         user = self.request.user
         if user.role == UserRole.STUDENT:
             return student_disciplines_qs(user).select_related("semester")
+        if is_staff_user(user):
+            return staff_disciplines_qs(user).select_related("semester")
         return published_disciplines_qs().select_related("semester")
 
 
@@ -65,11 +70,11 @@ class DisciplineLabWorksView(generics.ListAPIView):
             if not student_disciplines_qs(user).filter(pk=discipline_id).exists():
                 raise NotFound()
             return student_lab_works_qs(user, discipline_id=discipline_id)
-        return LabWork.objects.filter(
-            discipline_id=discipline_id,
-            is_published=True,
-            discipline__semester__is_active=True,
-        )
+        if is_staff_user(user):
+            if not staff_disciplines_qs(user).filter(pk=discipline_id).exists():
+                raise NotFound()
+            return staff_lab_works_qs(user, discipline_id=discipline_id)
+        return published_lab_works_qs(discipline_id)
 
 
 class LabSessionListView(generics.ListAPIView):
@@ -85,6 +90,13 @@ class LabSessionListView(generics.ListAPIView):
                     return LabSession.objects.none()
                 return bookable_sessions_qs(lab_work_id=int(lab_work_id))
             return bookable_sessions_qs().filter(lab_work__in=accessible)
+        if is_staff_user(user):
+            accessible = staff_lab_works_qs(user)
+            qs = bookable_sessions_qs(lab_work_id=int(lab_work_id)) if lab_work_id else bookable_sessions_qs()
+            if lab_work_id and not accessible.filter(pk=int(lab_work_id)).exists():
+                return LabSession.objects.none()
+            qs = qs.filter(lab_work__in=accessible) if not lab_work_id else qs
+            return staff_lab_filter(qs, user)
         if lab_work_id:
             return bookable_sessions_qs(lab_work_id=int(lab_work_id))
         return bookable_sessions_qs()
@@ -98,6 +110,11 @@ class LabSessionFilterView(APIView):
         if not lab_work:
             raise ValidationError({"lab_work": "Обязательный параметр."})
         if request.user.role == UserRole.STUDENT and not student_can_access_lab_work(
+            request.user,
+            int(lab_work),
+        ):
+            raise NotFound()
+        if is_staff_user(request.user) and not staff_can_access_lab_work(
             request.user,
             int(lab_work),
         ):
@@ -123,6 +140,8 @@ class LabSessionDetailView(generics.RetrieveAPIView):
         user = self.request.user
         if user.role == UserRole.STUDENT:
             return qs.filter(lab_work__in=student_lab_works_qs(user))
+        if is_staff_user(user):
+            return staff_lab_filter(qs.filter(lab_work__in=staff_lab_works_qs(user)), user)
         return qs
 
 
@@ -164,6 +183,11 @@ class BookingCancelView(APIView):
 
         if booking.student_id != request.user.id and not IsLabStaff().has_permission(request, self):
             return Response({"detail": "Нет доступа."}, status=status.HTTP_403_FORBIDDEN)
+        if booking.student_id != request.user.id and not staff_can_access_scoped_object(
+            request.user,
+            Booking.objects.filter(pk=booking.pk),
+        ):
+            return Response({"detail": "Нет доступа."}, status=status.HTTP_403_FORBIDDEN)
 
         by_staff = booking.student_id != request.user.id
         service = BookingService(actor=request.user, ip_address=get_client_ip(request))
@@ -195,7 +219,8 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if IsLabStaff().has_permission(self.request, self):
-            return SupportTicket.objects.all().select_related("training_center").order_by("-created_at")
+            qs = SupportTicket.objects.all().select_related("training_center").order_by("-created_at")
+            return staff_lab_filter(qs, user, training_center_lookup="training_center")
         return SupportTicket.objects.filter(student=user).order_by("-created_at")
 
     def perform_create(self, serializer):
@@ -219,6 +244,12 @@ class SupportMessageView(APIView):
         is_staff = IsLabStaff().has_permission(request, self)
         if ticket.student_id != request.user.id and not is_staff:
             return Response({"detail": "Нет доступа."}, status=status.HTTP_403_FORBIDDEN)
+        if is_staff and not staff_can_access_scoped_object(
+            request.user,
+            SupportTicket.objects.filter(pk=ticket.pk),
+            training_center_lookup="training_center",
+        ):
+            return Response({"detail": "Нет доступа."}, status=status.HTTP_403_FORBIDDEN)
 
         body = request.data.get("body", "").strip()
         if not body:
@@ -238,7 +269,10 @@ class SupportMessageView(APIView):
 class LabSessionAdminViewSet(viewsets.ModelViewSet):
     permission_classes = [IsLabStaff]
     serializer_class = LabSessionAdminSerializer
-    queryset = LabSession.objects.all().select_related("lab_work", "room", "semester", "teacher")
+
+    def get_queryset(self):
+        qs = LabSession.objects.all().select_related("lab_work", "room", "semester", "teacher")
+        return staff_lab_filter(qs, self.request.user)
 
 
 class AdminBookingListView(generics.ListAPIView):
@@ -267,7 +301,7 @@ class AdminBookingListView(generics.ListAPIView):
                 Q(student__email__icontains=student)
                 | Q(student__last_name__icontains=student)
             )
-        return qs.order_by("-scheduled_at")
+        return staff_lab_filter(qs, self.request.user).order_by("-scheduled_at")
 
 
 class BookingStatusUpdateView(APIView):
@@ -280,6 +314,12 @@ class BookingStatusUpdateView(APIView):
             booking = Booking.objects.get(pk=pk)
         except Booking.DoesNotExist:
             return Response({"detail": "Не найдено."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not staff_can_access_scoped_object(
+            request.user,
+            Booking.objects.filter(pk=booking.pk),
+        ):
+            return Response({"detail": "Нет доступа."}, status=status.HTTP_403_FORBIDDEN)
 
         service = BookingService(actor=request.user, ip_address=get_client_ip(request))
         try:
@@ -306,6 +346,13 @@ class ManualBookingView(APIView):
         except User.DoesNotExist:
             return Response({"detail": "Студент не найден."}, status=status.HTTP_404_NOT_FOUND)
 
+        session_id = serializer.validated_data["lab_session_id"]
+        if not staff_can_access_scoped_object(
+            request.user,
+            LabSession.objects.filter(pk=session_id),
+        ):
+            return Response({"detail": "Слот недоступен для вашей лаборатории."}, status=status.HTTP_403_FORBIDDEN)
+
         service = BookingService(actor=request.user, ip_address=get_client_ip(request))
         try:
             booking = service.create_booking(
@@ -331,6 +378,7 @@ class AdminReportView(APIView):
             date_from=request.query_params.get("date_from"),
             date_to=request.query_params.get("date_to"),
             discipline_id=request.query_params.get("discipline"),
+            staff_user=request.user,
         )
         response = HttpResponse(
             content,
