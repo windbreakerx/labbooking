@@ -1,5 +1,22 @@
 from django.urls import path
 
+from apps.bookings.views.lab_head import (
+    LabHeadBindingsView,
+    LabHeadDisciplineBindView,
+    LabHeadDisciplineUnbindView,
+    LabHeadHomeView,
+    LabHeadLabWorkBindView,
+    LabHeadLabWorkCreateView,
+    LabHeadLabWorkUnbindView,
+    LabHeadLabWorksView,
+    LabHeadPersonBindingsView,
+    LabHeadPersonCreateView,
+    LabHeadPeopleView,
+    LabHeadScheduleCreateView,
+    LabHeadScheduleView,
+    LabHeadStandCreateView,
+    LabHeadStandsView,
+)
 from apps.bookings.views.staff import (
     StaffDisciplinesView,
     StaffLabWorksView,
@@ -93,5 +110,48 @@ urlpatterns = [
         "staff/reports/<str:report_type>/download/",
         StaffReportDownloadView.as_view(),
         name="staff-report-download",
+    ),
+    path("lab-head/", LabHeadHomeView.as_view(), name="lab-head-home"),
+    path("lab-head/people/", LabHeadPeopleView.as_view(), name="lab-head-people"),
+    path("lab-head/people/create/", LabHeadPersonCreateView.as_view(), name="lab-head-person-create"),
+    path(
+        "lab-head/people/<int:pk>/bindings/",
+        LabHeadPersonBindingsView.as_view(),
+        name="lab-head-person-bindings",
+    ),
+    path("lab-head/bindings/", LabHeadBindingsView.as_view(), name="lab-head-bindings"),
+    path(
+        "lab-head/bindings/disciplines/<int:pk>/bind/",
+        LabHeadDisciplineBindView.as_view(),
+        name="lab-head-discipline-bind",
+    ),
+    path(
+        "lab-head/bindings/disciplines/<int:pk>/unbind/",
+        LabHeadDisciplineUnbindView.as_view(),
+        name="lab-head-discipline-unbind",
+    ),
+    path(
+        "lab-head/bindings/lab-works/<int:pk>/bind/",
+        LabHeadLabWorkBindView.as_view(),
+        name="lab-head-lab-work-bind",
+    ),
+    path(
+        "lab-head/bindings/lab-works/<int:pk>/unbind/",
+        LabHeadLabWorkUnbindView.as_view(),
+        name="lab-head-lab-work-unbind",
+    ),
+    path("lab-head/lab-works/", LabHeadLabWorksView.as_view(), name="lab-head-lab-works"),
+    path(
+        "lab-head/lab-works/create/",
+        LabHeadLabWorkCreateView.as_view(),
+        name="lab-head-lab-work-create",
+    ),
+    path("lab-head/stands/", LabHeadStandsView.as_view(), name="lab-head-stands"),
+    path("lab-head/stands/create/", LabHeadStandCreateView.as_view(), name="lab-head-stand-create"),
+    path("lab-head/schedule/", LabHeadScheduleView.as_view(), name="lab-head-schedule"),
+    path(
+        "lab-head/schedule/create/",
+        LabHeadScheduleCreateView.as_view(),
+        name="lab-head-schedule-create",
     ),
 ]

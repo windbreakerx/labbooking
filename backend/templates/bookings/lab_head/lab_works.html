@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Лаб. работы — завлаб{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
+        <h1 class="page-title">Лабораторные работы</h1>
+        <p class="page-description">Работы, привязанные к вашей лаборатории.</p>
+    </div>
+    <div class="page-actions">
+        <a class="button button--secondary" href="{% url 'lab-head-home' %}">На главную</a>
+    </div>
+</header>
+
+<form method="post" action="{% url 'lab-head-lab-work-create' %}" class="card card--form create-panel">
+    {% csrf_token %}
+    <h2 class="card__title">Добавить лабораторную работу</h2>
+    <div class="form-grid">
+        <label>Дисциплина
+            <select name="discipline" required>
+                <option value="">— выберите —</option>
+                {% for d in lab_disciplines %}
+                <option value="{{ d.pk }}">{{ d.title }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>№ ЛР <input type="number" name="number" min="1" required></label>
+        <label>Название <input type="text" name="title" required></label>
+        <label>Длительность (мин) <input type="number" name="duration_minutes" value="90" min="30" step="5"></label>
+    </div>
+    <div class="form-actions">
+        <button type="submit">Сохранить</button>
+    </div>
+</form>
+
+<div class="table-wrap">
+    <table class="table table--compact table--sticky responsive-table">
+        <thead>
+            <tr><th>Дисциплина</th><th>№</th><th>Название</th><th>Длительность</th><th>Опубликовано</th></tr>
+        </thead>
+        <tbody>
+            {% for lw in lab_works %}
+            <tr>
+                <td data-label="Дисциплина">{{ lw.discipline.title }}</td>
+                <td data-label="№"><span class="badge badge--muted">ЛР {{ lw.number }}</span></td>
+                <td data-label="Название"><strong>{{ lw.title }}</strong></td>
+                <td data-label="Длительность">{{ lw.duration_minutes }} мин</td>
+                <td data-label="Опубликовано">
+                    {% if lw.is_published %}
+                    <span class="status-badge status-badge--with-dot status-badge--visited">Да</span>
+                    {% else %}
+                    <span class="status-badge status-badge--with-dot status-badge--cancelled">Нет</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">
+                <div class="empty-state empty-state--icon">
+                    <p>Нет лабораторных работ.</p>
+                    <p class="muted">Сначала привяжите дисциплины, затем добавьте ЛР.</p>
+                </div>
+            </td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

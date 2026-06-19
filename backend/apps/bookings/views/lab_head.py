@@ -1,0 +1,353 @@
+from datetime import datetime
+
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import get_object_or_404, redirect
+from django.views import View
+from django.views.generic import ListView, TemplateView
+
+from apps.academics.models import LabWork
+from apps.academics.querysets import staff_managed_disciplines_qs, staff_managed_lab_works_qs
+from apps.bookings.services.lab_head import (
+    is_lab_head_user,
+    lab_head_active_semester,
+    lab_head_bindable_disciplines_qs,
+    lab_head_bindable_lab_works_qs,
+    lab_head_discipline_in_scope,
+    lab_head_lab_work_in_scope,
+    lab_head_people_qs,
+    lab_head_rooms_qs,
+    lab_head_schedule_qs,
+    lab_head_teachers_qs,
+    lab_head_training_center,
+)
+from apps.scheduling.models import LabStand, ScheduleEntry, WeekParity
+from apps.users.models import User, UserRole
+
+WEEKDAY_LABELS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
+
+
+class LabHeadRequiredMixin(LoginRequiredMixin):
+    def dispatch(self, request, *args, **kwargs):
+        if not is_lab_head_user(request.user):
+            messages.error(request, "Доступ только для заведующего лабораторией.")
+            return redirect("home")
+        if not lab_head_training_center(request.user):
+            messages.error(request, "В профиле не указана лаборатория.")
+            return redirect("home")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_training_center(self):
+        return lab_head_training_center(self.request.user)
+
+
+class LabHeadHomeView(LabHeadRequiredMixin, TemplateView):
+    template_name = "bookings/lab_head/home.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        tc = self.get_training_center()
+        ctx["training_center"] = tc
+        ctx["people_count"] = lab_head_people_qs(self.request.user).count()
+        ctx["disciplines_count"] = staff_managed_disciplines_qs(self.request.user).count()
+        ctx["lab_works_count"] = staff_managed_lab_works_qs(self.request.user).count()
+        ctx["stands_count"] = LabStand.objects.filter(training_center=tc).count()
+        ctx["schedule_count"] = lab_head_schedule_qs(self.request.user).count()
+        return ctx
+
+
+class LabHeadPeopleView(LabHeadRequiredMixin, ListView):
+    template_name = "bookings/lab_head/people.html"
+    context_object_name = "people"
+
+    def get_queryset(self):
+        return lab_head_people_qs(self.request.user)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["training_center"] = self.get_training_center()
+        ctx["lab_disciplines"] = staff_managed_disciplines_qs(self.request.user)
+        ctx["role_choices"] = [
+            (UserRole.LAB_ADMIN, UserRole.LAB_ADMIN.label),
+            (UserRole.TEACHER, UserRole.TEACHER.label),
+        ]
+        return ctx
+
+
+class LabHeadPersonCreateView(LabHeadRequiredMixin, View):
+    def post(self, request):
+        tc = self.get_training_center()
+        email = request.POST.get("email", "").strip().lower()
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        role = request.POST.get("role", "")
+        password = request.POST.get("password", "").strip() or "ChangeMe123!"
+
+        if not email or not first_name or not last_name:
+            messages.error(request, "Заполните email, имя и фамилию.")
+            return redirect("lab-head-people")
+        if role not in {UserRole.LAB_ADMIN, UserRole.TEACHER}:
+            messages.error(request, "Выберите роль: сотрудник или преподаватель.")
+            return redirect("lab-head-people")
+        if User.objects.filter(email=email).exists():
+            messages.error(request, "Пользователь с таким email уже существует.")
+            return redirect("lab-head-people")
+
+        user = User.objects.create_user(
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            role=role,
+            is_staff=(role == UserRole.LAB_ADMIN),
+        )
+        user.profile.training_center = tc
+        user.profile.save(update_fields=["training_center"])
+        messages.success(
+            request,
+            f"Добавлен {user.get_role_display()}: {user.full_name}. Временный пароль: {password}",
+        )
+        return redirect("lab-head-people")
+
+
+class LabHeadPersonBindingsView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        person = get_object_or_404(lab_head_people_qs(request.user), pk=pk)
+        discipline_ids = request.POST.getlist("disciplines")
+        allowed_ids = set(
+            staff_managed_disciplines_qs(request.user).filter(pk__in=discipline_ids).values_list("pk", flat=True)
+        )
+        person.profile.disciplines.set(allowed_ids)
+        messages.success(request, f"Привязки дисциплин для {person.full_name} обновлены.")
+        return redirect("lab-head-people")
+
+
+class LabHeadBindingsView(LabHeadRequiredMixin, TemplateView):
+    template_name = "bookings/lab_head/bindings.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        user = self.request.user
+        ctx["training_center"] = self.get_training_center()
+        ctx["lab_disciplines"] = staff_managed_disciplines_qs(user)
+        ctx["bindable_disciplines"] = lab_head_bindable_disciplines_qs(user)
+        ctx["lab_works"] = staff_managed_lab_works_qs(user)
+        ctx["bindable_lab_works"] = lab_head_bindable_lab_works_qs(user)
+        return ctx
+
+
+class LabHeadDisciplineBindView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        tc = self.get_training_center()
+        discipline = get_object_or_404(
+            lab_head_bindable_disciplines_qs(request.user),
+            pk=pk,
+        )
+        discipline.training_centers.add(tc)
+        messages.success(request, f"Дисциплина «{discipline.title}» привязана к лаборатории.")
+        return redirect("lab-head-bindings")
+
+
+class LabHeadDisciplineUnbindView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        tc = self.get_training_center()
+        discipline = lab_head_discipline_in_scope(request.user, pk)
+        if not discipline:
+            messages.error(request, "Дисциплина недоступна.")
+            return redirect("lab-head-bindings")
+        discipline.training_centers.remove(tc)
+        messages.success(request, f"Дисциплина «{discipline.title}» отвязана от лаборатории.")
+        return redirect("lab-head-bindings")
+
+
+class LabHeadLabWorkBindView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        tc = self.get_training_center()
+        lab_work = get_object_or_404(lab_head_bindable_lab_works_qs(request.user), pk=pk)
+        lab_work.training_centers.add(tc)
+        messages.success(request, f"ЛР «{lab_work.title}» привязана к лаборатории.")
+        return redirect("lab-head-bindings")
+
+
+class LabHeadLabWorkUnbindView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        tc = self.get_training_center()
+        lab_work = lab_head_lab_work_in_scope(request.user, pk)
+        if not lab_work:
+            messages.error(request, "Лабораторная работа недоступна.")
+            return redirect("lab-head-bindings")
+        lab_work.training_centers.remove(tc)
+        messages.success(request, f"ЛР «{lab_work.title}» отвязана от лаборатории.")
+        return redirect("lab-head-bindings")
+
+
+class LabHeadLabWorksView(LabHeadRequiredMixin, ListView):
+    template_name = "bookings/lab_head/lab_works.html"
+    context_object_name = "lab_works"
+
+    def get_queryset(self):
+        return staff_managed_lab_works_qs(self.request.user)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["training_center"] = self.get_training_center()
+        ctx["lab_disciplines"] = staff_managed_disciplines_qs(self.request.user)
+        return ctx
+
+
+class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
+    def post(self, request):
+        tc = self.get_training_center()
+        discipline_id = request.POST.get("discipline")
+        number = request.POST.get("number", "").strip()
+        title = request.POST.get("title", "").strip()
+        duration = request.POST.get("duration_minutes", "").strip() or "90"
+
+        discipline = lab_head_discipline_in_scope(request.user, int(discipline_id)) if discipline_id else None
+        if not discipline or not number or not title:
+            messages.error(request, "Заполните дисциплину, номер и название ЛР.")
+            return redirect("lab-head-lab-works")
+
+        try:
+            number_int = int(number)
+            duration_int = int(duration)
+        except ValueError:
+            messages.error(request, "Номер и длительность должны быть числами.")
+            return redirect("lab-head-lab-works")
+
+        if LabWork.objects.filter(discipline=discipline, number=number_int).exists():
+            messages.error(request, f"ЛР №{number_int} для этой дисциплины уже существует.")
+            return redirect("lab-head-lab-works")
+
+        lab_work = LabWork.objects.create(
+            discipline=discipline,
+            number=number_int,
+            title=title,
+            duration_minutes=duration_int,
+            is_published=True,
+        )
+        lab_work.training_centers.add(tc)
+        messages.success(request, f"Лабораторная работа «{lab_work.title}» добавлена.")
+        return redirect("lab-head-lab-works")
+
+
+class LabHeadStandsView(LabHeadRequiredMixin, ListView):
+    template_name = "bookings/lab_head/stands.html"
+    context_object_name = "stands"
+
+    def get_queryset(self):
+        tc = self.get_training_center()
+        return LabStand.objects.filter(training_center=tc).select_related("training_center", "room")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["training_center"] = self.get_training_center()
+        ctx["rooms"] = lab_head_rooms_qs(self.request.user)
+        return ctx
+
+
+class LabHeadStandCreateView(LabHeadRequiredMixin, View):
+    def post(self, request):
+        tc = self.get_training_center()
+        name = request.POST.get("name", "").strip()
+        inv = request.POST.get("inventory_number", "").strip()
+        room_id = request.POST.get("room")
+
+        room = lab_head_rooms_qs(request.user).filter(pk=room_id).first()
+        if not name or not inv or not room:
+            messages.error(request, "Заполните название, инв. номер и аудиторию.")
+            return redirect("lab-head-stands")
+
+        LabStand.objects.create(
+            name=name,
+            inventory_number=inv,
+            training_center=tc,
+            room=room,
+            description=request.POST.get("description", ""),
+        )
+        messages.success(request, "Стенд добавлен.")
+        return redirect("lab-head-stands")
+
+
+class LabHeadScheduleView(LabHeadRequiredMixin, ListView):
+    template_name = "bookings/lab_head/schedule.html"
+    context_object_name = "entries"
+
+    def get_queryset(self):
+        return lab_head_schedule_qs(self.request.user)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["training_center"] = self.get_training_center()
+        ctx["lab_works"] = staff_managed_lab_works_qs(self.request.user)
+        ctx["rooms"] = lab_head_rooms_qs(self.request.user)
+        ctx["teachers"] = lab_head_teachers_qs(self.request.user)
+        ctx["weekday_labels"] = WEEKDAY_LABELS
+        ctx["week_parity_choices"] = WeekParity.choices
+        ctx["active_semester"] = lab_head_active_semester()
+        ctx["schedule_rows"] = [
+            {
+                "entry": entry,
+                "weekday_label": WEEKDAY_LABELS[entry.weekday]
+                if 0 <= entry.weekday < len(WEEKDAY_LABELS)
+                else str(entry.weekday),
+            }
+            for entry in ctx["entries"]
+        ]
+        return ctx
+
+
+class LabHeadScheduleCreateView(LabHeadRequiredMixin, View):
+    def post(self, request):
+        semester = lab_head_active_semester()
+        if not semester:
+            messages.error(request, "Нет активного семестра.")
+            return redirect("lab-head-schedule")
+
+        lab_work_id = request.POST.get("lab_work")
+        lab_work = lab_head_lab_work_in_scope(request.user, int(lab_work_id)) if lab_work_id else None
+        room = lab_head_rooms_qs(request.user).filter(pk=request.POST.get("room")).first()
+        teacher = None
+        teacher_id = request.POST.get("teacher", "").strip()
+        if teacher_id:
+            teacher = lab_head_teachers_qs(request.user).filter(pk=teacher_id).first()
+            if not teacher:
+                messages.error(request, "Преподаватель недоступен.")
+                return redirect("lab-head-schedule")
+
+        weekday = request.POST.get("weekday", "").strip()
+        start_time_raw = request.POST.get("start_time", "").strip()
+        week_parity = request.POST.get("week_parity", WeekParity.BOTH)
+        capacity = request.POST.get("capacity", "").strip() or "30"
+        duration = request.POST.get("duration_minutes", "").strip() or "90"
+
+        if not lab_work or not room or not start_time_raw or weekday == "":
+            messages.error(request, "Заполните ЛР, аудиторию, день недели и время.")
+            return redirect("lab-head-schedule")
+
+        try:
+            weekday_int = int(weekday)
+            capacity_int = int(capacity)
+            duration_int = int(duration)
+            start_time = datetime.strptime(start_time_raw, "%H:%M").time()
+        except ValueError:
+            messages.error(request, "Проверьте день недели, время, места и длительность.")
+            return redirect("lab-head-schedule")
+
+        if week_parity not in WeekParity.values:
+            week_parity = WeekParity.BOTH
+
+        ScheduleEntry.objects.create(
+            lab_work=lab_work,
+            room=room,
+            semester=semester,
+            week_parity=week_parity,
+            weekday=weekday_int,
+            start_time=start_time,
+            duration_minutes=duration_int,
+            capacity=capacity_int,
+            teacher=teacher,
+            is_active=True,
+        )
+        messages.success(request, "Запись расписания добавлена.")
+        return redirect("lab-head-schedule")

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Привязки — завлаб{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
+        <h1 class="page-title">Привязки к лаборатории</h1>
+        <p class="page-description">Дисциплины и лабораторные работы, доступные в вашей лаборатории.</p>
+    </div>
+    <div class="page-actions">
+        <a class="button button--secondary" href="{% url 'lab-head-home' %}">На главную</a>
+    </div>
+</header>
+
+<section class="card">
+    <h2 class="card__title">Дисциплины лаборатории</h2>
+    <div class="table-wrap">
+        <table class="table table--compact responsive-table">
+            <thead><tr><th>Название</th><th>Семестр</th><th></th></tr></thead>
+            <tbody>
+                {% for d in lab_disciplines %}
+                <tr>
+                    <td data-label="Название"><strong>{{ d.title }}</strong></td>
+                    <td data-label="Семестр">{{ d.semester }}</td>
+                    <td data-label="">
+                        <form method="post" action="{% url 'lab-head-discipline-unbind' d.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="button button--secondary button--sm">Отвязать</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3"><p class="muted">Нет привязанных дисциплин.</p></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% if bindable_disciplines %}
+<section class="card card--form">
+    <h2 class="card__title">Привязать дисциплину</h2>
+    <div class="table-wrap">
+        <table class="table table--compact responsive-table">
+            <thead><tr><th>Название</th><th></th></tr></thead>
+            <tbody>
+                {% for d in bindable_disciplines %}
+                <tr>
+                    <td data-label="Название">{{ d.title }}</td>
+                    <td data-label="">
+                        <form method="post" action="{% url 'lab-head-discipline-bind' d.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="button--sm">Привязать</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<section class="card">
+    <h2 class="card__title">Лабораторные работы лаборатории</h2>
+    <div class="table-wrap">
+        <table class="table table--compact responsive-table">
+            <thead><tr><th>Дисциплина</th><th>ЛР</th><th>Название</th><th></th></tr></thead>
+            <tbody>
+                {% for lw in lab_works %}
+                <tr>
+                    <td data-label="Дисциплина">{{ lw.discipline.title }}</td>
+                    <td data-label="ЛР">№{{ lw.number }}</td>
+                    <td data-label="Название"><strong>{{ lw.title }}</strong></td>
+                    <td data-label="">
+                        <form method="post" action="{% url 'lab-head-lab-work-unbind' lw.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="button button--secondary button--sm">Отвязать</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4"><p class="muted">Нет привязанных лабораторных работ.</p></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% if bindable_lab_works %}
+<section class="card">
+    <h2 class="card__title">Привязать лабораторную работу</h2>
+    <div class="table-wrap">
+        <table class="table table--compact responsive-table">
+            <thead><tr><th>Дисциплина</th><th>ЛР</th><th>Название</th><th></th></tr></thead>
+            <tbody>
+                {% for lw in bindable_lab_works %}
+                <tr>
+                    <td data-label="Дисциплина">{{ lw.discipline.title }}</td>
+                    <td data-label="ЛР">№{{ lw.number }}</td>
+                    <td data-label="Название">{{ lw.title }}</td>
+                    <td data-label="">
+                        <form method="post" action="{% url 'lab-head-lab-work-bind' lw.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="button--sm">Привязать</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

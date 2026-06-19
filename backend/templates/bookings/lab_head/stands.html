@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Стенды — завлаб{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
+        <h1 class="page-title">Лабораторные стенды</h1>
+        <p class="page-description">Учёт стендов вашей лаборатории.</p>
+    </div>
+    <div class="page-actions">
+        <a class="button button--secondary" href="{% url 'lab-head-home' %}">На главную</a>
+    </div>
+</header>
+
+<form method="post" action="{% url 'lab-head-stand-create' %}" class="card card--form create-panel stand-form">
+    {% csrf_token %}
+    <h2 class="card__title">Добавить стенд</h2>
+    <div class="form-grid">
+        <label>Наименование <input type="text" name="name" required></label>
+        <label>Инв. номер <input type="text" name="inventory_number" required></label>
+        <label>Аудитория
+            <select name="room" required>
+                {% for r in rooms %}
+                <option value="{{ r.pk }}">ауд. {{ r.number }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="form-grid__full">Описание <textarea name="description" rows="2"></textarea></label>
+    </div>
+    <div class="form-actions">
+        <button type="submit">Сохранить</button>
+    </div>
+</form>
+
+<div class="table-wrap">
+    <table class="table table--compact table--sticky responsive-table">
+        <thead><tr><th>Название</th><th>Инв. №</th><th>Ауд.</th></tr></thead>
+        <tbody>
+            {% for s in stands %}
+            <tr>
+                <td data-label="Название"><strong>{{ s.name }}</strong></td>
+                <td data-label="Инв. №"><code>{{ s.inventory_number }}</code></td>
+                <td data-label="Ауд.">{{ s.room.number }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3">
+                <div class="empty-state empty-state--icon"><p>Стендов нет.</p></div>
+            </td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

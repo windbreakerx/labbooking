@@ -30,6 +30,19 @@
                         <a class="nav__link" href="{% url 'support' %}">Обращения</a>
                     </div>
                     {% endif %}
+                    {% if user.role == 'LAB_HEAD' %}
+                    <div class="nav__group nav__group--lab-head">
+                        <span class="nav__group-label">Кабинет завлаба</span>
+                        <div class="nav__group-inner">
+                            <a class="nav__link" href="{% url 'lab-head-home' %}">Обзор</a>
+                            <a class="nav__link" href="{% url 'lab-head-people' %}">Сотрудники</a>
+                            <a class="nav__link" href="{% url 'lab-head-bindings' %}">Привязки</a>
+                            <a class="nav__link" href="{% url 'lab-head-lab-works' %}">Лаб. работы</a>
+                            <a class="nav__link" href="{% url 'lab-head-stands' %}">Стенды</a>
+                            <a class="nav__link" href="{% url 'lab-head-schedule' %}">Расписание</a>
+                        </div>
+                    </div>
+                    {% endif %}
                     {% if user.role == 'LAB_ADMIN' or user.role == 'TEACHER' or user.role == 'SYS_ADMIN' %}
                     <div class="nav__group nav__group--staff">
                         <span class="nav__group-label">Кабинет сотрудника</span>
