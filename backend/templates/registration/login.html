@@ -7,7 +7,6 @@
     <div class="login-brand">Запись на лабораторные работы</div>
     <p class="login-university muted">Санкт-Петербургский горный университет</p>
     <h1>Вход в систему</h1>
-    <p class="muted">Используйте email и пароль вузовской почты.</p>
 
     {% if form.non_field_errors %}
     <ul class="messages">
@@ -19,7 +18,14 @@
 
     <form method="post" action="{% url 'login' %}">
         {% csrf_token %}
-        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}
+        <label for="{{ form.username.id_for_label }}">
+            <span class="field-label">
+                {{ form.username.label }}
+                <span class="field-hint" tabindex="0" aria-label="Подсказка по email">
+                    <span class="field-hint__icon" aria-hidden="true">?</span>
+                    <span class="field-hint__tooltip" role="tooltip">Вход выполняется по корпоративному адресу электронной почты, выданному вам организацией.</span>
+                </span>
+            </span>
             {{ form.username }}
             {% if form.username.errors %}
             <span class="field-error">{{ form.username.errors|join:", " }}</span>
