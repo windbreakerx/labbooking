@@ -2,44 +2,51 @@
 {% load static %}
 {% block title %}Вход{% endblock %}
 {% block content %}
-<div class="login-shell">
-<div class="card card--narrow login-card">
-    <img src="{% static 'img/spmi-logo.png' %}" alt="Санкт-Петербургский горный университет" class="login-logo">
-    <div class="login-brand">Запись на лабораторные работы</div>
-    <p class="login-university muted">Санкт-Петербургский горный университет</p>
-    <h1>Вход в систему</h1>
+<div class="auth-shell login-shell">
+    <div class="card card--form card--narrow auth-card login-card">
+        <header class="auth-card__header">
+            <img src="{% static 'img/spmi-logo.svg' %}" alt="Санкт-Петербургский горный университет" class="auth-card__logo login-logo" width="192" height="64">
+            <p class="page-eyebrow">labbooking</p>
+            <p class="auth-card__brand login-brand">Запись на лабораторные работы</p>
+            <p class="auth-card__subtitle login-university muted">Санкт-Петербургский горный университет</p>
+        </header>
 
-    {% if form.non_field_errors %}
-    <ul class="messages">
-        {% for error in form.non_field_errors %}
-        <li class="message message--error">{{ error }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
+        <h1 class="auth-card__title">Вход в систему</h1>
 
-    <form method="post" action="{% url 'login' %}">
-        {% csrf_token %}
-        <label for="{{ form.username.id_for_label }}">
-            <span class="field-label">
-                {{ form.username.label }}
-                <span class="field-hint" tabindex="0" aria-label="Подсказка по email">
-                    <span class="field-hint__icon" aria-hidden="true">?</span>
-                    <span class="field-hint__tooltip" role="tooltip">Вход выполняется по корпоративному адресу электронной почты, выданному вам организацией.</span>
+        {% if form.non_field_errors %}
+        <ul class="messages" role="alert">
+            {% for error in form.non_field_errors %}
+            <li class="message message--error">{{ error }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <form method="post" action="{% url 'login' %}" class="auth-form login-form">
+            {% csrf_token %}
+            <label for="{{ form.username.id_for_label }}">
+                <span class="field-label">
+                    {{ form.username.label }}
+                    <span class="field-hint" tabindex="0" aria-label="Подсказка по email">
+                        <span class="field-hint__icon" aria-hidden="true">?</span>
+                        <span class="field-hint__tooltip" role="tooltip">Вход выполняется по корпоративному адресу электронной почты, выданному вам организацией.</span>
+                    </span>
                 </span>
-            </span>
-            {{ form.username }}
-            {% if form.username.errors %}
-            <span class="field-error">{{ form.username.errors|join:", " }}</span>
-            {% endif %}
-        </label>
-        <label for="{{ form.password.id_for_label }}">{{ form.password.label }}
-            {{ form.password }}
-            {% if form.password.errors %}
-            <span class="field-error">{{ form.password.errors|join:", " }}</span>
-            {% endif %}
-        </label>
-        <button type="submit">Войти</button>
-    </form>
-</div>
+                {{ form.username }}
+                {% if form.username.errors %}
+                <span class="field-error" role="alert">{{ form.username.errors|join:", " }}</span>
+                {% endif %}
+            </label>
+            <label for="{{ form.password.id_for_label }}">
+                {{ form.password.label }}
+                {{ form.password }}
+                {% if form.password.errors %}
+                <span class="field-error" role="alert">{{ form.password.errors|join:", " }}</span>
+                {% endif %}
+            </label>
+            <div class="form-actions auth-form__actions">
+                <button type="submit" class="button">Войти</button>
+            </div>
+        </form>
+    </div>
 </div>
 {% endblock %}
