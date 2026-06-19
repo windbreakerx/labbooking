@@ -1,0 +1,16 @@
+<form method="post" action="{% url 'staff-booking-status' booking.pk %}" class="status-select-form status-select-form--confirm">
+    {% csrf_token %}
+    <select
+        name="status"
+        data-initial="{{ booking.current_status }}"
+        aria-label="Новый статус для {{ booking.student.full_name }}"
+    >
+        {% if booking.current_status == 'BOOKED' %}
+        <option value="" selected disabled>— выберите —</option>
+        {% endif %}
+        <option value="VISITED" {% if booking.current_status == 'VISITED' %}selected{% endif %}>Посетил</option>
+        <option value="NO_SHOW" {% if booking.current_status == 'NO_SHOW' %}selected{% endif %}>Неявка</option>
+        <option value="REACCESS" {% if booking.current_status == 'REACCESS' %}selected{% endif %}>Повторный доступ</option>
+        <option value="CANCELLED" {% if booking.current_status == 'CANCELLED' %}selected{% endif %}>Отмена записи</option>
+    </select>
+</form>

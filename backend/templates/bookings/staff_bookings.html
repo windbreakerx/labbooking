@@ -9,6 +9,50 @@
     </div>
 </header>
 
+<div class="staff-results-bar">
+    <div>
+        <h2 class="card__title">Результаты</h2>
+        <p class="muted">
+            {% if bookings %}
+            Найдено записей: <strong>{{ bookings|length }}</strong>
+            {% else %}
+            Используйте фильтры ниже, чтобы сузить список.
+            {% endif %}
+        </p>
+    </div>
+    <button type="button" class="button button--secondary" id="manual-booking-open">Ручная запись</button>
+</div>
+
+<dialog id="manual-booking-dialog" class="app-dialog" aria-labelledby="manual-booking-title">
+    <div class="app-dialog__header">
+        <h2 class="card__title" id="manual-booking-title">Ручная запись</h2>
+        <p class="muted">Для исключительных ситуаций и оперативной помощи студенту.</p>
+    </div>
+    <form method="post" action="{% url 'staff-booking-manual' %}" class="form-grid manual-booking__form">
+        {% csrf_token %}
+        <label>
+            Email студента
+            <input type="email" name="student_email" required placeholder="student001@stud.local" autocomplete="off">
+        </label>
+        <label>
+            Слот
+            <select name="session_id" required>
+                <option value="">— выберите слот —</option>
+                {% for s in manual_sessions %}
+                <option value="{{ s.pk }}">
+                    {{ s.starts_at|date:"d.m.Y H:i" }} — {{ s.lab_work.title }} (ауд. {{ s.room.number }})
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="app-dialog__actions">
+            <button type="submit">Записать</button>
+            <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
+        </div>
+    </form>
+    <p class="admin-note muted">Ручная запись обходит лимиты студента (горизонт, 1 запись на дисциплину, вместимость).</p>
+</dialog>
+
 <section class="card card--form filter-panel staff-filters">
     <div class="card__header">
         <h2 class="card__title">Фильтры</h2>
@@ -64,50 +108,6 @@
     {% endif %}
 </section>
 
-<section class="card card--form manual-booking">
-    <div class="card__header">
-        <div>
-            <h2 class="card__title">Ручная запись</h2>
-            <p class="muted">Для исключительных ситуаций и оперативной помощи студенту.</p>
-        </div>
-    </div>
-    <form method="post" action="{% url 'staff-booking-manual' %}" class="form-row manual-booking__form">
-        {% csrf_token %}
-        <label>
-            Email студента
-            <input type="email" name="student_email" required placeholder="student001@stud.local" autocomplete="off">
-        </label>
-        <label>
-            Слот
-            <select name="session_id" required>
-                <option value="">— выберите слот —</option>
-                {% for s in manual_sessions %}
-                <option value="{{ s.pk }}">
-                    {{ s.starts_at|date:"d.m.Y H:i" }} — {{ s.lab_work.title }} (ауд. {{ s.room.number }})
-                </option>
-                {% endfor %}
-            </select>
-        </label>
-        <div class="form-actions manual-booking__actions">
-            <button type="submit">Записать</button>
-        </div>
-    </form>
-    <p class="admin-note muted">Ручная запись обходит лимиты студента (горизонт, 1 запись на дисциплину, вместимость).</p>
-</section>
-
-<div class="staff-results-bar">
-    <div>
-        <h2 class="card__title">Результаты</h2>
-        <p class="muted">
-            {% if bookings %}
-            Найдено записей: <strong>{{ bookings|length }}</strong>
-            {% else %}
-            Используйте фильтры выше, чтобы сузить список.
-            {% endif %}
-        </p>
-    </div>
-</div>
-
 <section class="staff-results">
     {% if bookings %}
     <div class="staff-cards staff-cards--mobile" aria-label="Список записей">
@@ -132,16 +132,9 @@
                 <div><dt>ЛР</dt><dd>{{ b.lab_work.title }}</dd></div>
                 <div><dt>Регистрация</dt><dd>{{ b.get_registration_type_display }}{% if b.registered_by %} · {{ b.registered_by.full_name }}{% endif %}</dd></div>
             </dl>
-            <form method="post" action="{% url 'staff-booking-status' b.pk %}" class="status-select-form staff-booking-card__actions">
-                {% csrf_token %}
-                <select name="status" aria-label="Новый статус для {{ b.student.full_name }}">
-                    <option value="VISITED" {% if b.current_status == 'VISITED' %}selected{% endif %}>Посетил</option>
-                    <option value="NO_SHOW" {% if b.current_status == 'NO_SHOW' %}selected{% endif %}>Неявка</option>
-                    <option value="REACCESS" {% if b.current_status == 'REACCESS' %}selected{% endif %}>Повторный доступ</option>
-                    <option value="CANCELLED" {% if b.current_status == 'CANCELLED' %}selected{% endif %}>Отменил запись</option>
-                </select>
-                <button type="submit" class="button--sm">Применить</button>
-            </form>
+            <div class="staff-booking-card__actions">
+                {% include "bookings/partials/staff_status_form.html" with booking=b %}
+            </div>
         </article>
         {% endfor %}
     </div>
@@ -187,16 +180,7 @@
                         </span>
                     </td>
                     <td class="cell-actions">
-                        <form method="post" action="{% url 'staff-booking-status' b.pk %}" class="status-select-form">
-                            {% csrf_token %}
-                            <select name="status" aria-label="Новый статус для {{ b.student.full_name }}">
-                                <option value="VISITED" {% if b.current_status == 'VISITED' %}selected{% endif %}>Посетил</option>
-                                <option value="NO_SHOW" {% if b.current_status == 'NO_SHOW' %}selected{% endif %}>Неявка</option>
-                                <option value="REACCESS" {% if b.current_status == 'REACCESS' %}selected{% endif %}>Повторный доступ</option>
-                                <option value="CANCELLED" {% if b.current_status == 'CANCELLED' %}selected{% endif %}>Отменил запись</option>
-                            </select>
-                            <button type="submit" class="button--sm">Применить</button>
-                        </form>
+                        {% include "bookings/partials/staff_status_form.html" with booking=b %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -206,8 +190,61 @@
     {% else %}
     <div class="empty-state empty-state--icon staff-empty-state">
         <p>Записей не найдено.</p>
-        <p class="muted">Измените фильтры или создайте ручную запись выше.</p>
+        <p class="muted">Измените фильтры или нажмите «Ручная запись».</p>
     </div>
     {% endif %}
 </section>
+
+<script>
+(function () {
+    var dialog = document.getElementById('manual-booking-dialog');
+    var openBtn = document.getElementById('manual-booking-open');
+
+    if (dialog && openBtn) {
+        openBtn.addEventListener('click', function () {
+            dialog.showModal();
+        });
+
+        dialog.addEventListener('click', function (e) {
+            if (e.target === dialog) {
+                dialog.close();
+            }
+        });
+
+        dialog.querySelectorAll('[data-dialog-close]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dialog.close();
+            });
+        });
+    }
+
+    document.querySelectorAll('.status-select-form--confirm').forEach(function (form) {
+        var select = form.querySelector('select[name="status"]');
+        if (!select) {
+            return;
+        }
+
+        select.addEventListener('change', function () {
+            var initial = select.getAttribute('data-initial') || select.value;
+            var newValue = select.value;
+
+            if (newValue === initial) {
+                return;
+            }
+
+            var actionLabel = select.options[select.selectedIndex].text;
+            var studentLabel = select.getAttribute('aria-label') || 'студента';
+            var confirmed = window.confirm(
+                'Подтвердите действие: «' + actionLabel + '» для ' + studentLabel.replace('Новый статус для ', '') + '?'
+            );
+
+            if (confirmed) {
+                form.submit();
+            } else {
+                select.value = initial;
+            }
+        });
+    });
+})();
+</script>
 {% endblock %}

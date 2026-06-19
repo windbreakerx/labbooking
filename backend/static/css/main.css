@@ -1945,10 +1945,11 @@ button.calendar-day--available {
 
 .staff-results-bar {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-3);
+    flex-wrap: wrap;
 }
 
 .staff-results-bar .card__title {
@@ -1965,11 +1966,36 @@ button.calendar-day--available {
 }
 
 .staff-filters {
+    margin-bottom: var(--space-3);
+}
+
+.app-dialog {
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    max-width: 32rem;
+    width: calc(100% - var(--space-6));
+    box-shadow: var(--shadow-lg);
+    background: var(--color-surface);
+}
+
+.app-dialog::backdrop {
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.app-dialog__header {
     margin-bottom: var(--space-4);
 }
 
-.staff-filters + .manual-booking {
-    margin-bottom: var(--space-4);
+.app-dialog__header .card__title {
+    margin-bottom: var(--space-1);
+}
+
+.app-dialog__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
 }
 
 .staff-results {
@@ -2041,27 +2067,19 @@ button.calendar-day--available {
 }
 
 .staff-table .cell-actions {
-    min-width: 11.5rem;
+    min-width: 9.5rem;
 }
 
-.staff-table .status-select-form {
-    flex-wrap: nowrap;
-    gap: 0.35rem;
+.staff-table .status-select-form--confirm {
     width: 100%;
 }
 
-.staff-table .status-select-form select {
+.staff-table .status-select-form--confirm select {
+    width: 100%;
     min-width: 0;
-    flex: 1 1 6.5rem;
+    flex: 1 1 auto;
     padding: 0.35rem 0.45rem;
     font-size: var(--text-xs);
-}
-
-.staff-table .status-select-form .button--sm {
-    flex-shrink: 0;
-    padding: 0.35rem 0.55rem;
-    font-size: var(--text-xs);
-    white-space: nowrap;
 }
 
 .manual-booking__form {
@@ -2160,6 +2178,11 @@ button.calendar-day--available {
     margin-top: var(--space-3);
     padding-top: var(--space-3);
     border-top: 1px solid var(--color-border);
+}
+
+.staff-booking-card__actions .status-select-form--confirm select {
+    width: 100%;
+    min-width: 0;
 }
 
 .status-select-form,
@@ -2630,8 +2653,7 @@ a.report-card--link:focus-visible {
         align-items: stretch;
     }
 
-    .staff-booking-card__actions select,
-    .staff-booking-card__actions .button--sm {
+    .staff-booking-card__actions select {
         width: 100%;
     }
 

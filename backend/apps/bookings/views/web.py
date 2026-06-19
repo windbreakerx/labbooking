@@ -11,7 +11,7 @@ from django.views.generic import DetailView, ListView, TemplateView
 
 from apps.academics.models import Discipline, LabWork
 from apps.academics.querysets import published_disciplines_qs, published_lab_works_qs
-from apps.bookings.models import Booking, SupportTicket
+from apps.bookings.models import Booking, BookingStatus, SupportTicket
 from apps.bookings.services import (
     BookingError,
     BookingService,
@@ -445,7 +445,14 @@ class StaffStatusUpdateWebView(LoginRequiredMixin, View):
         service = BookingService(actor=request.user)
         try:
             service.change_status(booking, new_status)
-            messages.success(request, f"Статус изменён на «{new_status}».")
+            staff_status_labels = {
+                BookingStatus.VISITED: "Посетил",
+                BookingStatus.NO_SHOW: "Неявка",
+                BookingStatus.REACCESS: "Повторный доступ",
+                BookingStatus.CANCELLED: "Отмена записи",
+            }
+            label = staff_status_labels.get(new_status, new_status)
+            messages.success(request, f"Статус изменён на «{label}».")
         except BookingError as exc:
             messages.error(request, str(exc))
         return redirect("staff-bookings")
