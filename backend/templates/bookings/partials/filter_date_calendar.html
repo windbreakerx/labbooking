@@ -3,14 +3,14 @@
     <div class="card__header">
         <div>
             <h2 class="card__title">Выберите дату</h2>
-            <p class="muted">Активны только дни, где есть свободные слоты для записи.</p>
+            <p class="muted">Яркость дня показывает, сколько свободных мест доступно для записи.</p>
         </div>
         <span class="badge badge--muted booking-step-badge">Шаг 1</span>
     </div>
-    <div class="calendar-legend" aria-label="Легенда календаря">
-        <span class="calendar-legend__item"><span class="calendar-legend__swatch"></span>Доступно</span>
-        <span class="calendar-legend__item"><span class="calendar-legend__swatch calendar-legend__swatch--disabled"></span>Недоступно</span>
-        <span class="calendar-legend__item"><span class="calendar-legend__swatch calendar-legend__swatch--outside"></span>Другой месяц</span>
+    <div class="calendar-heat-legend" aria-hidden="true">
+        <span>Меньше мест</span>
+        <span class="calendar-heat-legend__bar"></span>
+        <span>Больше мест</span>
     </div>
     <div class="calendar-picker">
         {% for month in calendar_months %}
@@ -29,7 +29,8 @@
                     <button
                         type="button"
                         class="calendar-day calendar-day--available"
-                        title="{{ cell.label }}"
+                        style="--heat: {{ cell.heat }}%;"
+                        title="{{ cell.label }} — {{ cell.available_seats }} своб. мест"
                         hx-get="{% url 'book-filter' lab_work_id %}?date={{ cell.value }}"
                         hx-target="#filter-chain"
                         hx-swap="innerHTML"

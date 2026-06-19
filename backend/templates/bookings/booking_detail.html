@@ -32,25 +32,46 @@
         </span>
     </div>
 
-    <dl class="detail-list detail-list--grid booking-ticket__details">
-        <dt>Дисциплина</dt><dd>{{ booking.discipline.title }}</dd>
-        <dt>Лабораторная работа</dt><dd>{{ booking.lab_work.title }}</dd>
-        <dt>Учебный центр</dt><dd>№{{ booking.room.training_center.number }}</dd>
-        <dt>Аудитория</dt><dd>{{ booking.room.number }}</dd>
-        <dt>Дата и время</dt><dd>{{ booking.scheduled_at|date:"d.m.Y H:i" }}</dd>
-        <dt>Статус</dt>
-        <dd>
-            <span class="status-badge status-badge--with-dot
-                {% if booking.current_status == 'BOOKED' %}status-badge--booked
-                {% elif booking.current_status == 'NO_SHOW' %}status-badge--no-show
-                {% elif booking.current_status == 'CANCELLED' %}status-badge--cancelled
-                {% elif booking.current_status == 'REACCESS' %}status-badge--reaccess
-                {% elif booking.current_status == 'VISITED' %}status-badge--visited
-                {% endif %}">
-                {{ booking.get_current_status_display }}
-            </span>
-        </dd>
-    </dl>
+    <div class="table-wrap booking-ticket__details">
+        <table class="table table--detail">
+            <tbody>
+                <tr>
+                    <th scope="row">Дисциплина</th>
+                    <td>{{ booking.discipline.title }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">Лабораторная работа</th>
+                    <td>{{ booking.lab_work.title }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">Учебный центр</th>
+                    <td>№{{ booking.room.training_center.number }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">Аудитория</th>
+                    <td>{{ booking.room.number }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">Дата и время</th>
+                    <td>{{ booking.scheduled_at|date:"d.m.Y H:i" }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">Статус</th>
+                    <td>
+                        <span class="status-badge status-badge--with-dot
+                            {% if booking.current_status == 'BOOKED' %}status-badge--booked
+                            {% elif booking.current_status == 'NO_SHOW' %}status-badge--no-show
+                            {% elif booking.current_status == 'CANCELLED' %}status-badge--cancelled
+                            {% elif booking.current_status == 'REACCESS' %}status-badge--reaccess
+                            {% elif booking.current_status == 'VISITED' %}status-badge--visited
+                            {% endif %}">
+                            {{ booking.get_current_status_display }}
+                        </span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
     <div class="booking-ticket__actions page-actions">
         <a class="button button--secondary" href="{% url 'my-bookings' %}">К списку записей</a>

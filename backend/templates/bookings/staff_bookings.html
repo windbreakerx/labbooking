@@ -9,6 +9,19 @@
     </div>
 </header>
 
+<div class="staff-results-bar">
+    <div>
+        <h2 class="card__title">Результаты</h2>
+        <p class="muted">
+            {% if bookings %}
+            Найдено записей: <strong>{{ bookings|length }}</strong>
+            {% else %}
+            Используйте фильтры слева, чтобы сузить список.
+            {% endif %}
+        </p>
+    </div>
+</div>
+
 <div class="staff-layout">
     <aside class="staff-panel">
         <section class="card card--form manual-booking">
@@ -99,19 +112,6 @@
     </aside>
 
     <section class="staff-results">
-        <div class="card__header staff-results__header">
-            <div>
-                <h2 class="card__title">Результаты</h2>
-                <p class="muted">
-                    {% if bookings %}
-                    Найдено записей: <strong>{{ bookings|length }}</strong>
-                    {% else %}
-                    Используйте фильтры слева, чтобы сузить список.
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-
         {% if bookings %}
         <div class="staff-cards staff-cards--mobile" aria-label="Список записей">
             {% for b in bookings %}
@@ -150,7 +150,7 @@
         </div>
 
         <div class="table-wrap staff-table">
-            <table class="table table--compact table--sticky responsive-table">
+            <table class="table table--compact table--staff table--sticky responsive-table">
                 <thead>
                     <tr>
                         <th>Студент</th>
@@ -158,7 +158,7 @@
                         <th>Дисциплина</th>
                         <th>ЛР</th>
                         <th>Дата</th>
-                        <th>Регистрация</th>
+                        <th>Рег.</th>
                         <th>Статус</th>
                         <th>Действия</th>
                     </tr>
@@ -166,14 +166,17 @@
                 <tbody>
                     {% for b in bookings %}
                     <tr>
-                        <td data-label="Студент"><strong>{{ b.student.full_name }}</strong><br><span class="muted">{{ b.student.email }}</span></td>
+                        <td class="cell-student" data-label="Студент">
+                            <span class="cell-student__name">{{ b.student.full_name }}</span>
+                            <span class="cell-student__email muted">{{ b.student.email }}</span>
+                        </td>
                         <td data-label="Группа">{{ b.student.profile.group_name|default:"—" }}</td>
-                        <td data-label="Дисциплина">{{ b.discipline.title }}</td>
-                        <td data-label="ЛР">{{ b.lab_work.title }}</td>
-                        <td data-label="Дата"><strong>{{ b.scheduled_at|date:"d.m.Y H:i" }}</strong></td>
-                        <td data-label="Регистрация">
+                        <td class="cell-truncate" data-label="Дисциплина" title="{{ b.discipline.title }}">{{ b.discipline.title }}</td>
+                        <td class="cell-truncate" data-label="ЛР" title="{{ b.lab_work.title }}">{{ b.lab_work.title }}</td>
+                        <td class="cell-nowrap" data-label="Дата">{{ b.scheduled_at|date:"d.m.Y H:i" }}</td>
+                        <td class="cell-truncate" data-label="Регистрация" title="{{ b.get_registration_type_display }}{% if b.registered_by %} · {{ b.registered_by.full_name }}{% endif %}">
                             {{ b.get_registration_type_display }}
-                            {% if b.registered_by %}<br><span class="muted">{{ b.registered_by.full_name }}</span>{% endif %}
+                            {% if b.registered_by %}<span class="muted"> · {{ b.registered_by.full_name }}</span>{% endif %}
                         </td>
                         <td data-label="Статус">
                             <span class="status-badge status-badge--with-dot

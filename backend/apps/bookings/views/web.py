@@ -60,6 +60,7 @@ def build_calendar_months(date_options: list[dict]) -> list[dict]:
     if not parsed_dates:
         return []
 
+    max_seats = max((option.get("available_seats", 0) for option in date_options), default=0)
     month_keys = sorted({(d.year, d.month) for d in parsed_dates})
     months = []
     for year, month in month_keys:
@@ -69,6 +70,8 @@ def build_calendar_months(date_options: list[dict]) -> list[dict]:
             cells = []
             for day in week:
                 option = option_by_date.get(day)
+                seats = option.get("available_seats", 0) if option else 0
+                heat = round(seats / max_seats * 100) if max_seats and seats else 0
                 cells.append(
                     {
                         "day": day.day,
@@ -76,6 +79,8 @@ def build_calendar_months(date_options: list[dict]) -> list[dict]:
                         "is_available": bool(option),
                         "value": option.get("value") if option else "",
                         "label": option.get("label") if option else "",
+                        "available_seats": seats,
+                        "heat": heat,
                     }
                 )
             weeks.append(cells)

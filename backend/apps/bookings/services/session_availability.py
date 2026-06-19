@@ -197,16 +197,18 @@ def get_session_filter_options(
             ],
         }
 
-    date_pairs = {}
+    date_meta = {}
     for session in qs:
         local_starts = timezone.localtime(session.starts_at)
         date_key = local_starts.date().isoformat()
         pair_key = local_starts.strftime("%H:%M")
         pair_num = PAIR_ORDER_BY_START.get(pair_key)
-        date_pairs.setdefault(date_key, set())
+        if date_key not in date_meta:
+            date_meta[date_key] = {"pairs": set(), "available_seats": 0}
         if pair_num:
-            date_pairs[date_key].add(pair_num)
-    dates = sorted(date_pairs.keys())
+            date_meta[date_key]["pairs"].add(pair_num)
+        date_meta[date_key]["available_seats"] += session.available_seats
+    dates = sorted(date_meta.keys())
     return {
         "level": "date",
         "options": [
@@ -215,8 +217,9 @@ def get_session_filter_options(
                 "label": (
                     f"{d[8:10]}.{d[5:7]}.{d[0:4]} "
                     f"({WEEKDAY_LABELS[datetime.fromisoformat(d).weekday()]})"
-                    f" — пары: {', '.join(str(n) for n in sorted(date_pairs[d]))}"
+                    f" — пары: {', '.join(str(n) for n in sorted(date_meta[d]['pairs']))}"
                 ),
+                "available_seats": date_meta[d]["available_seats"],
             }
             for d in dates
         ],
