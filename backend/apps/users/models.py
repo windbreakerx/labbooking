@@ -33,6 +33,7 @@ class UserManager(BaseUserManager):
 class UserRole(models.TextChoices):
     STUDENT = "STUDENT", "Студент"
     TEACHER = "TEACHER", "Преподаватель"
+    LAB_HEAD = "LAB_HEAD", "Заведующий лабораторией"
     LAB_ADMIN = "LAB_ADMIN", "Сотрудник лаборатории"
     SYS_ADMIN = "SYS_ADMIN", "Системный администратор"
 
@@ -71,6 +72,14 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     student_id = models.CharField("ID студента", max_length=64, blank=True)
     group_name = models.CharField("Группа", max_length=64, blank=True)
+    student_group = models.ForeignKey(
+        "academics.StudentGroup",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="students",
+        verbose_name="Учебная группа",
+    )
     faculty = models.CharField("Факультет", max_length=128, blank=True)
     gender = models.CharField(max_length=1, choices=Gender.choices, blank=True)
     phone = models.CharField(max_length=32, blank=True)
@@ -83,6 +92,12 @@ class UserProfile(models.Model):
         blank=True,
         related_name="staff_profiles",
         verbose_name="Лаборатория",
+    )
+    disciplines = models.ManyToManyField(
+        "academics.Discipline",
+        blank=True,
+        related_name="staff_profiles",
+        verbose_name="Дисциплины сотрудника",
     )
 
     class Meta:

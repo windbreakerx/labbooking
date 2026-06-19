@@ -7,6 +7,7 @@ from .models import User, UserProfile
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
+    filter_horizontal = ("disciplines",)
 
 
 @admin.register(User)
@@ -36,5 +37,8 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "group_name", "faculty", "no_show_count")
-    search_fields = ("user__email", "group_name")
+    list_display = ("user", "student_group", "group_name", "faculty", "training_center", "no_show_count")
+    list_filter = ("student_group", "training_center", "faculty")
+    search_fields = ("user__email", "group_name", "student_group__name")
+    filter_horizontal = ("disciplines",)
+    autocomplete_fields = ("student_group", "training_center", "user")

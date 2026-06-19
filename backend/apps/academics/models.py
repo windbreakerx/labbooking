@@ -17,6 +17,32 @@ class Semester(models.Model):
         return self.name
 
 
+class StudentGroup(models.Model):
+    name = models.CharField("Группа", max_length=64, unique=True)
+    faculty = models.CharField("Факультет", max_length=128, blank=True)
+    dekanat_id = models.CharField("ID в Деканате", max_length=64, blank=True)
+    disciplines = models.ManyToManyField(
+        "Discipline",
+        blank=True,
+        related_name="student_groups",
+        verbose_name="Дисциплины учебного плана",
+    )
+    lab_works = models.ManyToManyField(
+        "LabWork",
+        blank=True,
+        related_name="student_groups",
+        verbose_name="Лабораторные работы учебного плана",
+    )
+
+    class Meta:
+        verbose_name = "Учебная группа"
+        verbose_name_plural = "Учебные группы"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Discipline(models.Model):
     code = models.CharField("Код", max_length=32, blank=True)
     title = models.CharField("Название", max_length=256)
@@ -29,6 +55,12 @@ class Discipline(models.Model):
         related_name="disciplines",
         null=True,
         blank=True,
+    )
+    training_centers = models.ManyToManyField(
+        "scheduling.TrainingCenter",
+        blank=True,
+        related_name="disciplines",
+        verbose_name="Лаборатории",
     )
 
     class Meta:
@@ -56,6 +88,12 @@ class LabWork(models.Model):
         upload_to="methodics/",
         blank=True,
         validators=[FileExtensionValidator(allowed_extensions=["pdf"])],
+    )
+    training_centers = models.ManyToManyField(
+        "scheduling.TrainingCenter",
+        blank=True,
+        related_name="lab_works",
+        verbose_name="Лаборатории",
     )
 
     class Meta:
