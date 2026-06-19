@@ -1,11 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Обращение — {{ ticket.subject }}{% endblock %}
+{% block breadcrumbs %}
+<nav class="breadcrumbs" aria-label="Навигация">
+    <a href="{% url 'support' %}">Обращения</a>
+    <span>/</span>
+    <span class="breadcrumbs__current">{{ ticket.subject }}</span>
+</nav>
+{% endblock %}
 {% block content %}
-<h1>{{ ticket.subject }}</h1>
-<p class="muted">Статус: {{ ticket.get_status_display }}</p>
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Обращение</p>
+        <h1 class="page-title">{{ ticket.subject }}</h1>
+        <p class="page-description">Статус: {{ ticket.get_status_display }}</p>
+    </div>
+</header>
 
 <div class="thread">
-    <div class="thread__message">
+    <div class="thread__message thread__message--own">
         <strong>Вы</strong> <span class="muted">{{ ticket.created_at|date:"d.m.Y H:i" }}</span>
         <p>{{ ticket.body }}</p>
     </div>
@@ -18,12 +30,13 @@
     {% endfor %}
 </div>
 
-<form method="post" class="card">
+<form method="post" class="card reply-form">
     {% csrf_token %}
+    <h2 class="card__title">Дополнить обращение</h2>
     <label>Дополнительное сообщение
         <textarea name="body" rows="3"></textarea>
     </label>
     <button type="submit">Отправить</button>
 </form>
-<p><a href="{% url 'support' %}">← К списку обращений</a></p>
+<p><a class="button button--secondary" href="{% url 'support' %}">К списку обращений</a></p>
 {% endblock %}

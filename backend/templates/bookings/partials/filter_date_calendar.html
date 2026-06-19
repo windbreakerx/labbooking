@@ -1,39 +1,51 @@
 {% if calendar_months %}
-<div class="calendar-picker">
-    {% for month in calendar_months %}
-    <section class="calendar-month">
-        <h3 class="calendar-month__title">{{ month.title }}</h3>
-        <div class="calendar-grid calendar-grid--header">
-            {% for wd in month.weekday_headers %}
-            <div class="calendar-cell calendar-cell--header">{{ wd }}</div>
-            {% endfor %}
+<section class="calendar-card">
+    <div class="card__header">
+        <div>
+            <h2 class="card__title">Выберите дату</h2>
+            <p class="muted">Активны только дни, где есть свободные слоты для записи.</p>
         </div>
-        {% for week in month.weeks %}
-        <div class="calendar-grid">
-            {% for cell in week %}
-            <div class="calendar-cell {% if not cell.is_current_month %}calendar-cell--outside{% endif %}">
-                {% if cell.is_available %}
-                <button
-                    type="button"
-                    class="calendar-day"
-                    title="{{ cell.label }}"
-                    hx-get="{% url 'book-filter' lab_work_id %}?date={{ cell.value }}"
-                    hx-target="#filter-chain"
-                    hx-swap="innerHTML"
-                >
-                    {{ cell.day }}
-                </button>
-                {% else %}
-                <span class="calendar-day calendar-day--disabled">{{ cell.day }}</span>
-                {% endif %}
+    </div>
+    <div class="calendar-legend" aria-label="Легенда календаря">
+        <span class="calendar-legend__item"><span class="calendar-legend__swatch"></span>Доступно</span>
+        <span class="calendar-legend__item"><span class="calendar-legend__swatch calendar-legend__swatch--disabled"></span>Недоступно</span>
+        <span class="calendar-legend__item"><span class="calendar-legend__swatch calendar-legend__swatch--outside"></span>Другой месяц</span>
+    </div>
+    <div class="calendar-picker">
+        {% for month in calendar_months %}
+        <section class="calendar-month">
+            <h3 class="calendar-month__title">{{ month.title }}</h3>
+            <div class="calendar-grid calendar-grid--header">
+                {% for wd in month.weekday_headers %}
+                <div class="calendar-cell calendar-cell--header">{{ wd }}</div>
+                {% endfor %}
+            </div>
+            {% for week in month.weeks %}
+            <div class="calendar-grid">
+                {% for cell in week %}
+                <div class="calendar-cell {% if not cell.is_current_month %}calendar-cell--outside{% endif %}">
+                    {% if cell.is_available %}
+                    <button
+                        type="button"
+                        class="calendar-day calendar-day--available"
+                        title="{{ cell.label }}"
+                        hx-get="{% url 'book-filter' lab_work_id %}?date={{ cell.value }}"
+                        hx-target="#filter-chain"
+                        hx-swap="innerHTML"
+                    >
+                        {{ cell.day }}
+                    </button>
+                    {% else %}
+                    <span class="calendar-day calendar-day--disabled">{{ cell.day }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
             </div>
             {% endfor %}
-        </div>
+        </section>
         {% endfor %}
-    </section>
-    {% endfor %}
-</div>
-<p class="muted">Выберите день с доступными слотами: активны только будние дни и пары с свободными местами.</p>
+    </div>
+</section>
 {% else %}
-<p class="muted">Нет доступных дат для записи на выбранную лабораторную работу.</p>
+<div class="empty-state">Нет доступных дат для записи на выбранную лабораторную работу.</div>
 {% endif %}

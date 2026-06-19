@@ -1,70 +1,79 @@
 {% extends "base.html" %}
 {% block title %}Мои записи{% endblock %}
 {% block content %}
-<h1>Мои записи</h1>
-<table class="table">
-    <thead>
-        <tr>
-            <th>УЦ</th>
-            <th>Аудитория</th>
-            <th>Дата и время</th>
-            <th>Дисциплина</th>
-            <th>ЛР</th>
-            <th>Статус</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for b in bookings %}
-        <tr>
-            <td>{{ b.room.training_center.number }}</td>
-            <td>{{ b.room.number }}</td>
-            <td>{{ b.scheduled_at|date:"d.m.Y H:i" }}</td>
-            <td>{{ b.discipline.title }}</td>
-            <td>{{ b.lab_work.title }}</td>
-            <td>
-                <span class="status-badge
-                    {% if b.current_status == 'BOOKED' %}status-badge--booked
-                    {% elif b.current_status == 'NO_SHOW' %}status-badge--no-show
-                    {% elif b.current_status == 'CANCELLED' %}status-badge--cancelled
-                    {% elif b.current_status == 'REACCESS' %}status-badge--reaccess
-                    {% elif b.current_status == 'VISITED' %}status-badge--visited
-                    {% endif %}">
-                    {% if b.current_status == 'BOOKED' %}
-                    Записан
-                    {% elif b.current_status == 'NO_SHOW' %}
-                    Неявка
-                    {% elif b.current_status == 'CANCELLED' %}
-                    Отменил запись
-                    {% elif b.current_status == 'REACCESS' %}
-                    Повторный доступ
-                    {% elif b.current_status == 'VISITED' %}
-                    Посетил
-                    {% else %}
-                    {{ b.get_current_status_display }}
-                    {% endif %}
-                </span>
-            </td>
-            <td>
-                <details class="row-actions">
-                    <summary class="row-actions__trigger" aria-label="Действия">⋮</summary>
-                    <div class="row-actions__menu">
-                        <a href="{% url 'booking-detail' b.pk %}" class="row-actions__item">Просмотреть</a>
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Студент</p>
+        <h1 class="page-title">Мои записи</h1>
+        <p class="page-description">Здесь собраны ваши записи на лабораторные работы, текущие статусы и доступные действия.</p>
+    </div>
+</header>
+
+<div class="table-wrap">
+    <table class="table responsive-table">
+        <thead>
+            <tr>
+                <th>УЦ</th>
+                <th>Аудитория</th>
+                <th>Дата и время</th>
+                <th>Дисциплина</th>
+                <th>ЛР</th>
+                <th>Статус</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in bookings %}
+            <tr>
+                <td data-label="УЦ">№{{ b.room.training_center.number }}</td>
+                <td data-label="Аудитория">{{ b.room.number }}</td>
+                <td data-label="Дата и время"><strong>{{ b.scheduled_at|date:"d.m.Y H:i" }}</strong></td>
+                <td data-label="Дисциплина">{{ b.discipline.title }}</td>
+                <td data-label="ЛР">{{ b.lab_work.title }}</td>
+                <td data-label="Статус">
+                    <span class="status-badge
+                        {% if b.current_status == 'BOOKED' %}status-badge--booked
+                        {% elif b.current_status == 'NO_SHOW' %}status-badge--no-show
+                        {% elif b.current_status == 'CANCELLED' %}status-badge--cancelled
+                        {% elif b.current_status == 'REACCESS' %}status-badge--reaccess
+                        {% elif b.current_status == 'VISITED' %}status-badge--visited
+                        {% endif %}">
                         {% if b.current_status == 'BOOKED' %}
-                        <form method="post" action="{% url 'cancel-booking' b.pk %}">
-                            {% csrf_token %}
-                            <button type="submit" class="row-actions__item row-actions__item--button">Отписаться</button>
-                        </form>
+                        Записан
+                        {% elif b.current_status == 'NO_SHOW' %}
+                        Неявка
+                        {% elif b.current_status == 'CANCELLED' %}
+                        Отменил запись
+                        {% elif b.current_status == 'REACCESS' %}
+                        Повторный доступ
+                        {% elif b.current_status == 'VISITED' %}
+                        Посетил
                         {% else %}
-                        <span class="row-actions__item row-actions__item--disabled">Отписаться</span>
+                        {{ b.get_current_status_display }}
                         {% endif %}
-                    </div>
-                </details>
-            </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="7">Записей нет.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+                    </span>
+                </td>
+                <td data-label="Действия">
+                    <details class="row-actions">
+                        <summary class="row-actions__trigger" aria-label="Действия">⋮</summary>
+                        <div class="row-actions__menu">
+                            <a href="{% url 'booking-detail' b.pk %}" class="row-actions__item">Просмотреть</a>
+                            {% if b.current_status == 'BOOKED' %}
+                            <form method="post" action="{% url 'cancel-booking' b.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="row-actions__item row-actions__item--button">Отписаться</button>
+                            </form>
+                            {% else %}
+                            <span class="row-actions__item row-actions__item--disabled">Отписаться</span>
+                            {% endif %}
+                        </div>
+                    </details>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7">Записей нет.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% endblock %}

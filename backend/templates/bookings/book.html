@@ -1,17 +1,60 @@
 {% extends "base.html" %}
 {% block title %}Запись — {{ lab_work.title }}{% endblock %}
+{% block breadcrumbs %}
+<nav class="breadcrumbs" aria-label="Навигация">
+    <a href="{% url 'disciplines' %}">Дисциплины</a>
+    <span>/</span>
+    <a href="{% url 'lab-works' lab_work.discipline.pk %}">{{ lab_work.discipline.title }}</a>
+    <span>/</span>
+    <span class="breadcrumbs__current">{{ lab_work.title }}</span>
+</nav>
+{% endblock %}
 {% block content %}
-<h1>Запись на {{ lab_work.title }}</h1>
-<p class="muted">{{ lab_work.discipline.title }}</p>
-
-<form method="post" id="booking-form">
-    {% csrf_token %}
-    <div id="filter-chain">
-        {% include "bookings/partials/filter_date_calendar.html" with lab_work_id=lab_work.pk options=filter_options calendar_months=calendar_months %}
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Запись на лабораторную работу</p>
+        <h1 class="page-title">{{ lab_work.title }}</h1>
+        <p class="page-description">{{ lab_work.discipline.title }}</p>
     </div>
-    <div id="session-slot"></div>
-    <button type="submit" id="book-btn" disabled>Записаться</button>
-</form>
+</header>
+
+<div class="booking-layout">
+    <aside class="card booking-context">
+        <div class="card__header">
+            <div>
+                <p class="page-eyebrow">Вы записываетесь</p>
+                <h2 class="card__title">{{ lab_work.title }}</h2>
+            </div>
+            <span class="badge badge--muted">ЛР</span>
+        </div>
+        <dl class="detail-list">
+            <dt>Дисциплина</dt>
+            <dd>{{ lab_work.discipline.title }}</dd>
+            <dt>Порядок</dt>
+            <dd>Дата → время → учебный центр → аудитория</dd>
+        </dl>
+    </aside>
+
+    <section class="card booking-wizard">
+        <div class="booking-stepper" aria-label="Этапы записи">
+            <span class="booking-step booking-step--active">1. Дата</span>
+            <span class="booking-step">2. Время</span>
+            <span class="booking-step">3. Место</span>
+            <span class="booking-step">4. Подтверждение</span>
+        </div>
+        <form method="post" id="booking-form">
+            {% csrf_token %}
+            <div id="filter-chain">
+                {% include "bookings/partials/filter_date_calendar.html" with lab_work_id=lab_work.pk options=filter_options calendar_months=calendar_months %}
+            </div>
+            <div id="session-slot"></div>
+            <div class="booking-actions">
+                <button type="submit" id="book-btn" disabled>Записаться</button>
+                <span class="muted">Кнопка станет активной после выбора доступного слота.</span>
+            </div>
+        </form>
+    </section>
+</div>
 <script>
 document.body.addEventListener('htmx:afterSwap', function(evt) {
     const btn = document.getElementById('book-btn');

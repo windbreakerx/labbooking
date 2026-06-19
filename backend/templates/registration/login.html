@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Вход{% endblock %}
 {% block content %}
-<div class="card card--narrow">
+<div class="login-shell">
+<div class="card card--narrow login-card">
+    <div class="login-brand">labbooking · вузовский портал</div>
     <h1>Вход в систему</h1>
     <p class="muted">Используйте email и пароль вузовской почты.</p>
 
@@ -29,5 +31,6 @@
         </label>
         <button type="submit">Войти</button>
     </form>
+</div>
 </div>
 {% endblock %}

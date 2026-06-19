@@ -1,20 +1,27 @@
 {% extends "base.html" %}
 {% block title %}Главная{% endblock %}
 {% block content %}
-<h1>Личный кабинет</h1>
-<p>Добро пожаловать, {{ user.full_name }}.</p>
-<div class="grid">
-    <a class="card" href="{% url 'disciplines' %}">
-        <h2>Учебные дисциплины</h2>
-        <p>Записаться на лабораторную работу</p>
+<section class="hero-card">
+    <p class="page-eyebrow">Личный кабинет</p>
+    <h1>Добро пожаловать, {{ user.full_name }}.</h1>
+    <p>Выберите дисциплину, запишитесь на лабораторную работу или проверьте свои активные записи.</p>
+</section>
+
+<div class="quick-actions">
+    <a class="card card--interactive action-card" href="{% url 'disciplines' %}">
+        <span class="action-card__icon">01</span>
+        <h2 class="action-card__title">Учебные дисциплины</h2>
+        <p class="action-card__text">Перейти к списку дисциплин и выбрать лабораторную работу для записи.</p>
     </a>
-    <a class="card" href="{% url 'my-bookings' %}">
-        <h2>Мои записи</h2>
-        <p>Просмотр и отмена записей</p>
+    <a class="card card--interactive action-card" href="{% url 'my-bookings' %}">
+        <span class="action-card__icon">02</span>
+        <h2 class="action-card__title">Мои записи</h2>
+        <p class="action-card__text">Посмотреть дату, аудиторию, статус и при необходимости отменить запись.</p>
     </a>
-    <a class="card" href="{% url 'support' %}">
-        <h2>Технические вопросы</h2>
-        <p>Обращение в лабораторию</p>
+    <a class="card card--interactive action-card" href="{% url 'support' %}">
+        <span class="action-card__icon">03</span>
+        <h2 class="action-card__title">Обращения</h2>
+        <p class="action-card__text">Задать технический или организационный вопрос сотрудникам лаборатории.</p>
     </a>
 </div>
 {% endblock %}

@@ -1,38 +1,49 @@
 {% extends "base.html" %}
 {% block title %}Технические вопросы{% endblock %}
 {% block content %}
-<h1>Технические и организационные вопросы</h1>
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Помощь</p>
+        <h1 class="page-title">Технические и организационные вопросы</h1>
+        <p class="page-description">Создайте обращение в лабораторию и отслеживайте ответы сотрудников.</p>
+    </div>
+</header>
 
-<form method="post" action="{% url 'support-create' %}" class="card">
-    {% csrf_token %}
-    <h2>Добавить обращение</h2>
-    <label>Учебная лаборатория
-        <select name="training_center" required>
-            <option value="">—</option>
-            {% for tc in training_centers %}
-            <option value="{{ tc.pk }}">УЦ №{{ tc.number }}{% if tc.name %} — {{ tc.name }}{% endif %}</option>
+<div class="support-layout">
+    <form method="post" action="{% url 'support-create' %}" class="card">
+        {% csrf_token %}
+        <h2 class="card__title">Новое обращение</h2>
+        <label>Учебная лаборатория
+            <select name="training_center" required>
+                <option value="">—</option>
+                {% for tc in training_centers %}
+                <option value="{{ tc.pk }}">УЦ №{{ tc.number }}{% if tc.name %} — {{ tc.name }}{% endif %}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Заголовок
+            <input type="text" name="subject" required>
+        </label>
+        <label>Сообщение
+            <textarea name="body" rows="4" required></textarea>
+        </label>
+        <button type="submit">Сохранить</button>
+    </form>
+
+    <section>
+        <h2 class="card__title">Мои обращения</h2>
+        <div class="ticket-list">
+            {% for t in tickets %}
+            <article class="card ticket-card">
+                <div>
+                    <a href="{% url 'support-detail' t.pk %}"><strong>{{ t.subject }}</strong></a>
+                    <p class="muted">{{ t.get_status_display }} · {{ t.created_at|date:"d.m.Y" }}{% if t.training_center %} · УЦ №{{ t.training_center.number }}{% endif %}</p>
+                </div>
+            </article>
+            {% empty %}
+            <div class="empty-state">Обращений нет.</div>
             {% endfor %}
-        </select>
-    </label>
-    <label>Заголовок
-        <input type="text" name="subject" required>
-    </label>
-    <label>Сообщение
-        <textarea name="body" rows="4" required></textarea>
-    </label>
-    <button type="submit">Сохранить</button>
-</form>
-
-<h2>Мои обращения</h2>
-<ul class="list">
-    {% for t in tickets %}
-    <li>
-        <a href="{% url 'support-detail' t.pk %}"><strong>{{ t.subject }}</strong></a>
-        — {{ t.get_status_display }} ({{ t.created_at|date:"d.m.Y" }})
-        {% if t.training_center %}<span class="muted">УЦ №{{ t.training_center.number }}</span>{% endif %}
-    </li>
-    {% empty %}
-    <li>Обращений нет.</li>
-    {% endfor %}
-</ul>
+        </div>
+    </section>
+</div>
 {% endblock %}

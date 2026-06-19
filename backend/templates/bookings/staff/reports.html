@@ -1,14 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Отчёты — staff{% endblock %}
 {% block content %}
-<h1>Excel-выгрузки</h1>
-<form class="card">
-    <label>Дата с <input type="date" name="date_from" id="date_from"></label>
-    <label>Дата по <input type="date" name="date_to" id="date_to"></label>
-    <div class="report-links">
-        <a class="button" href="{% url 'staff-report-download' 'bookings' %}" id="link-bookings">Записи на период</a>
-        <a class="button" href="{% url 'staff-report-download' 'attendance' %}" id="link-attendance">Посещаемость</a>
-        <a class="button" href="{% url 'staff-report-download' 'discipline_summary' %}" id="link-summary">Свод по дисциплине</a>
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Отчёты</p>
+        <h1 class="page-title">Excel-выгрузки</h1>
+        <p class="page-description">Выберите период и скачайте нужный отчет. Даты применяются к выбранной выгрузке.</p>
+    </div>
+</header>
+<form class="card report-panel">
+    <div class="form-grid">
+        <label>Дата с <input type="date" name="date_from" id="date_from"></label>
+        <label>Дата по <input type="date" name="date_to" id="date_to"></label>
+    </div>
+    <div class="report-links report-grid">
+        <a class="button report-card" href="{% url 'staff-report-download' 'bookings' %}" id="link-bookings">Записи на период</a>
+        <a class="button report-card" href="{% url 'staff-report-download' 'attendance' %}" id="link-attendance">Посещаемость</a>
+        <a class="button report-card" href="{% url 'staff-report-download' 'discipline_summary' %}" id="link-summary">Свод по дисциплине</a>
     </div>
 </form>
 <script>

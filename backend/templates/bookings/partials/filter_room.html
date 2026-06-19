@@ -1,18 +1,23 @@
-<label>Дата
+<label class="sr-only">Дата
     <input type="hidden" name="date" value="{{ date }}">
 </label>
-<label>Время
+<label class="sr-only">Время
     <input type="hidden" name="time" value="{{ time }}">
 </label>
-<label>Аудитория
-    <select name="room"
-            hx-get="{% url 'book-filter' lab_work_id %}"
-            hx-target="#session-slot"
-            hx-swap="innerHTML"
-            hx-include="#filter-chain">
-        <option value="">—</option>
-        {% for opt in options %}
-        <option value="{{ opt.value }}">{{ opt.label }}</option>
-        {% endfor %}
-    </select>
-</label>
+<section class="booking-step-panel">
+    <p class="selected-value"><span>Время</span> {{ time }}</p>
+    <label>Аудитория
+        <select name="room"
+                class="booking-select"
+                hx-get="{% url 'book-filter' lab_work_id %}"
+                hx-target="#session-slot"
+                hx-swap="innerHTML"
+                hx-include="#filter-chain">
+            <option value="">—</option>
+            {% for opt in options %}
+            <option value="{{ opt.value }}">{{ opt.label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <p class="muted">После выбора аудитории появится подтверждение доступного слота.</p>
+</section>

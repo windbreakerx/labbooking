@@ -1,21 +1,32 @@
 {% extends "base.html" %}
 {% block title %}Дисциплины — staff{% endblock %}
 {% block content %}
-<h1>Дисциплины</h1>
-<table class="table">
-    <thead><tr><th>Код</th><th>Название</th><th>Семестр</th><th>Опубликовано</th></tr></thead>
-    <tbody>
-        {% for d in disciplines %}
-        <tr>
-            <td>{{ d.code }}</td>
-            <td>{{ d.title }}</td>
-            <td>{{ d.semester }}</td>
-            <td>{{ d.is_published|yesno:"Да,Нет" }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="4">Нет дисциплин.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
-<p class="muted">Полное редактирование — в <a href="/admin/">админке</a>.</p>
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Лаборатория</p>
+        <h1 class="page-title">Дисциплины</h1>
+        <p class="page-description">Список дисциплин, доступных в системе записи.</p>
+    </div>
+    <div class="page-actions">
+        <a class="button button--secondary" href="/admin/">Открыть админку</a>
+    </div>
+</header>
+<div class="table-wrap">
+    <table class="table table--compact table--sticky responsive-table">
+        <thead><tr><th>Код</th><th>Название</th><th>Семестр</th><th>Опубликовано</th></tr></thead>
+        <tbody>
+            {% for d in disciplines %}
+            <tr>
+                <td data-label="Код">{{ d.code }}</td>
+                <td data-label="Название"><strong>{{ d.title }}</strong></td>
+                <td data-label="Семестр">{{ d.semester }}</td>
+                <td data-label="Опубликовано">{% if d.is_published %}<span class="badge badge--success">Да</span>{% else %}<span class="badge badge--muted">Нет</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">Нет дисциплин.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p class="admin-note muted">Полное редактирование — в <a href="/admin/">админке</a>.</p>
 {% endblock %}

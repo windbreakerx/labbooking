@@ -1,20 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Учебные дисциплины{% endblock %}
 {% block content %}
-<h1>Учебные дисциплины</h1>
-<table class="table">
-    <thead>
-        <tr><th>Дисциплина</th><th></th></tr>
-    </thead>
-    <tbody>
-        {% for d in disciplines %}
-        <tr>
-            <td>{{ d.title }}</td>
-            <td><a href="{% url 'lab-works' d.pk %}">Лабораторные работы</a></td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="2">Нет доступных дисциплин.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Студент</p>
+        <h1 class="page-title">Учебные дисциплины</h1>
+        <p class="page-description">Выберите дисциплину, чтобы увидеть доступные лабораторные работы и перейти к записи.</p>
+    </div>
+</header>
+
+{% if disciplines %}
+<div class="discipline-grid">
+    {% for d in disciplines %}
+    <a class="card card--interactive discipline-card" href="{% url 'lab-works' d.pk %}">
+        <span class="badge badge--muted">Дисциплина</span>
+        <h2 class="discipline-card__title">{{ d.title }}</h2>
+        <span class="discipline-card__action">Открыть лабораторные работы</span>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">Нет доступных дисциплин.</div>
+{% endif %}
 {% endblock %}

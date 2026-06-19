@@ -1,20 +1,28 @@
 {% extends "base.html" %}
 {% block title %}Сотрудники — staff{% endblock %}
 {% block content %}
-<h1>Преподаватели и сотрудники лаборатории</h1>
-<table class="table">
-    <thead><tr><th>ФИО</th><th>Email</th><th>Роль</th><th>Лаборатория</th></tr></thead>
-    <tbody>
-        {% for u in people %}
-        <tr>
-            <td>{{ u.full_name }}</td>
-            <td>{{ u.email }}</td>
-            <td>{{ u.get_role_display }}</td>
-            <td>{% if u.profile.training_center %}УЦ №{{ u.profile.training_center.number }}{% else %}—{% endif %}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="4">Нет сотрудников.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Администрирование</p>
+        <h1 class="page-title">Преподаватели и сотрудники лаборатории</h1>
+        <p class="page-description">Пользователи с ролями сотрудников и их привязка к учебным центрам.</p>
+    </div>
+</header>
+<div class="table-wrap">
+    <table class="table table--compact table--sticky responsive-table">
+        <thead><tr><th>ФИО</th><th>Email</th><th>Роль</th><th>Лаборатория</th></tr></thead>
+        <tbody>
+            {% for u in people %}
+            <tr>
+                <td data-label="ФИО"><strong>{{ u.full_name }}</strong></td>
+                <td data-label="Email">{{ u.email }}</td>
+                <td data-label="Роль"><span class="badge badge--muted">{{ u.get_role_display }}</span></td>
+                <td data-label="Лаборатория">{% if u.profile.training_center %}УЦ №{{ u.profile.training_center.number }}{% else %}—{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">Нет сотрудников.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% endblock %}

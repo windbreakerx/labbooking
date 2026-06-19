@@ -1,19 +1,23 @@
 <input type="hidden" name="date" value="{{ date }}">
-<p><strong>Выбранный день:</strong> {{ date }}</p>
-<button type="button"
-        class="btn-link"
-        hx-get="{% url 'book-filter' lab_work_id %}"
-        hx-target="#filter-chain"
-        hx-swap="innerHTML">Выбрать другой день</button>
-<label>Время
-    <select name="time"
+<section class="booking-step-panel">
+    <p class="selected-value"><span>Выбранный день</span> {{ date }}</p>
+    <button type="button"
+            class="btn-link"
             hx-get="{% url 'book-filter' lab_work_id %}"
-            hx-target="#session-slot"
-            hx-swap="innerHTML"
-            hx-include="#filter-chain">
-        <option value="">—</option>
-        {% for opt in options %}
-        <option value="{{ opt.value }}">{{ opt.label }}</option>
-        {% endfor %}
-    </select>
-</label>
+            hx-target="#filter-chain"
+            hx-swap="innerHTML">Выбрать другой день</button>
+    <label>Время
+        <select name="time"
+                class="booking-select"
+                hx-get="{% url 'book-filter' lab_work_id %}"
+                hx-target="#session-slot"
+                hx-swap="innerHTML"
+                hx-include="#filter-chain">
+            <option value="">—</option>
+            {% for opt in options %}
+            <option value="{{ opt.value }}">{{ opt.label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <p class="muted">После выбора времени система покажет доступные учебные центры или слоты.</p>
+</section>

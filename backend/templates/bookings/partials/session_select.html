@@ -1,21 +1,26 @@
 {% if sessions %}
-<label>Слот
-    <select name="session_id" required onchange="document.getElementById('book-btn').disabled = !this.value">
-        <option value="">—</option>
-        {% for s in sessions %}
-        <option value="{{ s.pk }}">
-            {{ s.starts_at|date:"d.m.Y H:i" }} — свободно {{ s.available_seats }}/{{ s.capacity }}
-        </option>
-        {% endfor %}
-    </select>
-</label>
-{% if sessions.0.available_seats == 0 %}
-<form method="post" action="{% url 'waitlist-join' %}">
-    {% csrf_token %}
-    <input type="hidden" name="session_id" value="{{ sessions.0.pk }}">
-    <button type="submit">Встать в очередь</button>
-</form>
-{% endif %}
+<section class="session-card">
+    <label>Слот
+        <select name="session_id" required onchange="document.getElementById('book-btn').disabled = !this.value">
+            <option value="">—</option>
+            {% for s in sessions %}
+            <option value="{{ s.pk }}">
+                {{ s.starts_at|date:"d.m.Y H:i" }} — свободно {{ s.available_seats }}/{{ s.capacity }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <p class="muted">Выберите конкретный слот. После выбора станет доступна кнопка записи.</p>
+    {% if sessions.0.available_seats == 0 %}
+    <div class="waitlist-card">
+        <form method="post" action="{% url 'waitlist-join' %}">
+            {% csrf_token %}
+            <input type="hidden" name="session_id" value="{{ sessions.0.pk }}">
+            <button type="submit">Встать в очередь</button>
+        </form>
+    </div>
+    {% endif %}
+</section>
 {% else %}
-<p class="muted">Нет доступных слотов для выбранных параметров.</p>
+<div class="empty-state">Нет доступных слотов для выбранных параметров.</div>
 {% endif %}

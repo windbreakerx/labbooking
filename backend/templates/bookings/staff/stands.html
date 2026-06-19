@@ -1,44 +1,56 @@
 {% extends "base.html" %}
 {% block title %}Стенды — staff{% endblock %}
 {% block content %}
-<h1>Лабораторные стенды</h1>
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Лаборатория</p>
+        <h1 class="page-title">Лабораторные стенды</h1>
+        <p class="page-description">Учет стендов, инвентарных номеров и привязки к аудиториям.</p>
+    </div>
+</header>
 
-<form method="post" action="{% url 'staff-stand-create' %}" class="card">
+<form method="post" action="{% url 'staff-stand-create' %}" class="card create-panel stand-form">
     {% csrf_token %}
-    <h2>Добавить стенд</h2>
-    <label>Наименование <input type="text" name="name" required></label>
-    <label>Инв. номер <input type="text" name="inventory_number" required></label>
-    <label>УЦ
-        <select name="training_center" required>
-            {% for tc in training_centers %}
-            <option value="{{ tc.pk }}">УЦ №{{ tc.number }}</option>
-            {% endfor %}
-        </select>
-    </label>
-    <label>Аудитория
-        <select name="room" required>
-            {% for r in rooms %}
-            <option value="{{ r.pk }}">УЦ №{{ r.training_center.number }}, ауд. {{ r.number }}</option>
-            {% endfor %}
-        </select>
-    </label>
-    <label>Описание <textarea name="description" rows="2"></textarea></label>
-    <button type="submit">Сохранить</button>
+    <h2 class="card__title">Добавить стенд</h2>
+    <div class="form-grid">
+        <label>Наименование <input type="text" name="name" required></label>
+        <label>Инв. номер <input type="text" name="inventory_number" required></label>
+        <label>УЦ
+            <select name="training_center" required>
+                {% for tc in training_centers %}
+                <option value="{{ tc.pk }}">УЦ №{{ tc.number }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Аудитория
+            <select name="room" required>
+                {% for r in rooms %}
+                <option value="{{ r.pk }}">УЦ №{{ r.training_center.number }}, ауд. {{ r.number }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Описание <textarea name="description" rows="2"></textarea></label>
+    </div>
+    <div class="form-actions">
+        <button type="submit">Сохранить</button>
+    </div>
 </form>
 
-<table class="table">
-    <thead><tr><th>Название</th><th>Инв. №</th><th>УЦ</th><th>Ауд.</th></tr></thead>
-    <tbody>
-        {% for s in stands %}
-        <tr>
-            <td>{{ s.name }}</td>
-            <td>{{ s.inventory_number }}</td>
-            <td>{{ s.training_center.number }}</td>
-            <td>{{ s.room.number }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="4">Стендов нет.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-wrap">
+    <table class="table table--compact table--sticky responsive-table stand-table">
+        <thead><tr><th>Название</th><th>Инв. №</th><th>УЦ</th><th>Ауд.</th></tr></thead>
+        <tbody>
+            {% for s in stands %}
+            <tr>
+                <td data-label="Название"><strong>{{ s.name }}</strong></td>
+                <td data-label="Инв. №">{{ s.inventory_number }}</td>
+                <td data-label="УЦ">№{{ s.training_center.number }}</td>
+                <td data-label="Ауд.">{{ s.room.number }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">Стендов нет.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% endblock %}

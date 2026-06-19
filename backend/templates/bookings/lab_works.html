@@ -1,16 +1,34 @@
 {% extends "base.html" %}
 {% block title %}{{ discipline.title }}{% endblock %}
+{% block breadcrumbs %}
+<nav class="breadcrumbs" aria-label="Навигация">
+    <a href="{% url 'disciplines' %}">Дисциплины</a>
+    <span>/</span>
+    <span class="breadcrumbs__current">{{ discipline.title }}</span>
+</nav>
+{% endblock %}
 {% block content %}
-<h1>{{ discipline.title }}</h1>
-<p><a href="{% url 'disciplines' %}">← К дисциплинам</a></p>
-<ul class="list">
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Лабораторные работы</p>
+        <h1 class="page-title">{{ discipline.title }}</h1>
+        <p class="page-description">Выберите лабораторную работу, чтобы открыть календарь записи.</p>
+    </div>
+</header>
+
+{% if lab_works %}
+<div class="lab-grid">
     {% for lw in lab_works %}
-    <li>
-        <strong>ЛР {{ lw.number }}:</strong> {{ lw.title }}
-        <a href="{% url 'book-lab-work' lw.pk %}">Записаться</a>
-    </li>
-    {% empty %}
-    <li>Лабораторные работы не добавлены.</li>
+    <article class="card card--interactive lab-card">
+        <span class="lab-card__number">ЛР {{ lw.number }}</span>
+        <h2 class="lab-card__title">{{ lw.title }}</h2>
+        <div class="card__actions">
+            <a class="button" href="{% url 'book-lab-work' lw.pk %}">Записаться</a>
+        </div>
+    </article>
     {% endfor %}
-</ul>
+</div>
+{% else %}
+<div class="empty-state">Лабораторные работы не добавлены.</div>
+{% endif %}
 {% endblock %}
