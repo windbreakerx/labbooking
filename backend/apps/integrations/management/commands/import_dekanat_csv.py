@@ -3,7 +3,7 @@ import re
 
 from django.core.management.base import BaseCommand
 
-from apps.academics.models import Discipline, Semester
+from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
 from apps.scheduling.models import TrainingCenter
 from apps.users.models import User, UserProfile, UserRole
 
@@ -15,7 +15,16 @@ class Command(BaseCommand):
         parser.add_argument("csv_path")
         parser.add_argument(
             "--type",
-            choices=["students", "teachers", "staff", "disciplines"],
+            choices=[
+                "students",
+                "teachers",
+                "staff",
+                "disciplines",
+                "groups",
+                "curriculum",
+                "lab_bindings",
+                "staff_bindings",
+            ],
             required=True,
         )
         parser.add_argument(
@@ -70,6 +79,30 @@ class Command(BaseCommand):
             candidate = f"{local}-{suffix}@{self.generated_domain}"
         return candidate
 
+    @staticmethod
+    def _split_codes(value: str) -> list[str]:
+        if not value:
+            return []
+        return [part.strip() for part in value.replace(";", ",").split(",") if part.strip()]
+
+    def _resolve_discipline(self, *, code="", title=""):
+        code = self._clean({"code": code}, "code")
+        title = self._clean({"title": title}, "title")
+        if code:
+            discipline = Discipline.objects.filter(code=code).first()
+            if discipline:
+                return discipline
+        if title:
+            return Discipline.objects.filter(title=title).first()
+        return None
+
+    def _bind_training_center(self, obj, training_center_number: str):
+        if not training_center_number.isdigit():
+            return
+        training_center = TrainingCenter.objects.filter(number=int(training_center_number)).first()
+        if training_center:
+            obj.training_centers.add(training_center)
+
     def _resolve_email(self, row, *, role):
         explicit = self._clean(row, "email").lower()
         if explicit:
@@ -104,6 +137,16 @@ class Command(BaseCommand):
         user.save(update_fields=["password"])
         return user, created
 
+    def _link_student_group(self, user: User, group_name: str):
+        if not group_name:
+            return
+        student_group = StudentGroup.objects.filter(name=group_name).first()
+        if not student_group:
+            return
+        user.profile.student_group = student_group
+        user.profile.group_name = group_name
+        user.profile.save(update_fields=["student_group", "group_name"])
+
     def handle(self, *args, **options):
         path = options["csv_path"]
         import_type = options["type"]
@@ -126,6 +169,14 @@ class Command(BaseCommand):
                     created, updated = self._import_staff(row, default_password=default_password)
                 elif import_type == "disciplines":
                     created, updated = self._import_discipline(row, semester_name=options["semester"])
+                elif import_type == "groups":
+                    created, updated = self._import_group(row)
+                elif import_type == "curriculum":
+                    created, updated = self._import_curriculum(row)
+                elif import_type == "lab_bindings":
+                    created, updated = self._import_lab_binding(row)
+                elif import_type == "staff_bindings":
+                    created, updated = self._import_staff_binding(row)
                 else:
                     created, updated = 0, 0
 
@@ -157,6 +208,7 @@ class Command(BaseCommand):
             gender=self._clean(row, "gender"),
             phone=self._clean(row, "phone"),
         )
+        self._link_student_group(user, self._clean(row, "group"))
         return int(created), int(not created)
 
     def _import_teacher(self, row, *, default_password):
@@ -174,11 +226,13 @@ class Command(BaseCommand):
             if training_center:
                 user.profile.training_center = training_center
                 user.profile.save(update_fields=["training_center"])
+        self._bind_teacher_disciplines(user, self._clean(row, "discipline_codes"))
         return int(created), int(not created)
 
     def _import_staff(self, row, *, default_password):
         role = self._clean(row, "role", UserRole.LAB_ADMIN)
-        if role not in {UserRole.LAB_ADMIN, UserRole.SYS_ADMIN}:
+        allowed_roles = {UserRole.LAB_ADMIN, UserRole.LAB_HEAD, UserRole.SYS_ADMIN}
+        if role not in allowed_roles:
             role = UserRole.LAB_ADMIN
         user, created = self._upsert_user(
             row,
@@ -195,6 +249,7 @@ class Command(BaseCommand):
             if training_center:
                 user.profile.training_center = training_center
                 user.profile.save(update_fields=["training_center"])
+        self._bind_teacher_disciplines(user, self._clean(row, "discipline_codes"))
         return int(created), int(not created)
 
     def _import_discipline(self, row, *, semester_name):
@@ -221,4 +276,85 @@ class Command(BaseCommand):
         if not discipline.code:
             discipline.code = f"DISC-{discipline.id}"
             discipline.save(update_fields=["code"])
+        self._bind_training_center(discipline, self._clean(row, "training_center_number"))
         return int(created), int(not created)
+
+    def _import_group(self, row):
+        name = self._clean(row, "name")
+        if not name:
+            return 0, 0
+        _, created = StudentGroup.objects.update_or_create(
+            name=name,
+            defaults={
+                "faculty": self._clean(row, "faculty"),
+                "dekanat_id": self._clean(row, "dekanat_id"),
+            },
+        )
+        return int(created), int(not created)
+
+    def _import_curriculum(self, row):
+        group_name = self._clean(row, "group_name")
+        discipline_code = self._clean(row, "discipline_code")
+        if not group_name or not discipline_code:
+            return 0, 0
+        group = StudentGroup.objects.filter(name=group_name).first()
+        discipline = self._resolve_discipline(code=discipline_code)
+        if not group or not discipline:
+            return 0, 0
+        if group.disciplines.filter(pk=discipline.pk).exists():
+            return 0, 1
+        group.disciplines.add(discipline)
+        return 1, 0
+
+    def _import_lab_binding(self, row):
+        discipline_code = self._clean(row, "discipline_code")
+        training_center_number = self._clean(row, "training_center_number")
+        lab_work_number = self._clean(row, "lab_work_number")
+        if not discipline_code or not training_center_number.isdigit():
+            return 0, 0
+
+        discipline = self._resolve_discipline(code=discipline_code)
+        if not discipline:
+            return 0, 0
+
+        if lab_work_number.isdigit():
+            lab_work = LabWork.objects.filter(
+                discipline=discipline,
+                number=int(lab_work_number),
+            ).first()
+            if not lab_work:
+                return 0, 0
+            self._bind_training_center(lab_work, training_center_number)
+            return 0, 1
+
+        self._bind_training_center(discipline, training_center_number)
+        for lab_work in LabWork.objects.filter(discipline=discipline):
+            self._bind_training_center(lab_work, training_center_number)
+        return 0, 1
+
+    def _bind_teacher_disciplines(self, user: User, discipline_codes: str):
+        codes = self._split_codes(discipline_codes)
+        if not codes:
+            return
+        disciplines = []
+        for code in codes:
+            discipline = self._resolve_discipline(code=code)
+            if discipline:
+                disciplines.append(discipline)
+        if disciplines:
+            user.profile.disciplines.add(*disciplines)
+
+    def _import_staff_binding(self, row):
+        email = self._clean(row, "email").lower()
+        discipline_codes = self._clean(row, "discipline_codes")
+        if not email or not discipline_codes:
+            return 0, 0
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return 0, 0
+        before = user.profile.disciplines.count()
+        self._bind_teacher_disciplines(user, discipline_codes)
+        after = user.profile.disciplines.count()
+        if after > before:
+            return 0, 1
+        return 0, 0

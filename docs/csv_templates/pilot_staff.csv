@@ -1,4 +1,4 @@
-email,password,last_name,first_name,role,training_center_number,is_staff
-zavlab.pilot@spmi.ru,pilot123,Логинов,Павел,LAB_ADMIN,1,1
-operator1.pilot@spmi.ru,pilot123,Егорова,Ольга,LAB_ADMIN,1,1
-operator2.pilot@spmi.ru,pilot123,Белов,Дмитрий,LAB_ADMIN,1,1
+email,password,last_name,first_name,role,training_center_number,is_staff,discipline_codes
+zavlab.pilot@spmi.ru,pilot123,Логинов,Павел,LAB_HEAD,1,1,
+operator1.pilot@spmi.ru,pilot123,Егорова,Ольга,LAB_ADMIN,1,1,
+operator2.pilot@spmi.ru,pilot123,Белов,Дмитрий,LAB_ADMIN,1,1,

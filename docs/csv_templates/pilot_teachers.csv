@@ -1,5 +1,5 @@
-email,password,last_name,first_name,training_center_number,is_staff
-teacher.tng@spmi.ru,pilot123,Соколова,Ирина,1,0
-teacher.bur@spmi.ru,pilot123,Мартынов,Андрей,1,0
-teacher.razr@spmi.ru,pilot123,Климов,Сергей,1,0
-teacher.gas@spmi.ru,pilot123,Лапина,Виктория,1,0
+email,password,last_name,first_name,training_center_number,is_staff,discipline_codes
+teacher.tng@spmi.ru,pilot123,Соколова,Ирина,1,0,NGF-001;NGF-002;NGF-003;NGF-004;NGF-005;NGF-006;NGF-007;NGF-008;NGF-009;NGF-010;NGF-011
+teacher.bur@spmi.ru,pilot123,Мартынов,Андрей,1,0,NGF-012;NGF-013;NGF-014;NGF-015;NGF-016;NGF-017;NGF-018;NGF-019;NGF-020;NGF-021;NGF-022;NGF-023;NGF-024
+teacher.razr@spmi.ru,pilot123,Климов,Сергей,1,0,NGF-025;NGF-026;NGF-027;NGF-028;NGF-029;NGF-030;NGF-031
+teacher.gas@spmi.ru,pilot123,Лапина,Виктория,1,0,NGF-008;NGF-009;NGF-010;NGF-011

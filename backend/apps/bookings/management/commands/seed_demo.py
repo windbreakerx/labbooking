@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.academics.models import Discipline, LabWork, Semester
+from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus, LabStand, Room, TrainingCenter
 from apps.users.models import User, UserRole
 
@@ -42,6 +42,7 @@ class Command(BaseCommand):
         group_name: str = "",
         student_id: str = "",
         training_center=None,
+        student_group=None,
     ):
         user, _ = User.objects.update_or_create(
             email=email,
@@ -59,6 +60,8 @@ class Command(BaseCommand):
         profile.group_name = group_name
         profile.student_id = student_id
         profile.training_center = training_center
+        if student_group is not None:
+            profile.student_group = student_group
         profile.save()
         return user
 
@@ -111,17 +114,17 @@ class Command(BaseCommand):
             rooms[room_number] = room
 
         staff_payload = [
-            ("zavlab.pilot@spmi.ru", "Павел", "Логинов"),
-            ("operator1.pilot@spmi.ru", "Ольга", "Егорова"),
-            ("operator2.pilot@spmi.ru", "Дмитрий", "Белов"),
+            ("zavlab.pilot@spmi.ru", "Павел", "Логинов", UserRole.LAB_HEAD),
+            ("operator1.pilot@spmi.ru", "Ольга", "Егорова", UserRole.LAB_ADMIN),
+            ("operator2.pilot@spmi.ru", "Дмитрий", "Белов", UserRole.LAB_ADMIN),
         ]
-        for email, first_name, last_name in staff_payload:
+        for email, first_name, last_name, role in staff_payload:
             self._upsert_user(
                 email=email,
                 password="pilot123",
                 first_name=first_name,
                 last_name=last_name,
-                role=UserRole.LAB_ADMIN,
+                role=role,
                 is_staff=True,
                 training_center=training_center,
             )
@@ -176,8 +179,26 @@ class Command(BaseCommand):
             ("ЭХТ-24", 21),
             ("НГС-18-2", 22),
         ]
+        group_department_map = {
+            "ТНГ-24": "Кафедра транспорта и хранения нефти и газа",
+            "ГРП-24": "Кафедра транспорта и хранения нефти и газа",
+            "ЭХТ-24": "Кафедра разработки и эксплуатации нефтяных и газовых месторождений",
+            "НГС-18-2": "Кафедра бурения скважин",
+        }
+        student_groups = {}
+        for group_name, _group_size in groups_payload:
+            student_group, _ = StudentGroup.objects.update_or_create(
+                name=group_name,
+                defaults={
+                    "faculty": "Нефтегазовый",
+                    "dekanat_id": f"DEK-GR-{group_name}",
+                },
+            )
+            student_groups[group_name] = student_group
+
         student_counter = 1
         for group_name, group_size in groups_payload:
+            student_group = student_groups[group_name]
             for i in range(group_size):
                 first_name = student_first_names[(student_counter + i) % len(student_first_names)]
                 last_name = student_last_names[(student_counter + i) % len(student_last_names)]
@@ -190,6 +211,7 @@ class Command(BaseCommand):
                     is_staff=False,
                     group_name=group_name,
                     student_id=f"ST-{today.year}-{student_counter:04d}",
+                    student_group=student_group,
                 )
                 student_counter += 1
 
@@ -306,9 +328,17 @@ class Command(BaseCommand):
             ],
         }
 
+        teacher_discipline_map = {
+            "teacher.tng@spmi.ru": "Кафедра транспорта и хранения нефти и газа",
+            "teacher.bur@spmi.ru": "Кафедра бурения скважин",
+            "teacher.razr@spmi.ru": "Кафедра разработки и эксплуатации нефтяных и газовых месторождений",
+            "teacher.gas@spmi.ru": "Кафедра транспорта и хранения нефти и газа",
+        }
+
         discipline_counter = 1
         generic_room_numbers = list(rooms.keys())
         lab_session_plan = []
+        disciplines_by_department: dict[str, list[Discipline]] = {name: [] for name in departments}
         for department_name, discipline_titles in departments.items():
             for discipline_title in discipline_titles:
                 code = self._code("NGF", discipline_counter)
@@ -322,6 +352,8 @@ class Command(BaseCommand):
                         "is_published": True,
                     },
                 )
+                discipline.training_centers.add(training_center)
+                disciplines_by_department[department_name].append(discipline)
 
                 lab_specs = special_lab_specs.get(discipline_title)
                 if lab_specs is None:
@@ -348,6 +380,7 @@ class Command(BaseCommand):
                             "is_published": True,
                         },
                     )
+                    lab_work.training_centers.add(training_center)
                     if spec["stand_name"]:
                         LabStand.objects.update_or_create(
                             name=spec["stand_name"],
@@ -365,6 +398,18 @@ class Command(BaseCommand):
                             "capacity": spec["capacity"],
                         }
                     )
+
+        for group_name, department_name in group_department_map.items():
+            student_group = student_groups[group_name]
+            for discipline in disciplines_by_department[department_name]:
+                student_group.disciplines.add(discipline)
+
+        for teacher in teachers:
+            department_name = teacher_discipline_map.get(teacher.email)
+            if not department_name:
+                continue
+            for discipline in disciplines_by_department[department_name]:
+                teacher.profile.disciplines.add(discipline)
 
         # Для каждой ЛР — слоты на все будние дни и все пары в пределах горизонта записи.
         now = timezone.now()
@@ -406,6 +451,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("Пилотные данные нефтегазовой лаборатории загружены."))
         self.stdout.write(f"Создано/обновлено будущих слотов: {created_sessions}")
-        self.stdout.write("Сотрудники: zavlab.pilot@spmi.ru, operator1.pilot@spmi.ru, operator2.pilot@spmi.ru / pilot123")
+        self.stdout.write("Завлаб: zavlab.pilot@spmi.ru / pilot123")
+        self.stdout.write("Сотрудники: operator1.pilot@spmi.ru, operator2.pilot@spmi.ru / pilot123")
         self.stdout.write("Преподаватели: teacher.tng@spmi.ru, teacher.bur@spmi.ru, teacher.razr@spmi.ru, teacher.gas@spmi.ru / pilot123")
         self.stdout.write("Студенты: student001..student090@stud.local / student123")
