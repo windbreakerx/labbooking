@@ -37,10 +37,6 @@ services:
       - .env
     environment:
       RUNNING_IN_DOCKER: "1"
-      DJANGO_SETTINGS_MODULE: config.settings.dev
-      DEBUG: "1"
-      SECRET_KEY: dev-insecure-key-change-in-production
-      ALLOWED_HOSTS: localhost,127.0.0.1,web
       DATABASE_URL: postgres://labbooking:labbooking@db:5432/labbooking
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0

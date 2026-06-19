@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from apps.academics.models import Discipline, LabWork, Semester
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus, LabStand, Room, TrainingCenter
-from apps.users.models import User, UserRole, UserProfile
+from apps.users.models import User, UserRole
 
 # Университетские пары (начало слота).
 UNIVERSITY_PAIRS = [
@@ -55,7 +55,7 @@ class Command(BaseCommand):
         user.set_password(password)
         user.save(update_fields=["password"])
 
-        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile = user.profile
         profile.group_name = group_name
         profile.student_id = student_id
         profile.training_center = training_center

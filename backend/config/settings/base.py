@@ -13,14 +13,10 @@ env = environ.Env(
     BOOKING_CANCEL_HOURS=(int, 24),
 )
 
-# Корень репозитория (../ от backend/) и backend/.env для локального запуска.
-for _env_path in (BASE_DIR.parent / ".env", BASE_DIR / ".env"):
-    if _env_path.exists():
-        environ.Env.read_env(_env_path)
-        break
+environ.Env.read_env(BASE_DIR.parent / ".env")
 
 SECRET_KEY = env("SECRET_KEY", default="insecure-dev-key-change-in-production")
-DEBUG = env.bool("DEBUG", default=False)
+DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
 INSTALLED_APPS = [

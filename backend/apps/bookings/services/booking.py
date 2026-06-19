@@ -360,10 +360,7 @@ def staff_lab_filter(qs, user, *, training_center_lookup: str = "room__training_
     """Ограничивает queryset сотрудника своей лабораторией (SYS_ADMIN видит всё)."""
     if user.role == UserRole.SYS_ADMIN:
         return qs
-    from apps.users.models import UserProfile
-
-    profile = UserProfile.objects.filter(user_id=user.pk).first()
-    tc = profile.training_center if profile else None
+    tc = getattr(user.profile, "training_center", None)
     if tc:
         return qs.filter(**{training_center_lookup: tc})
     return qs
