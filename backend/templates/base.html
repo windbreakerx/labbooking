@@ -1,4 +1,3 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,82 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Запись на лабораторные{% endblock %}</title>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="/static/css/main.css">
 </head>
-<body class="site">
-    <a class="skip-link" href="#main-content">К основному содержимому</a>
+<body>
     <header class="header">
         <div class="container header__inner">
             <a href="{% url 'home' %}" class="header__brand logo">
-                <img src="{% static 'img/spmi-logo.png' %}" alt="Санкт-Петербургский горный университет" class="header__brand-logo" width="48" height="48">
-                <span class="header__brand-text">
+                <img src="/static/img/spmi-logo.png" alt="" class="header__brand-logo" width="48" height="48">
+                <span>
                     <span class="header__brand-title">Запись на лабораторные работы</span>
                     <span class="header__brand-subtitle">Санкт-Петербургский горный университет</span>
                 </span>
             </a>
             {% if user.is_authenticated %}
-            <div class="header__nav-row">
-                <nav class="nav" aria-label="Основная навигация">
-                    {% if user.role == 'STUDENT' %}
-                    <div class="nav__section nav__section--student">
-                        <span class="nav__section-title">Студент</span>
-                        <a class="nav__link" href="{% url 'disciplines' %}">Дисциплины</a>
-                        <a class="nav__link" href="{% url 'my-bookings' %}">Мои записи</a>
-                        <a class="nav__link" href="{% url 'support' %}">Обращения</a>
-                    </div>
-                    {% endif %}
-                    {% if user.role == 'LAB_HEAD' %}
-                    <div class="nav__group nav__group--lab-head">
-                        <span class="nav__group-label">Кабинет завлаба</span>
-                        <div class="nav__group-inner">
-                            <a class="nav__link" href="{% url 'lab-head-home' %}">Обзор</a>
-                            <a class="nav__link" href="{% url 'lab-head-people' %}">Сотрудники</a>
-                            <a class="nav__link" href="{% url 'lab-head-bindings' %}">Привязки</a>
-                            <a class="nav__link" href="{% url 'lab-head-lab-works' %}">Лаб. работы</a>
-                            <a class="nav__link" href="{% url 'lab-head-stands' %}">Стенды</a>
-                            <a class="nav__link" href="{% url 'lab-head-schedule' %}">Расписание</a>
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% if user.role == 'LAB_ADMIN' or user.role == 'TEACHER' or user.role == 'SYS_ADMIN' %}
-                    <div class="nav__group nav__group--staff">
-                        <span class="nav__group-label">Кабинет сотрудника</span>
-                        <div class="nav__group-inner">
-                            <div class="nav__section">
-                                <span class="nav__section-title">Студенты</span>
-                                <a class="nav__link" href="{% url 'staff-bookings' %}">Записавшиеся</a>
-                                <a class="nav__link" href="{% url 'staff-support' %}">Обращения</a>
-                                <a class="nav__link" href="{% url 'staff-reports' %}">Отчёты</a>
-                            </div>
-                            <div class="nav__section">
-                                <span class="nav__section-title">Лаборатория</span>
-                                <a class="nav__link" href="{% url 'staff-disciplines' %}">Дисциплины</a>
-                                <a class="nav__link" href="{% url 'staff-lab-works' %}">Лаб. работы</a>
-                                <a class="nav__link" href="{% url 'staff-stands' %}">Стенды</a>
-                                <a class="nav__link" href="{% url 'staff-schedule' %}">Расписание</a>
-                                <a class="nav__link" href="{% url 'staff-people' %}">Сотрудники</a>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </nav>
-                <div class="header__account">
-                    <span class="header__account-name" title="{% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}">
-                        {% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}
-                    </span>
-                    <form method="post" action="{% url 'logout' %}" class="header__logout">
+            <nav class="nav">
+                {% if user.role == 'STUDENT' %}
+                <div class="nav__section">
+                    <span class="nav__section-title">Студент</span>
+                    <a class="nav__link" href="{% url 'disciplines' %}">Дисциплины</a>
+                    <a class="nav__link" href="{% url 'my-bookings' %}">Мои записи</a>
+                    <a class="nav__link" href="{% url 'support' %}">Обращения</a>
+                </div>
+                {% endif %}
+                {% if user.role == 'LAB_ADMIN' or user.role == 'TEACHER' or user.role == 'SYS_ADMIN' %}
+                <div class="nav__section">
+                    <span class="nav__section-title">Студенты</span>
+                    <a class="nav__link" href="{% url 'staff-bookings' %}">Записавшиеся</a>
+                    <a class="nav__link" href="{% url 'staff-support' %}">Обращения</a>
+                    <a class="nav__link" href="{% url 'staff-reports' %}">Отчёты</a>
+                </div>
+                <div class="nav__section">
+                    <span class="nav__section-title">Лаборатория</span>
+                    <a class="nav__link" href="{% url 'staff-disciplines' %}">Дисциплины</a>
+                    <a class="nav__link" href="{% url 'staff-lab-works' %}">Лаб. работы</a>
+                    <a class="nav__link" href="{% url 'staff-stands' %}">Стенды</a>
+                    <a class="nav__link" href="{% url 'staff-schedule' %}">Расписание</a>
+                    <a class="nav__link" href="{% url 'staff-people' %}">Сотрудники</a>
+                </div>
+                {% endif %}
+                <div class="nav__section nav__section--account">
+                    <span class="nav__section-title">{% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}</span>
+                    <form method="post" action="{% url 'logout' %}" class="nav-logout">
                         {% csrf_token %}
                         <button type="submit">Выход</button>
                     </form>
                 </div>
-            </div>
+            </nav>
             {% endif %}
         </div>
     </header>
 
-    <main id="main-content" class="container page-shell">
+    <main class="container page-shell">
         {% if messages %}
-        <ul class="messages" role="status" aria-live="polite">
+        <ul class="messages">
             {% for message in messages %}
             <li class="message message--{{ message.tags }}">{{ message }}</li>
             {% endfor %}
