@@ -180,6 +180,7 @@ docker compose -f docker-compose.yml -f docker-compose.vm.yml exec -T db dropdb 
 | Симптом | Решение |
 |---------|---------|
 | `DisallowedHost` | Добавьте IP в `ALLOWED_HOSTS` в `.env`, перезапустите web |
+| `auth.docker.io` / `failed to fetch anonymous token` | Docker Hub недоступен с VM. Обновите код (`git pull`) — образ берётся из `public.ecr.aws`. Или настройте mirror (см. ниже) |
 | 502 от nginx | `docker compose ... logs web` — ждите migrate |
 | Нет стилей | `docker compose ... exec web python manage.py collectstatic --noinput` |
 | Не открывается снаружи | Проверьте Security Group (порт 80) и `ufw` на VM: `sudo ufw allow 80` |
@@ -189,6 +190,32 @@ docker compose -f docker-compose.yml -f docker-compose.vm.yml exec -T db dropdb 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.vm.yml logs -f web
 ```
+
+### Docker Hub недоступен (`auth.docker.io: 404`)
+
+С VM в РФ `docker.io` часто не отвечает. В проекте базовый образ Python берётся из зеркала AWS ECR Public (`public.ecr.aws/docker/library/python`).
+
+После `git pull` пересоберите:
+
+```bash
+bash scripts/deploy-vm.sh
+```
+
+Если ошибка остаётся, проверьте доступ к ECR:
+
+```bash
+docker pull public.ecr.aws/docker/library/python:3.12-slim
+```
+
+Запасной вариант — mirror для Docker Hub в `/etc/docker/daemon.json`:
+
+```json
+{
+  "registry-mirrors": ["https://mirror.gcr.io"]
+}
+```
+
+Затем: `sudo systemctl restart docker`
 
 ## HTTPS (домен)
 
