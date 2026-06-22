@@ -69,6 +69,22 @@ DATABASE_URL=postgres://labbooking:<тот-же-пароль>@db:5432/labbooking
 DEBUG=0
 DJANGO_SETTINGS_MODULE=config.settings.prod
 SECURE_SSL_REDIRECT=0
+EMAIL_FAIL_SILENTLY=0
+```
+
+Для первого запуска без домена оставьте `SECURE_SSL_REDIRECT=0` и `USE_HTTPS=0`. После выпуска сертификата включите `USE_HTTPS=1` и `SECURE_SSL_REDIRECT=1`.
+
+Для пилота переключите email на SMTP и проверьте доставку до открытия студентам:
+
+```env
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.university.ru
+EMAIL_PORT=587
+EMAIL_HOST_USER=labbooking@university.ru
+EMAIL_HOST_PASSWORD=<smtp-password>
+EMAIL_USE_TLS=1
+DEFAULT_FROM_EMAIL=labbooking@university.ru
+EMAIL_FAIL_SILENTLY=0
 ```
 
 ### 5. Запуск
@@ -89,6 +105,7 @@ docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python ma
 С VM:
 ```bash
 curl http://127.0.0.1/api/health/
+bash scripts/smoke-test.sh http://127.0.0.1
 ```
 
 С телефона или домашнего ПК:
@@ -96,6 +113,13 @@ curl http://127.0.0.1/api/health/
 - http://\<PUBLIC_IP\>/api/docs/
 
 **Вход:** `student@stud.spmi.ru` / `student123`
+
+Проверка SMTP из контейнера:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web \
+  python manage.py shell -c "from django.core.mail import send_mail; send_mail('labbooking SMTP test', 'OK', None, ['your-email@example.com'], fail_silently=False)"
+```
 
 ### 7. Админ (опционально)
 
@@ -112,6 +136,7 @@ docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python ma
 cd ~/labbooking
 git pull
 bash scripts/deploy-vm.sh
+bash scripts/smoke-test.sh http://127.0.0.1
 ```
 
 `deploy-vm.sh` автоматически подключает `docker-compose.https.yml`, если:
@@ -131,6 +156,24 @@ SECURE_SSL_REDIRECT=1
 docker compose -f docker-compose.yml -f docker-compose.vm.yml down
 docker compose -f docker-compose.yml -f docker-compose.vm.yml up -d
 ```
+
+## Backup PostgreSQL
+
+Перед обновлениями и перед живым пилотом сделайте дамп БД:
+
+```bash
+bash scripts/backup_db.sh
+```
+
+Скрипт сохраняет файл в `backups/`. Для rehearsal restore на отдельной тестовой базе:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec -T db createdb -U labbooking labbooking_restore_check
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec -T db psql -U labbooking -d labbooking_restore_check < backups/<backup-file>.sql
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec -T db dropdb -U labbooking labbooking_restore_check
+```
+
+Не храните дампы с персональными данными в git или публичных хранилищах.
 
 ## Устранение неполадок
 

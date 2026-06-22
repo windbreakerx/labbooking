@@ -148,6 +148,35 @@ def lab_head(db, own_tc):
 
 
 @pytest.fixture
+def foreign_staff(db, foreign_tc):
+    user = User.objects.create_user(
+        email="foreign-staff@spmi.ru",
+        password="pass",
+        first_name="Foreign",
+        last_name="Staff",
+        role=UserRole.LAB_ADMIN,
+        is_staff=True,
+    )
+    user.profile.training_center = foreign_tc
+    user.profile.save(update_fields=["training_center"])
+    return user
+
+
+@pytest.fixture
+def own_teacher(db, own_tc):
+    user = User.objects.create_user(
+        email="own-teacher@spmi.ru",
+        password="pass",
+        first_name="Own",
+        last_name="Teacher",
+        role=UserRole.TEACHER,
+    )
+    user.profile.training_center = own_tc
+    user.profile.save(update_fields=["training_center"])
+    return user
+
+
+@pytest.fixture
 def sys_admin(db):
     return User.objects.create_user(
         email="sysadmin@spmi.ru",
@@ -365,6 +394,19 @@ class TestStaffScopeWeb:
         assert own_schedule.lab_work.title.encode() in response.content
         assert foreign_schedule.lab_work.title.encode() not in response.content
 
+    def test_staff_people_hides_foreign_lab_people(
+        self,
+        staff_with_lab,
+        own_teacher,
+        foreign_staff,
+    ):
+        client = Client()
+        client.force_login(staff_with_lab)
+        response = client.get("/staff/people/")
+        assert response.status_code == 200
+        assert own_teacher.email.encode() in response.content
+        assert foreign_staff.email.encode() not in response.content
+
     def test_staff_no_lab_empty_pages(self, staff_no_lab, own_discipline, foreign_discipline, own_ticket):
         client = Client()
         client.force_login(staff_no_lab)
@@ -375,11 +417,20 @@ class TestStaffScopeWeb:
             "/staff/support/",
             "/staff/stands/",
             "/staff/schedule/",
+            "/staff/people/",
         ):
             response = client.get(url)
             assert response.status_code == 200
         assert own_discipline.title.encode() not in client.get("/staff/disciplines/").content
         assert own_ticket.subject.encode() not in client.get("/staff/support/").content
+
+    def test_sys_admin_people_sees_all_labs(self, sys_admin, own_teacher, foreign_staff):
+        client = Client()
+        client.force_login(sys_admin)
+        response = client.get("/staff/people/")
+        assert response.status_code == 200
+        assert own_teacher.email.encode() in response.content
+        assert foreign_staff.email.encode() in response.content
 
     def test_staff_status_foreign_booking_blocked(
         self,

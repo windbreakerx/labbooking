@@ -132,9 +132,15 @@ class StaffPeopleView(StaffRequiredMixin, ListView):
     context_object_name = "people"
 
     def get_queryset(self):
-        return User.objects.filter(
+        qs = User.objects.filter(
             role__in=[UserRole.TEACHER, UserRole.LAB_ADMIN],
-        ).select_related("profile")
+        ).select_related("profile", "profile__training_center")
+        if self.request.user.role == UserRole.SYS_ADMIN:
+            return qs.order_by("last_name", "first_name", "email")
+        tc = getattr(self.request.user.profile, "training_center", None)
+        if not tc:
+            return qs.none()
+        return qs.filter(profile__training_center=tc).order_by("last_name", "first_name", "email")
 
 
 class StaffSupportView(StaffRequiredMixin, ListView):

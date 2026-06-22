@@ -281,6 +281,17 @@ class TestBookingService:
         assert len(mail.outbox) == 1
         assert "записаны" in mail.outbox[0].body.lower()
 
+    def test_booking_email_error_is_logged_without_rollback(self, student, session, monkeypatch, caplog):
+        def fail_send_mail(*_args, **_kwargs):
+            raise RuntimeError("smtp down")
+
+        monkeypatch.setattr("apps.bookings.services.booking.send_mail", fail_send_mail)
+        with override_settings(EMAIL_FAIL_SILENTLY=False):
+            booking = BookingService(actor=student).create_booking(student, session.pk)
+
+        assert booking.pk
+        assert "Failed to send booking email" in caplog.text
+
     def test_create_booking_calls_room_overlap_lock(self, student, session, monkeypatch):
         called = {"count": 0, "session_id": None}
         original_lock = BookingService._lock_overlapping_room_sessions

@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
@@ -19,6 +21,9 @@ from apps.bookings.services.session_availability import (
 )
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
 from apps.users.models import User, UserRole
+
+logger = logging.getLogger(__name__)
+
 
 class BookingError(Exception):
     pass
@@ -352,13 +357,19 @@ class BookingService:
         subject, message = templates.get(event, ("Уведомление", ""))
         if message:
             from_email = getattr(settings, "DEFAULT_FROM_EMAIL", None)
-            send_mail(
-                subject,
-                message,
-                from_email,
-                [booking.student.email],
-                fail_silently=True,
-            )
+            try:
+                send_mail(
+                    subject,
+                    message,
+                    from_email,
+                    [booking.student.email],
+                    fail_silently=getattr(settings, "EMAIL_FAIL_SILENTLY", True),
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to send booking email",
+                    extra={"booking_id": booking.pk, "event": event},
+                )
 
 
 def is_staff_user(user: User) -> bool:

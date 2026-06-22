@@ -21,6 +21,8 @@ htmlcov/
 db.sqlite3
 media/
 staticfiles/
+backups/
+*.sql
 .DS_Store
 .idea/
 .vscode/
