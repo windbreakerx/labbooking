@@ -14,6 +14,18 @@ from apps.academics.querysets import (
 from apps.users.models import User
 
 
+def _api_result_ids(client, url: str) -> set[int]:
+    ids: set[int] = set()
+    next_url = url
+    while next_url:
+        response = client.get(next_url)
+        assert response.status_code == 200
+        payload = response.json()
+        ids.update(item["id"] for item in payload["results"])
+        next_url = payload.get("next")
+    return ids
+
+
 @pytest.fixture(scope="module", autouse=True)
 def seed_pilot_data(django_db_setup, django_db_blocker):
     with django_db_blocker.unblock():
@@ -132,9 +144,11 @@ class TestPilotStaffVisibility:
     def test_operator_api_scoped_to_lab(self, operator, transport_discipline, drilling_discipline):
         client = APIClient()
         client.force_authenticate(user=operator)
+        expected_count = staff_disciplines_qs(operator).count()
         response = client.get("/api/v1/disciplines/")
         assert response.status_code == 200
-        ids = {item["id"] for item in response.json()["results"]}
+        assert response.json()["count"] == expected_count
+        ids = _api_result_ids(client, "/api/v1/disciplines/")
         assert transport_discipline.pk in ids
         assert drilling_discipline.pk in ids
 

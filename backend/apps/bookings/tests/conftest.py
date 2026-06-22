@@ -25,7 +25,7 @@ def _disable_day_open_gate(monkeypatch):
 def next_open_weekday_pair(days_ahead: int = 1, hour: int = 10, minute: int = 35):
     now = timezone.now()
     tz = timezone.get_current_timezone()
-    for day_offset in range(days_ahead, 14):
+    for day_offset in range(days_ahead, days_ahead + 14):
         candidate_date = (now + timezone.timedelta(days=day_offset)).date()
         if candidate_date.weekday() >= 5:
             continue
@@ -37,6 +37,11 @@ def next_open_weekday_pair(days_ahead: int = 1, hour: int = 10, minute: int = 35
             continue
         return candidate
     raise RuntimeError("Не удалось подобрать открытую пару для теста.")
+
+
+def far_open_weekday_pair(min_days_ahead: int = 20, hour: int = 10, minute: int = 35):
+    """Будущий слот за горизонтом студенческой записи, но в будний день и на паре."""
+    return next_open_weekday_pair(days_ahead=min_days_ahead, hour=hour, minute=minute)
 
 
 @pytest.fixture
@@ -98,8 +103,7 @@ def session(lab_work, room, semester):
 
 @pytest.fixture
 def far_session(lab_work, room, semester):
-    starts = timezone.now() + timezone.timedelta(days=20)
-    starts = starts.replace(hour=10, minute=35, second=0, microsecond=0)
+    starts = far_open_weekday_pair(min_days_ahead=20)
     return LabSession.objects.create(
         lab_work=lab_work,
         room=room,
