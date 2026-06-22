@@ -1,3 +1,8 @@
+---
+name: labbooking-dekanat-csv
+description: Manages Dekanat CSV import and pilot data templates for labbooking before live API integration. Use when changing CSV templates, import_dekanat_csv, curriculum bindings, lab bindings, or pilot user import docs.
+---
+
 # labbooking-dekanat-csv
 
 Use this skill when changing CSV templates, pilot imports, `import_dekanat_csv`, generated pilot users, curriculum bindings, lab bindings, or documentation about Dekanat data before the real API exists.

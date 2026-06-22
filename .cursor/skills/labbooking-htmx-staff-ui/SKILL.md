@@ -1,3 +1,8 @@
+---
+name: labbooking-htmx-staff-ui
+description: Guides HTMX staff and lab-head UI changes in labbooking without moving business logic into templates. Use when changing Django templates, HTMX partials, staff booking pages, manual booking, support replies, filters, or calendar UI.
+---
+
 # labbooking-htmx-staff-ui
 
 Use this skill when changing Django templates, HTMX partials, staff booking pages, manual booking, support replies, lab-head pages, filters, or calendar selection UI.

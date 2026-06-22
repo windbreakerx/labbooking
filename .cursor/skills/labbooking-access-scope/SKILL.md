@@ -1,3 +1,8 @@
+---
+name: labbooking-access-scope
+description: Enforces student, staff, and lab-head data visibility in labbooking. Use when changing users, roles, groups, laboratories, disciplines, lab works, sessions, support tickets, staff pages, lab-head pages, or API querysets.
+---
+
 # labbooking-access-scope
 
 Use this skill when changing users, roles, groups, laboratories, disciplines, lab works, sessions, support tickets, staff pages, lab-head pages, or API querysets.

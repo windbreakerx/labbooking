@@ -1,3 +1,8 @@
+---
+name: labbooking-booking-service
+description: Keeps booking business rules in BookingService and session availability. Use when changing booking, cancellation, statuses, waitlist, capacity, manual booking, or booking window rules in labbooking.
+---
+
 # labbooking-booking-service
 
 Use this skill when changing booking, cancellation, statuses, waitlist, capacity, manual booking, booking windows, or any rule that decides whether a student can book a lab session.

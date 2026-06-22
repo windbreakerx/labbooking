@@ -1,3 +1,8 @@
+---
+name: labbooking-pytest-pilot
+description: Defines the pytest and manual acceptance gate for labbooking pilot work. Use before finishing features that affect booking, access scope, staff UI, CSV import, reports, scheduling, deployment, or pilot data.
+---
+
 # labbooking-pytest-pilot
 
 Use this skill before finishing any feature that affects booking, access scope, staff UI, lab-head UI, CSV import, reports, scheduling, deployment, or pilot data.

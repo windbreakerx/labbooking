@@ -1,3 +1,8 @@
+---
+name: labbooking-pilot-data-setup
+description: Prepares reproducible pilot seed and CSV data for labbooking acceptance testing. Use when running seed_demo, loading pilot CSVs, validating group visibility, or rehearsing student, staff, and lab-head scenarios.
+---
+
 # labbooking-pilot-data-setup
 
 Use this skill when preparing pilot data, refreshing seed data, loading CSV files, checking acceptance visibility, or rehearsing the pilot with test accounts.

@@ -68,10 +68,25 @@ backend/
 cd backend && pytest
 ```
 
-## Cybersecurity
+## Cursor Agent Skills
+
+Skills лежат в `.cursor/skills/` и синхронизируются через git.
 
 ```bash
-npx skills add mukul975/Anthropic-Cybersecurity-Skills
+git pull
+git submodule update --init --recursive
 ```
 
-См. `.cursor/rules/security.md` для чеклиста безопасности проекта.
+Подробно: [docs/CURSOR_SKILLS.md](docs/CURSOR_SKILLS.md)
+
+Примеры вызова в Agent chat: `/labbooking-vm-deploy`, `/labbooking-prod-security`, `/ui-ux-pro-max`, `/anthropic-cybersecurity`.
+
+## Cybersecurity
+
+Проектный чеклист: `.cursor/rules/security.md` и skill `/labbooking-prod-security`.
+
+Библиотека Anthropic Cybersecurity Skills подключена как git submodule:
+
+`.cursor/skills/vendor/Anthropic-Cybersecurity-Skills/`
+
+Wrapper-skill: `/anthropic-cybersecurity`

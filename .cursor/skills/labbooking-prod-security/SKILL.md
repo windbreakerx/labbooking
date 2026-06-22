@@ -1,3 +1,8 @@
+---
+name: labbooking-prod-security
+description: Runs the labbooking production security gate using project rules and scope tests. Use before pilot or prod deploys and when changing auth, permissions, staff routes, uploads, env vars, CORS, CSRF, rate limits, or email.
+---
+
 # labbooking-prod-security
 
 Use this skill before production or pilot deploys, and when changing auth, permissions, staff routes, API endpoints, file uploads, environment variables, CORS/CSRF, rate limits, or email.

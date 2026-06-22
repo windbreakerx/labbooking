@@ -1,3 +1,8 @@
+---
+name: labbooking-vm-deploy
+description: Handles safe labbooking deploy on Yandex VM with Docker, env, HTTPS, backup, cron, and smoke tests. Use when changing docker-compose, deploy scripts, production settings, SMTP, or VM troubleshooting docs.
+---
+
 # labbooking-vm-deploy
 
 Use this skill when changing Docker, nginx, production settings, `.env.vm.example`, deploy scripts, backups, cron, SMTP, HTTPS, or VM troubleshooting docs.
