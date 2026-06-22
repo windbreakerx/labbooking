@@ -20,8 +20,11 @@ pytest
 On the VM after deploy:
 
 ```bash
+bash scripts/run-tests-vm.sh
 bash scripts/smoke-test.sh http://127.0.0.1
 ```
+
+`run-tests-vm.sh` installs dev dependencies inside the `web` container and runs pytest via `python -m pytest` (the production image does not include pytest by default).
 
 Use the HTTPS domain instead of `http://127.0.0.1` after certificates are enabled.
 

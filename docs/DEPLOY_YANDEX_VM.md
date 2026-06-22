@@ -232,6 +232,19 @@ bash scripts/smoke-test.sh http://127.0.0.1
 bash scripts/smoke-test.sh https://your.domain.ru
 ```
 
+## Pytest на VM
+
+Production-образ не содержит `pytest`. Для pilot gate используйте:
+
+```bash
+bash scripts/run-tests-vm.sh
+bash scripts/run-tests-vm.sh apps/bookings/tests/test_staff_scope.py -v
+bash scripts/run-tests-vm.sh --full
+```
+
+Скрипт ставит `requirements-dev.txt` в контейнер и запускает `python -m pytest`.
+После `deploy-vm.sh --build` dev-зависимости нужно установить снова (скрипт делает это автоматически).
+
 ## Cron на VM (опционально)
 
 ```bash
