@@ -13,6 +13,7 @@ from apps.bookings.services.lab_head import (
     lab_head_active_semester,
     lab_head_bindable_disciplines_qs,
     lab_head_bindable_lab_works_qs,
+    lab_head_create_discipline,
     lab_head_discipline_in_scope,
     lab_head_lab_work_in_scope,
     lab_head_people_qs,
@@ -133,7 +134,25 @@ class LabHeadBindingsView(LabHeadRequiredMixin, TemplateView):
         ctx["bindable_disciplines"] = lab_head_bindable_disciplines_qs(user)
         ctx["lab_works"] = staff_managed_lab_works_qs(user)
         ctx["bindable_lab_works"] = lab_head_bindable_lab_works_qs(user)
+        ctx["active_semester"] = lab_head_active_semester()
         return ctx
+
+
+class LabHeadDisciplineCreateView(LabHeadRequiredMixin, View):
+    def post(self, request):
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        try:
+            discipline = lab_head_create_discipline(
+                request.user,
+                title=title,
+                description=description,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-bindings")
+        messages.success(request, f"Дисциплина «{discipline.title}» добавлена в лабораторию.")
+        return redirect("lab-head-bindings")
 
 
 class LabHeadDisciplineBindView(LabHeadRequiredMixin, View):

@@ -92,6 +92,29 @@ def lab_head_active_semester() -> Semester | None:
     return Semester.objects.filter(is_active=True).first()
 
 
+def lab_head_create_discipline(user: User, *, title: str, description: str = "") -> Discipline:
+    tc = lab_head_training_center(user)
+    semester = lab_head_active_semester()
+    if not tc:
+        raise ValueError("Лаборатория не указана.")
+    if not semester:
+        raise ValueError("Нет активного семестра.")
+    title = title.strip()
+    if not title:
+        raise ValueError("Укажите название дисциплины.")
+
+    discipline = Discipline.objects.create(
+        title=title,
+        description=description.strip(),
+        semester=semester,
+        is_published=True,
+    )
+    discipline.code = f"DISC-{discipline.pk}"
+    discipline.save(update_fields=["code"])
+    discipline.training_centers.add(tc)
+    return discipline
+
+
 def lab_head_person_in_scope(user: User, person_id: int) -> User | None:
     return lab_head_people_qs(user).filter(pk=person_id).first()
 

@@ -8,19 +8,20 @@
         <p class="page-description">Список дисциплин, доступных в системе записи.</p>
     </div>
     <div class="page-actions">
-        <a class="button button--secondary" href="/admin/">Открыть админку</a>
+        {% if user.role == 'SYS_ADMIN' %}
+        <a class="button button--secondary" href="/admin/">Админка</a>
+        {% endif %}
     </div>
 </header>
 
 <div class="table-wrap">
     <table class="table table--compact table--sticky responsive-table">
         <thead>
-            <tr><th>Код</th><th>Название</th><th>Семестр</th><th>Опубликовано</th></tr>
+            <tr><th>Название</th><th>Семестр</th><th>Опубликовано</th></tr>
         </thead>
         <tbody>
             {% for d in disciplines %}
             <tr>
-                <td data-label="Код"><code>{{ d.code }}</code></td>
                 <td data-label="Название"><strong>{{ d.title }}</strong></td>
                 <td data-label="Семестр">{{ d.semester }}</td>
                 <td data-label="Опубликовано">
@@ -32,7 +33,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="4">
+            <tr><td colspan="3">
                 <div class="empty-state empty-state--icon">
                     <p>Нет дисциплин.</p>
                 </div>
@@ -41,5 +42,5 @@
         </tbody>
     </table>
 </div>
-<p class="admin-note muted">Полное редактирование — в <a href="/admin/">админке</a>.</p>
+<p class="admin-note muted">Редактирование каталога — в кабинете завлаба или через админку системы.</p>
 {% endblock %}

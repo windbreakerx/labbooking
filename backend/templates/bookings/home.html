@@ -1,7 +1,34 @@
 {% extends "base.html" %}
 {% block title %}Главная{% endblock %}
 {% block content %}
-{% if user.role == 'LAB_ADMIN' or user.role == 'TEACHER' or user.role == 'SYS_ADMIN' %}
+{% if user.role == 'LAB_HEAD' %}
+<section class="hero-card">
+    <p class="page-eyebrow">Кабинет завлаба</p>
+    <h1>Добро пожаловать, {{ user.full_name }}.</h1>
+    <p>Управление дисциплинами, сотрудниками, лабораторными работами, стендами и расписанием.</p>
+</section>
+
+<div class="quick-actions">
+    <a class="card card--interactive action-card" href="{% url 'lab-head-bindings' %}">
+        <span class="action-card__icon" aria-hidden="true">01</span>
+        <h2 class="action-card__title">Дисциплины</h2>
+        <p class="action-card__text">Добавление дисциплин и привязка к лаборатории.</p>
+        <span class="action-card__cta">Открыть раздел</span>
+    </a>
+    <a class="card card--interactive action-card" href="{% url 'staff-bookings' %}">
+        <span class="action-card__icon" aria-hidden="true">02</span>
+        <h2 class="action-card__title">Записавшиеся</h2>
+        <p class="action-card__text">Список записей, фильтры, ручная запись и смена статусов.</p>
+        <span class="action-card__cta">Открыть раздел</span>
+    </a>
+    <a class="card card--interactive action-card" href="{% url 'lab-head-people' %}">
+        <span class="action-card__icon" aria-hidden="true">03</span>
+        <h2 class="action-card__title">Сотрудники</h2>
+        <p class="action-card__text">Добавление сотрудников и преподавателей лаборатории.</p>
+        <span class="action-card__cta">Открыть раздел</span>
+    </a>
+</div>
+{% elif user.role == 'LAB_ADMIN' or user.role == 'TEACHER' or user.role == 'SYS_ADMIN' %}
 <section class="hero-card">
     <p class="page-eyebrow">Кабинет сотрудника</p>
     <h1>Добро пожаловать, {{ user.full_name }}.</h1>

@@ -4,13 +4,30 @@
 <header class="page-header">
     <div class="page-header__content">
         <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
-        <h1 class="page-title">Привязки к лаборатории</h1>
-        <p class="page-description">Дисциплины и лабораторные работы, доступные в вашей лаборатории.</p>
+        <h1 class="page-title">Дисциплины и привязки</h1>
+        <p class="page-description">Добавление дисциплин и управление лабораторными работами вашей лаборатории.</p>
     </div>
     <div class="page-actions">
         <a class="button button--secondary" href="{% url 'lab-head-home' %}">На главную</a>
     </div>
 </header>
+
+<section class="card card--form">
+    <h2 class="card__title">Добавить дисциплину</h2>
+    {% if active_semester %}
+    <form method="post" action="{% url 'lab-head-discipline-create' %}" class="form-grid">
+        {% csrf_token %}
+        <label>Название <input type="text" name="title" required maxlength="256" placeholder="Название дисциплины"></label>
+        <label class="form-grid__full">Описание <textarea name="description" rows="2" placeholder="Необязательно"></textarea></label>
+        <div class="form-actions form-grid__full">
+            <button type="submit">Добавить в лабораторию</button>
+        </div>
+    </form>
+    <p class="muted admin-note">Семестр: {{ active_semester.name }}</p>
+    {% else %}
+    <p class="muted">Нет активного семестра — сначала создайте его в админке.</p>
+    {% endif %}
+</section>
 
 <section class="card">
     <h2 class="card__title">Дисциплины лаборатории</h2>
@@ -30,7 +47,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="3"><p class="muted">Нет привязанных дисциплин.</p></td></tr>
+                <tr><td colspan="3"><p class="muted">Нет дисциплин. Добавьте первую с помощью формы выше.</p></td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -39,7 +56,8 @@
 
 {% if bindable_disciplines %}
 <section class="card card--form">
-    <h2 class="card__title">Привязать дисциплину</h2>
+    <h2 class="card__title">Привязать существующую дисциплину</h2>
+    <p class="muted">Дисциплины из общего каталога активного семестра, ещё не привязанные к вашей лаборатории.</p>
     <div class="table-wrap">
         <table class="table table--compact responsive-table">
             <thead><tr><th>Название</th><th></th></tr></thead>

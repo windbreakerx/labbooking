@@ -80,36 +80,9 @@ class StaffStandsView(StaffRequiredMixin, ListView):
 
 class StaffStandCreateView(StaffRequiredMixin, View):
     def post(self, request):
-        from apps.scheduling.models import Room, TrainingCenter
-
-        name = request.POST.get("name", "").strip()
-        inv = request.POST.get("inventory_number", "").strip()
-        tc_id = request.POST.get("training_center")
-        room_id = request.POST.get("room")
-        if name and inv and tc_id and room_id:
-            tc = staff_lab_filter(
-                TrainingCenter.objects.filter(pk=tc_id),
-                request.user,
-                training_center_lookup="pk",
-            ).first()
-            room = staff_lab_filter(
-                Room.objects.filter(pk=room_id),
-                request.user,
-                training_center_lookup="training_center",
-            ).first()
-            if not tc or not room:
-                messages.error(request, "Лаборатория или аудитория недоступны.")
-                return redirect("staff-stands")
-            LabStand.objects.create(
-                name=name,
-                inventory_number=inv,
-                training_center=tc,
-                room=room,
-                description=request.POST.get("description", ""),
-            )
-            messages.success(request, "Стенд добавлен.")
-        else:
-            messages.error(request, "Заполните обязательные поля.")
+        if request.user.role == UserRole.LAB_HEAD:
+            return redirect("lab-head-stands")
+        messages.error(request, "Добавление стендов доступно только заведующему лабораторией.")
         return redirect("staff-stands")
 
 

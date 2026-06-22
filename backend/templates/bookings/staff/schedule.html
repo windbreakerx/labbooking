@@ -8,7 +8,9 @@
         <p class="page-description">Настройки расписания, по которым генерируются доступные слоты записи.</p>
     </div>
     <div class="page-actions">
-        <a class="button button--secondary" href="/admin/">Редактировать в админке</a>
+        {% if user.role == 'SYS_ADMIN' %}
+        <a class="button button--secondary" href="/admin/">Админка</a>
+        {% endif %}
     </div>
 </header>
 
@@ -31,7 +33,7 @@
             <tr><td colspan="6">
                 <div class="empty-state empty-state--icon">
                     <p>Записей расписания нет.</p>
-                    <p class="muted">Добавьте через <a href="/admin/">админку</a>, затем сгенерируйте слоты.</p>
+                    <p class="muted">Заведующий лабораторией добавляет расписание в кабинете завлаба.</p>
                 </div>
             </td></tr>
             {% endfor %}

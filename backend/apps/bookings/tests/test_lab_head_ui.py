@@ -156,6 +156,20 @@ class TestLabHeadBindings:
         lab_work = LabWork.objects.get(discipline=own_discipline, number=2)
         assert lab_work.training_centers.filter(pk=own_tc.pk).exists()
 
+    def test_create_discipline(self, client_logged_in, own_tc, semester):
+        response = client_logged_in.post(
+            reverse("lab-head-discipline-create"),
+            {
+                "title": "Новая дисциплина",
+                "description": "Описание",
+            },
+        )
+        assert response.status_code == 302
+        discipline = Discipline.objects.get(title="Новая дисциплина")
+        assert discipline.training_centers.filter(pk=own_tc.pk).exists()
+        assert discipline.code.startswith("DISC-")
+        assert discipline.is_published is True
+
 
 @pytest.mark.django_db
 class TestLabHeadStandsAndSchedule:
@@ -201,3 +215,21 @@ class TestLabHeadStandsAndSchedule:
         )
         assert response.status_code == 302
         assert ScheduleEntry.objects.filter(lab_work=lab_work, room=own_room).exists()
+
+
+@pytest.mark.django_db
+class TestStaffCannotManageLabResources:
+    def test_staff_cannot_create_stand_via_staff_url(self, client, staff_admin, own_room):
+        client.force_login(staff_admin)
+        before = LabStand.objects.count()
+        response = client.post(
+            reverse("staff-stand-create"),
+            {
+                "name": "Чужой стенд",
+                "inventory_number": "X-1",
+                "training_center": own_room.training_center_id,
+                "room": own_room.pk,
+            },
+        )
+        assert response.status_code == 302
+        assert LabStand.objects.count() == before

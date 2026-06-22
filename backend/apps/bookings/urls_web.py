@@ -3,6 +3,7 @@ from django.urls import path
 from apps.bookings.views.lab_head import (
     LabHeadBindingsView,
     LabHeadDisciplineBindView,
+    LabHeadDisciplineCreateView,
     LabHeadDisciplineUnbindView,
     LabHeadHomeView,
     LabHeadLabWorkBindView,
@@ -120,6 +121,11 @@ urlpatterns = [
         name="lab-head-person-bindings",
     ),
     path("lab-head/bindings/", LabHeadBindingsView.as_view(), name="lab-head-bindings"),
+    path(
+        "lab-head/bindings/disciplines/create/",
+        LabHeadDisciplineCreateView.as_view(),
+        name="lab-head-discipline-create",
+    ),
     path(
         "lab-head/bindings/disciplines/<int:pk>/bind/",
         LabHeadDisciplineBindView.as_view(),

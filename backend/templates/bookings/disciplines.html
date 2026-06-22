@@ -15,7 +15,6 @@
     <a class="card card--interactive discipline-card" href="{% url 'lab-works' d.pk %}">
         <div class="discipline-card__top">
             <span class="discipline-card__badge badge badge--muted">Дисциплина</span>
-            {% if d.code %}<span class="discipline-card__code">{{ d.code }}</span>{% endif %}
         </div>
         <h2 class="discipline-card__title">{{ d.title }}</h2>
         {% if d.description %}

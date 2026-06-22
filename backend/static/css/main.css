@@ -410,10 +410,6 @@ summary:focus-visible {
     opacity: 1;
 }
 
-.nav__section--account {
-    display: none;
-}
-
 .nav-logout {
     display: inline;
     margin: 0;

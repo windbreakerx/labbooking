@@ -28,7 +28,7 @@ class LabWorkSerializer(serializers.ModelSerializer):
 class DisciplineSerializer(serializers.ModelSerializer):
     class Meta:
         model = Discipline
-        fields = ("id", "code", "title", "description")
+        fields = ("id", "title", "description")
 
 
 class DisciplineDetailSerializer(DisciplineSerializer):
