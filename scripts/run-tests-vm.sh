@@ -55,8 +55,9 @@ install_dev_deps() {
 
 run_pytest() {
   echo "==> Запуск: python -m pytest $*"
-  # python -m pytest надёжнее, чем bare pytest, если бинарник не в PATH.
-  $COMPOSE exec -T web python -m pytest "$@"
+  # Контейнер web задаёт DJANGO_SETTINGS_MODULE=prod — pytest-django берёт его из env,
+  # из-за SECURE_SSL_REDIRECT тесты получают 301. Принудительно включаем test settings.
+  $COMPOSE exec -T web sh -c 'DJANGO_SETTINGS_MODULE=config.settings.test python -m pytest "$@"' sh "$@"
 }
 
 install_dev_deps
