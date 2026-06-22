@@ -95,6 +95,14 @@ class LabWork(models.Model):
         related_name="lab_works",
         verbose_name="Лаборатории",
     )
+    default_room = models.ForeignKey(
+        "scheduling.Room",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="default_lab_works",
+        verbose_name="Аудитория по умолчанию",
+    )
 
     class Meta:
         verbose_name = "Лабораторная работа"
