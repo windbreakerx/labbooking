@@ -5,54 +5,39 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
         <h1 class="page-title">Лабораторные работы</h1>
-        <p class="page-description">Работы, привязанные к вашей лаборатории.</p>
+        <p class="page-description">Список работ вашей лаборатории. Нажмите на строку, чтобы отредактировать.</p>
     </div>
     <div class="page-actions">
+        <button type="button" class="button" id="lab-work-create-open">Добавить ЛР</button>
         <a class="button button--secondary" href="{% url 'lab-head-home' %}">На главную</a>
     </div>
 </header>
 
-<form method="post" action="{% url 'lab-head-lab-work-create' %}" class="card card--form create-panel">
-    {% csrf_token %}
-    <h2 class="card__title">Добавить лабораторную работу</h2>
-    <div class="form-grid">
-        <label>Дисциплина
-            <select name="discipline" required>
-                <option value="">— выберите —</option>
-                {% for d in lab_disciplines %}
-                <option value="{{ d.pk }}">{{ d.title }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>№ ЛР <input type="number" name="number" min="1" required></label>
-        <label>Название <input type="text" name="title" required></label>
-        <label>Длительность (мин) <input type="number" name="duration_minutes" value="90" min="30" step="5"></label>
-        <label>Макс. мест <input type="number" name="capacity" value="30" min="1" required></label>
-    </div>
-    <div class="form-actions">
-        <button type="submit">Сохранить</button>
-    </div>
-</form>
-
 <div class="table-wrap">
-    <table class="table table--compact table--sticky responsive-table">
+    <table class="table table--compact table--sticky responsive-table lab-work-table">
         <thead>
-            <tr><th>Дисциплина</th><th>№</th><th>Название</th><th>Длительность</th><th>Макс. мест</th><th>Опубликовано</th></tr>
+            <tr><th>Название</th><th>№</th><th>Дисциплина</th><th>Длительность</th><th>Макс. мест</th><th>Опубликовано</th></tr>
         </thead>
         <tbody>
             {% for lw in lab_works %}
-            <tr>
-                <td data-label="Дисциплина">{{ lw.discipline.title }}</td>
-                <td data-label="№"><span class="badge badge--muted">ЛР {{ lw.number }}</span></td>
+            <tr
+                class="lab-work-row"
+                tabindex="0"
+                role="button"
+                data-lab-work-id="{{ lw.pk }}"
+                data-title="{{ lw.title|escapejs }}"
+                data-number="{{ lw.number }}"
+                data-discipline-id="{{ lw.discipline_id }}"
+                data-duration="{{ lw.duration_minutes }}"
+                data-capacity="{{ lw.capacity }}"
+                data-published="{{ lw.is_published|yesno:'1,0' }}"
+                aria-label="Редактировать {{ lw.title }}"
+            >
                 <td data-label="Название"><strong>{{ lw.title }}</strong></td>
+                <td data-label="№"><span class="badge badge--muted">№{{ lw.number }}</span></td>
+                <td data-label="Дисциплина">{{ lw.discipline.title }}</td>
                 <td data-label="Длительность">{{ lw.duration_minutes }} мин</td>
-                <td data-label="Макс. мест">
-                    <form method="post" action="{% url 'lab-head-lab-work-update' lw.pk %}" class="inline-form">
-                        {% csrf_token %}
-                        <input type="number" name="capacity" value="{{ lw.capacity }}" min="1" required aria-label="Макс. мест для {{ lw.title }}">
-                        <button type="submit" class="button button--secondary button--sm">Сохранить</button>
-                    </form>
-                </td>
+                <td data-label="Макс. мест">{{ lw.capacity }}</td>
                 <td data-label="Опубликовано">
                     {% if lw.is_published %}
                     <span class="status-badge status-badge--with-dot status-badge--visited">Да</span>
@@ -72,4 +57,132 @@
         </tbody>
     </table>
 </div>
+
+<dialog id="lab-work-create-dialog" class="app-dialog" aria-labelledby="lab-work-create-title">
+    <div class="app-dialog__header">
+        <h2 class="card__title" id="lab-work-create-title">Добавить лабораторную работу</h2>
+    </div>
+    <form method="post" action="{% url 'lab-head-lab-work-create' %}" class="form-grid">
+        {% csrf_token %}
+        <label>Название <input type="text" name="title" required maxlength="256"></label>
+        <label>№ ЛР <input type="number" name="number" min="1" required></label>
+        <label>Дисциплина
+            <select name="discipline" required>
+                <option value="">— выберите —</option>
+                {% for d in lab_disciplines %}
+                <option value="{{ d.pk }}">{{ d.title }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Длительность (мин) <input type="number" name="duration_minutes" value="90" min="30" step="5"></label>
+        <label>Макс. мест <input type="number" name="capacity" value="30" min="1" required></label>
+        <div class="app-dialog__actions form-grid__full">
+            <button type="submit">Сохранить</button>
+            <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="lab-work-edit-dialog" class="app-dialog" aria-labelledby="lab-work-edit-heading">
+    <div class="app-dialog__header">
+        <h2 class="card__title" id="lab-work-edit-heading">Редактирование лабораторной работы</h2>
+        <p class="muted" id="lab-work-edit-subtitle"></p>
+    </div>
+    <form method="post" action="" class="form-grid" id="lab-work-edit-form">
+        {% csrf_token %}
+        <label>Название <input type="text" name="title" id="lab-work-edit-title-input" required maxlength="256"></label>
+        <label>№ ЛР <input type="number" name="number" id="lab-work-edit-number" min="1" required></label>
+        <label>Дисциплина
+            <select name="discipline" id="lab-work-edit-discipline" required>
+                {% for d in lab_disciplines %}
+                <option value="{{ d.pk }}">{{ d.title }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Длительность (мин) <input type="number" name="duration_minutes" id="lab-work-edit-duration" min="30" step="5" required></label>
+        <label>Макс. мест <input type="number" name="capacity" id="lab-work-edit-capacity" min="1" required></label>
+        <label class="checkbox-inline form-grid__full">
+            <input type="checkbox" name="is_published" id="lab-work-edit-published">
+            Опубликовано (доступна для записи студентов)
+        </label>
+        <p class="muted form-grid__full">Снимите публикацию, чтобы скрыть ЛР из записи, не удаляя её из базы.</p>
+        <div class="app-dialog__actions form-grid__full">
+            <button type="submit">Сохранить</button>
+            <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+(function () {
+    var createDialog = document.getElementById('lab-work-create-dialog');
+    var editDialog = document.getElementById('lab-work-edit-dialog');
+    var editForm = document.getElementById('lab-work-edit-form');
+    var editSubtitle = document.getElementById('lab-work-edit-subtitle');
+    var createOpenBtn = document.getElementById('lab-work-create-open');
+
+    function bindDialog(dialog) {
+        if (!dialog) {
+            return;
+        }
+        dialog.addEventListener('click', function (e) {
+            if (e.target === dialog) {
+                dialog.close();
+            }
+        });
+        dialog.querySelectorAll('[data-dialog-close]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dialog.close();
+            });
+        });
+    }
+
+    function openEditDialog(row) {
+        if (!editDialog || !editForm || !row) {
+            return;
+        }
+        var labWorkId = row.getAttribute('data-lab-work-id');
+        editForm.action = '{% url "lab-head-lab-work-update" pk=0 %}'.replace('/0/', '/' + labWorkId + '/');
+        document.getElementById('lab-work-edit-title-input').value = row.getAttribute('data-title') || '';
+        document.getElementById('lab-work-edit-number').value = row.getAttribute('data-number') || '';
+        document.getElementById('lab-work-edit-discipline').value = row.getAttribute('data-discipline-id') || '';
+        document.getElementById('lab-work-edit-duration').value = row.getAttribute('data-duration') || '';
+        document.getElementById('lab-work-edit-capacity').value = row.getAttribute('data-capacity') || '';
+        document.getElementById('lab-work-edit-published').checked = row.getAttribute('data-published') === '1';
+        if (editSubtitle) {
+            editSubtitle.textContent = row.getAttribute('data-title') || '';
+        }
+        editDialog.showModal();
+    }
+
+    bindDialog(createDialog);
+    bindDialog(editDialog);
+
+    if (createOpenBtn && createDialog) {
+        createOpenBtn.addEventListener('click', function () {
+            createDialog.showModal();
+        });
+    }
+
+    document.querySelectorAll('.lab-work-row').forEach(function (row) {
+        row.addEventListener('click', function () {
+            openEditDialog(row);
+        });
+        row.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openEditDialog(row);
+            }
+        });
+    });
+
+    var editLabWorkId = '{{ edit_lab_work_id|escapejs }}';
+    if (editLabWorkId) {
+        var targetRow = document.querySelector('.lab-work-row[data-lab-work-id="' + editLabWorkId + '"]');
+        if (targetRow) {
+            openEditDialog(targetRow);
+        }
+    }
+})();
+</script>
 {% endblock %}

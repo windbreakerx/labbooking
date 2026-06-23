@@ -158,7 +158,26 @@ class TestLabHeadBindings:
         assert lab_work.capacity == 3
         assert lab_work.training_centers.filter(pk=own_tc.pk).exists()
 
-    def test_update_lab_work_capacity(self, client_logged_in, own_tc, own_discipline):
+    def test_create_discipline_disabled_for_lab_head(self, client_logged_in, own_tc, semester):
+        response = client_logged_in.post(
+            reverse("lab-head-discipline-create"),
+            {
+                "title": "Новая дисциплина",
+                "description": "Описание",
+            },
+        )
+        assert response.status_code == 302
+        assert not Discipline.objects.filter(title="Новая дисциплина").exists()
+
+    def test_bindings_search_by_title(self, client_logged_in, own_discipline, foreign_discipline, own_tc):
+        foreign_discipline.training_centers.add(own_tc)
+        response = client_logged_in.get(reverse("lab-head-bindings"), {"q": "завлаба"})
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert own_discipline.title in content
+        assert foreign_discipline.title not in content
+
+    def test_update_lab_work(self, client_logged_in, own_tc, own_discipline):
         lab_work = LabWork.objects.create(
             discipline=own_discipline,
             number=3,
@@ -170,25 +189,45 @@ class TestLabHeadBindings:
         lab_work.training_centers.add(own_tc)
         response = client_logged_in.post(
             reverse("lab-head-lab-work-update", kwargs={"pk": lab_work.pk}),
-            {"capacity": 3},
+            {
+                "title": "ЛР обновлённая",
+                "number": 3,
+                "discipline": own_discipline.pk,
+                "duration_minutes": 120,
+                "capacity": 3,
+                "is_published": "on",
+            },
         )
         assert response.status_code == 302
         lab_work.refresh_from_db()
         assert lab_work.capacity == 3
+        assert lab_work.title == "ЛР обновлённая"
+        assert lab_work.duration_minutes == 120
+        assert lab_work.is_published is True
 
-    def test_create_discipline(self, client_logged_in, own_tc, semester):
+    def test_unpublish_lab_work(self, client_logged_in, own_tc, own_discipline):
+        lab_work = LabWork.objects.create(
+            discipline=own_discipline,
+            number=4,
+            title="ЛР для снятия",
+            duration_minutes=90,
+            capacity=10,
+            is_published=True,
+        )
+        lab_work.training_centers.add(own_tc)
         response = client_logged_in.post(
-            reverse("lab-head-discipline-create"),
+            reverse("lab-head-lab-work-update", kwargs={"pk": lab_work.pk}),
             {
-                "title": "Новая дисциплина",
-                "description": "Описание",
+                "title": lab_work.title,
+                "number": lab_work.number,
+                "discipline": own_discipline.pk,
+                "duration_minutes": lab_work.duration_minutes,
+                "capacity": lab_work.capacity,
             },
         )
         assert response.status_code == 302
-        discipline = Discipline.objects.get(title="Новая дисциплина")
-        assert discipline.training_centers.filter(pk=own_tc.pk).exists()
-        assert discipline.code.startswith("DISC-")
-        assert discipline.is_published is True
+        lab_work.refresh_from_db()
+        assert lab_work.is_published is False
 
 
 @pytest.mark.django_db

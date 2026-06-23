@@ -125,3 +125,54 @@ def lab_head_discipline_in_scope(user: User, discipline_id: int) -> Discipline |
 
 def lab_head_lab_work_in_scope(user: User, lab_work_id: int) -> LabWork | None:
     return staff_managed_lab_works_qs(user).filter(pk=lab_work_id).first()
+
+
+def lab_head_update_lab_work(
+    user: User,
+    lab_work: LabWork,
+    *,
+    title: str,
+    number: int,
+    discipline: Discipline,
+    duration_minutes: int,
+    capacity: int,
+    is_published: bool,
+) -> LabWork:
+    title = title.strip()
+    if not title:
+        raise ValueError("Укажите название лабораторной работы.")
+    if number < 1:
+        raise ValueError("Номер ЛР должен быть не меньше 1.")
+    if duration_minutes < 30:
+        raise ValueError("Длительность должна быть не меньше 30 минут.")
+    if capacity < 1:
+        raise ValueError("Количество мест должно быть не меньше 1.")
+    if not lab_head_discipline_in_scope(user, discipline.pk):
+        raise ValueError("Дисциплина недоступна.")
+
+    duplicate = LabWork.objects.filter(discipline=discipline, number=number).exclude(pk=lab_work.pk).exists()
+    if duplicate:
+        raise ValueError(f"ЛР №{number} для этой дисциплины уже существует.")
+
+    capacity_changed = lab_work.capacity != capacity
+    lab_work.title = title
+    lab_work.number = number
+    lab_work.discipline = discipline
+    lab_work.duration_minutes = duration_minutes
+    lab_work.capacity = capacity
+    lab_work.is_published = is_published
+    lab_work.save(
+        update_fields=[
+            "title",
+            "number",
+            "discipline",
+            "duration_minutes",
+            "capacity",
+            "is_published",
+        ]
+    )
+    if capacity_changed:
+        from apps.scheduling.services.capacity import sync_open_session_capacities
+
+        sync_open_session_capacities(lab_work)
+    return lab_work

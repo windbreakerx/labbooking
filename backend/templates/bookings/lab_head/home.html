@@ -17,13 +17,13 @@
     </a>
     <a class="card card--link" href="{% url 'lab-head-bindings' %}">
         <h2 class="card__title">Дисциплины</h2>
-        <p class="card__meta">{{ disciplines_count }} дисц., {{ lab_works_count }} ЛР</p>
-        <p class="muted">Добавление дисциплин и привязка ЛР к лаборатории.</p>
+        <p class="card__meta">{{ disciplines_count }} дисц.</p>
+        <p class="muted">Привязка дисциплин к лаборатории и просмотр ЛР.</p>
     </a>
     <a class="card card--link" href="{% url 'lab-head-lab-works' %}">
         <h2 class="card__title">Лабораторные работы</h2>
         <p class="card__meta">{{ lab_works_count }} работ</p>
-        <p class="muted">Создание новых ЛР в дисциплинах лаборатории.</p>
+        <p class="muted">Создание и редактирование лабораторных работ.</p>
     </a>
     <a class="card card--link" href="{% url 'lab-head-stands' %}">
         <h2 class="card__title">Стенды</h2>

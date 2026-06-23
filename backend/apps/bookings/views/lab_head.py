@@ -2,6 +2,7 @@ from datetime import datetime
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import ListView, TemplateView
@@ -13,7 +14,6 @@ from apps.bookings.services.lab_head import (
     lab_head_active_semester,
     lab_head_bindable_disciplines_qs,
     lab_head_bindable_lab_works_qs,
-    lab_head_create_discipline,
     lab_head_discipline_in_scope,
     lab_head_lab_work_in_scope,
     lab_head_people_qs,
@@ -21,9 +21,9 @@ from apps.bookings.services.lab_head import (
     lab_head_schedule_qs,
     lab_head_teachers_qs,
     lab_head_training_center,
+    lab_head_update_lab_work,
 )
 from apps.scheduling.models import LabStand, ScheduleEntry, WeekParity
-from apps.scheduling.services.capacity import sync_open_session_capacities
 from apps.users.models import User, UserRole
 
 WEEKDAY_LABELS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
@@ -130,29 +130,43 @@ class LabHeadBindingsView(LabHeadRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         user = self.request.user
+        managed_lab_works = staff_managed_lab_works_qs(user)
+        bindable_lab_works = list(lab_head_bindable_lab_works_qs(user))
+        bindable_by_discipline: dict[int, list] = {}
+        for lab_work in bindable_lab_works:
+            bindable_by_discipline.setdefault(lab_work.discipline_id, []).append(lab_work)
+
+        lab_disciplines = list(
+            staff_managed_disciplines_qs(user)
+            .select_related("semester")
+            .prefetch_related(
+                Prefetch(
+                    "lab_works",
+                    queryset=managed_lab_works,
+                    to_attr="managed_lab_works",
+                )
+            )
+        )
+        for discipline in lab_disciplines:
+            discipline.bindable_lab_works = bindable_by_discipline.get(discipline.pk, [])
+
+        search_query = self.request.GET.get("q", "").strip()
+        if search_query:
+            lab_disciplines = [d for d in lab_disciplines if search_query.lower() in d.title.lower()]
+            bindable_disciplines = lab_head_bindable_disciplines_qs(user).filter(title__icontains=search_query)
+        else:
+            bindable_disciplines = lab_head_bindable_disciplines_qs(user)
+
         ctx["training_center"] = self.get_training_center()
-        ctx["lab_disciplines"] = staff_managed_disciplines_qs(user)
-        ctx["bindable_disciplines"] = lab_head_bindable_disciplines_qs(user)
-        ctx["lab_works"] = staff_managed_lab_works_qs(user)
-        ctx["bindable_lab_works"] = lab_head_bindable_lab_works_qs(user)
-        ctx["active_semester"] = lab_head_active_semester()
+        ctx["lab_disciplines"] = lab_disciplines
+        ctx["bindable_disciplines"] = bindable_disciplines
+        ctx["search_query"] = search_query
         return ctx
 
 
 class LabHeadDisciplineCreateView(LabHeadRequiredMixin, View):
     def post(self, request):
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        try:
-            discipline = lab_head_create_discipline(
-                request.user,
-                title=title,
-                description=description,
-            )
-        except ValueError as exc:
-            messages.error(request, str(exc))
-            return redirect("lab-head-bindings")
-        messages.success(request, f"Дисциплина «{discipline.title}» добавлена в лабораторию.")
+        messages.error(request, "Создание дисциплин доступно только в админке.")
         return redirect("lab-head-bindings")
 
 
@@ -206,12 +220,13 @@ class LabHeadLabWorksView(LabHeadRequiredMixin, ListView):
     context_object_name = "lab_works"
 
     def get_queryset(self):
-        return staff_managed_lab_works_qs(self.request.user)
+        return staff_managed_lab_works_qs(self.request.user).select_related("discipline")
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["training_center"] = self.get_training_center()
         ctx["lab_disciplines"] = staff_managed_disciplines_qs(self.request.user)
+        ctx["edit_lab_work_id"] = self.request.GET.get("edit", "").strip()
         return ctx
 
 
@@ -265,22 +280,42 @@ class LabHeadLabWorkUpdateView(LabHeadRequiredMixin, View):
             messages.error(request, "Лабораторная работа недоступна.")
             return redirect("lab-head-lab-works")
 
+        discipline_id = request.POST.get("discipline", "").strip()
+        discipline = lab_head_discipline_in_scope(request.user, int(discipline_id)) if discipline_id else None
+        title = request.POST.get("title", "").strip()
+        number = request.POST.get("number", "").strip()
+        duration = request.POST.get("duration_minutes", "").strip()
         capacity = request.POST.get("capacity", "").strip()
+        is_published = request.POST.get("is_published") == "on"
+
+        if not discipline or not title or not number or not duration or not capacity:
+            messages.error(request, "Заполните все поля лабораторной работы.")
+            return redirect("lab-head-lab-works")
+
         try:
+            number_int = int(number)
+            duration_int = int(duration)
             capacity_int = int(capacity)
         except ValueError:
-            messages.error(request, "Количество мест должно быть числом.")
+            messages.error(request, "Номер, длительность и места должны быть числами.")
             return redirect("lab-head-lab-works")
 
-        if capacity_int < 1:
-            messages.error(request, "Количество мест должно быть не меньше 1.")
+        try:
+            lab_head_update_lab_work(
+                request.user,
+                lab_work,
+                title=title,
+                number=number_int,
+                discipline=discipline,
+                duration_minutes=duration_int,
+                capacity=capacity_int,
+                is_published=is_published,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
             return redirect("lab-head-lab-works")
 
-        if lab_work.capacity != capacity_int:
-            lab_work.capacity = capacity_int
-            lab_work.save(update_fields=["capacity"])
-            sync_open_session_capacities(lab_work)
-        messages.success(request, f"Вместимость ЛР «{lab_work.title}» обновлена.")
+        messages.success(request, f"Лабораторная работа «{lab_work.title}» обновлена.")
         return redirect("lab-head-lab-works")
 
 
