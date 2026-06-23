@@ -93,11 +93,20 @@ EMAIL_FAIL_SILENTLY=0
 bash scripts/deploy-vm.sh
 ```
 
+Первый запуск с Excel (файлы в `data/import/xls/`):
+
+```bash
+bash scripts/deploy-vm.sh --import-data
+```
+
 Или вручную:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.vm.yml up -d --build
-docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python manage.py seed_demo
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python manage.py migrate --noinput
+docker compose -f docker-compose.yml -f docker-compose.vm.yml cp data/import/xls/. web:/tmp/labs/
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python manage.py import_lr_accounting_xlsx /tmp/labs --clear-existing
+docker compose -f docker-compose.yml -f docker-compose.vm.yml exec web python manage.py generate_sessions --weeks 2
 ```
 
 ### 6. Проверка
@@ -112,7 +121,7 @@ bash scripts/smoke-test.sh http://127.0.0.1
 - http://\<PUBLIC_IP\>/
 - http://\<PUBLIC_IP\>/api/docs/
 
-**Вход:** `student@stud.spmi.ru` / `student123`
+**Вход:** `s210001@stud.spmi.ru` / `student123` (после импорта Excel)
 
 Проверка SMTP из контейнера:
 

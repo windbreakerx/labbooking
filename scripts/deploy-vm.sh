@@ -1,11 +1,47 @@
 #!/usr/bin/env bash
 # Деплой labbooking на VM (Ubuntu + Docker).
-# Запуск на сервере из корня репозитория: bash scripts/deploy-vm.sh
+#
+# Обычный деплой (код + миграции, БД не трогаем):
+#   bash scripts/deploy-vm.sh
+#
+# Полный импорт из Excel + слоты (data/import/xls/ЛР_учет*.xlsx):
+#   bash scripts/deploy-vm.sh --import-data
+#
+# Только догенерировать слоты:
+#   bash scripts/deploy-vm.sh --generate-sessions
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+
+IMPORT_DATA=0
+GENERATE_SESSIONS=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --import-data) IMPORT_DATA=1 ;;
+    --generate-sessions) GENERATE_SESSIONS=1 ;;
+    -h|--help)
+      cat <<'EOF'
+Использование: bash scripts/deploy-vm.sh [опции]
+
+  (без опций)           Обновить код и миграции. Данные в БД не меняются.
+  --import-data         Импорт из data/import/xls + generate_sessions
+  --generate-sessions   Только generate_sessions --weeks 2
+  -h, --help            Эта справка
+
+Excel-файлы: data/import/xls/ЛР_учет*.xlsx
+Студенты после импорта: s<номер_зачётки>@stud.spmi.ru / student123
+EOF
+      exit 0
+      ;;
+    *)
+      echo "Неизвестный аргумент: $arg (см. --help)"
+      exit 1
+      ;;
+  esac
+done
 
 if [[ ! -f .env ]]; then
   echo "Файл .env не найден. Скопируйте шаблон:"
@@ -46,11 +82,29 @@ $COMPOSE up -d --build
 echo "==> Ожидание готовности web..."
 sleep 5
 
-echo "==> Демо-данные (если БД пустая — безопасно повторять)..."
-$COMPOSE exec -T web python manage.py seed_demo --weeks 2 || true
-
 echo "==> Миграции..."
 $COMPOSE exec -T web python manage.py migrate --noinput
+
+XLS_DIR="data/import/xls"
+if [[ "$IMPORT_DATA" -eq 1 ]]; then
+  shopt -s nullglob
+  xlsx_files=("${XLS_DIR}"/ЛР_учет*.xlsx)
+  shopt -u nullglob
+  if [[ ${#xlsx_files[@]} -eq 0 ]]; then
+    echo "ERROR: --import-data указан, но в ${XLS_DIR}/ нет файлов ЛР_учет*.xlsx"
+    exit 1
+  fi
+  echo "==> Импорт данных из ${XLS_DIR} (${#xlsx_files[@]} файлов)..."
+  $COMPOSE exec -T web mkdir -p /tmp/labs
+  $COMPOSE cp "${XLS_DIR}/." web:/tmp/labs/
+  $COMPOSE exec -T web python manage.py import_lr_accounting_xlsx /tmp/labs --clear-existing
+  GENERATE_SESSIONS=1
+fi
+
+if [[ "$GENERATE_SESSIONS" -eq 1 ]]; then
+  echo "==> Генерация слотов (может занять несколько минут)..."
+  $COMPOSE exec -T web python manage.py generate_sessions --weeks 2
+fi
 
 echo "==> Статика..."
 $COMPOSE exec -T web python manage.py collectstatic --noinput
@@ -92,4 +146,5 @@ else
   echo "Swagger: http://<PUBLIC_IP>/api/docs/"
   echo "HTTPS: bash scripts/setup-https-ycm.sh <DOMAIN> ...  затем USE_HTTPS=1 в .env"
 fi
-echo "Демо: student@stud.spmi.ru / student123"
+echo "Студенты: s<номер_зачётки>@stud.spmi.ru / student123"
+echo "Импорт Excel: bash scripts/deploy-vm.sh --import-data"
