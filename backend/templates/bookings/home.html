@@ -58,7 +58,7 @@
 {% else %}
 <section class="hero-card hero-card--student">
     <p class="page-eyebrow">Личный кабинет</p>
-    <h1>Добро пожаловать, {{ user.full_name }}.</h1>
+    <h1>Добро пожаловать, {{ user.first_name }}</h1>
     <p>Выберите дисциплину, запишитесь на лабораторную работу или проверьте свои активные записи.</p>
 </section>
 
@@ -72,7 +72,7 @@
     <a class="card card--interactive action-card" href="{% url 'my-bookings' %}">
         <span class="action-card__icon" aria-hidden="true">📅</span>
         <h2 class="action-card__title">Мои записи</h2>
-        <p class="action-card__text">Посмотреть дату, аудиторию, статус и при необходимости отменить запись.</p>
+        <p class="action-card__text">Управление записями.</p>
         <span class="action-card__cta">Открыть записи</span>
     </a>
     <a class="card card--interactive action-card" href="{% url 'support' %}">

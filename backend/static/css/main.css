@@ -1298,6 +1298,14 @@ label:has(.field-error) textarea {
     box-shadow: var(--shadow-md);
 }
 
+.hero-card .page-eyebrow {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: normal;
+    text-transform: none;
+}
+
 .hero-card h1,
 .hero-card h2,
 .hero-card p {
