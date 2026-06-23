@@ -105,20 +105,70 @@ def is_meta_text(value: str) -> bool:
     )
 
 
-def looks_like_lab_title(value: str) -> bool:
-    if len(value) < 20:
+def looks_like_person_name(value: str) -> bool:
+    parts = value.split()
+    if len(parts) < 2 or len(parts) > 4:
         return False
-    return value.startswith(LAB_TITLE_PREFIXES) or len(value) >= 35
+    if not re.match(r"^[А-ЯA-ZЁ]", parts[0]):
+        return False
+    return all(re.match(r"^[А-ЯA-ZЁ][а-яa-zё-]+$", part) for part in parts)
+
+
+def looks_like_lab_title(value: str) -> bool:
+    if not value or is_meta_text(value) or looks_like_person_name(value):
+        return False
+    if value.startswith(("Лаб. раб", '"Лаб', "«Лаб")):
+        return True
+    if value.startswith(LAB_TITLE_PREFIXES):
+        return True
+    return len(value) >= 35
 
 
 def looks_like_discipline(value: str) -> bool:
-    if not value or is_meta_text(value):
+    if not value or is_meta_text(value) or looks_like_person_name(value):
         return False
-    if looks_like_lab_title(value):
-        return False
-    if re.fullmatch(r"\d+", value):
+    if re.fullmatch(r"\d+", value) or value == "Comment":
         return False
     return len(value) >= 8
+
+
+def _header_discipline_cells(row) -> int:
+    return sum(
+        1
+        for column_index, cell in enumerate(row)
+        if column_index >= 2 and looks_like_discipline(norm(cell))
+    )
+
+
+def _header_lab_cells(row) -> int:
+    return sum(
+        1
+        for column_index, cell in enumerate(row)
+        if column_index >= 2 and looks_like_lab_title(norm(cell))
+    )
+
+
+def _data_cells(row) -> int:
+    return sum(
+        1
+        for column_index, cell in enumerate(row)
+        if column_index >= 2
+        and (value := norm(cell))
+        and not is_meta_text(value)
+        and not looks_like_person_name(value)
+        and not re.fullmatch(r"\d+", value)
+        and value != "Comment"
+    )
+
+
+def detect_header_layout(rows) -> tuple[int, int]:
+    for discipline_row_idx in range(min(6, len(rows))):
+        if _header_discipline_cells(rows[discipline_row_idx]) == 0:
+            continue
+        for lab_row_idx in range(discipline_row_idx + 1, min(discipline_row_idx + 3, len(rows))):
+            if _data_cells(rows[lab_row_idx]) > _data_cells(rows[discipline_row_idx]):
+                return discipline_row_idx, lab_row_idx
+    return 1, 2
 
 
 def discipline_for_column(column: int, discipline_columns: dict[int, str]) -> str:
@@ -145,19 +195,27 @@ def parse_group_sheet(worksheet) -> ParsedGroupSheet:
     discipline_columns: dict[int, str] = {}
     lab_columns: dict[int, str] = {}
 
-    for row in rows[:6]:
-        for column_index, cell in enumerate(row):
-            value = norm(cell)
-            if not value:
-                continue
-            if is_meta_text(value) or value == "Comment":
-                continue
-            if re.fullmatch(r"\d+", value):
-                continue
-            if looks_like_discipline(value):
-                discipline_columns[column_index] = value
-            elif looks_like_lab_title(value) or value.startswith("Лаб. раб."):
-                lab_columns[column_index] = value
+    if len(rows) < 3:
+        return ParsedGroupSheet(name=worksheet.title.strip())
+
+    discipline_row_idx, lab_row_idx = detect_header_layout(rows)
+
+    for column_index, cell in enumerate(rows[discipline_row_idx]):
+        if column_index < 2:
+            continue
+        value = norm(cell)
+        if looks_like_discipline(value):
+            discipline_columns[column_index] = value
+
+    for column_index, cell in enumerate(rows[lab_row_idx]):
+        if column_index < 2:
+            continue
+        value = norm(cell)
+        if not value or is_meta_text(value) or value == "Comment":
+            continue
+        if re.fullmatch(r"\d+", value) or looks_like_person_name(value):
+            continue
+        lab_columns[column_index] = value
 
     for row in rows:
         if norm(row[2] if len(row) > 2 else "") == "Время выполнения, мин":

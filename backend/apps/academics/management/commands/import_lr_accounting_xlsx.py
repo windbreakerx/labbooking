@@ -294,9 +294,10 @@ class Command(BaseCommand):
                         stats["groups"] += 1
 
                 for parsed_lab in group_sheet.lab_works:
-                    discipline_title = parsed_lab.discipline or parsed_lab.title
+                    if not parsed_lab.discipline:
+                        continue
                     lab_work = upsert_lab(
-                        discipline_title=discipline_title,
+                        discipline_title=parsed_lab.discipline,
                         parsed_lab=parsed_lab,
                         room=room,
                     )
