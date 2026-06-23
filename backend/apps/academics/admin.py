@@ -27,7 +27,7 @@ class DisciplineAdmin(admin.ModelAdmin):
 
 @admin.register(LabWork)
 class LabWorkAdmin(admin.ModelAdmin):
-    list_display = ("title", "discipline", "number", "duration_minutes", "is_published")
+    list_display = ("title", "discipline", "number", "duration_minutes", "capacity", "is_published")
     list_filter = ("discipline", "is_published", "training_centers")
     search_fields = ("title",)
     filter_horizontal = ("training_centers",)

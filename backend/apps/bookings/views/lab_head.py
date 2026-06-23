@@ -23,6 +23,7 @@ from apps.bookings.services.lab_head import (
     lab_head_training_center,
 )
 from apps.scheduling.models import LabStand, ScheduleEntry, WeekParity
+from apps.scheduling.services.capacity import sync_open_session_capacities
 from apps.users.models import User, UserRole
 
 WEEKDAY_LABELS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
@@ -221,6 +222,7 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
         number = request.POST.get("number", "").strip()
         title = request.POST.get("title", "").strip()
         duration = request.POST.get("duration_minutes", "").strip() or "90"
+        capacity = request.POST.get("capacity", "").strip() or "30"
 
         discipline = lab_head_discipline_in_scope(request.user, int(discipline_id)) if discipline_id else None
         if not discipline or not number or not title:
@@ -230,8 +232,13 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
         try:
             number_int = int(number)
             duration_int = int(duration)
+            capacity_int = int(capacity)
         except ValueError:
-            messages.error(request, "Номер и длительность должны быть числами.")
+            messages.error(request, "Номер, длительность и места должны быть числами.")
+            return redirect("lab-head-lab-works")
+
+        if capacity_int < 1:
+            messages.error(request, "Количество мест должно быть не меньше 1.")
             return redirect("lab-head-lab-works")
 
         if LabWork.objects.filter(discipline=discipline, number=number_int).exists():
@@ -243,10 +250,37 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
             number=number_int,
             title=title,
             duration_minutes=duration_int,
+            capacity=capacity_int,
             is_published=True,
         )
         lab_work.training_centers.add(tc)
         messages.success(request, f"Лабораторная работа «{lab_work.title}» добавлена.")
+        return redirect("lab-head-lab-works")
+
+
+class LabHeadLabWorkUpdateView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        lab_work = lab_head_lab_work_in_scope(request.user, pk)
+        if not lab_work:
+            messages.error(request, "Лабораторная работа недоступна.")
+            return redirect("lab-head-lab-works")
+
+        capacity = request.POST.get("capacity", "").strip()
+        try:
+            capacity_int = int(capacity)
+        except ValueError:
+            messages.error(request, "Количество мест должно быть числом.")
+            return redirect("lab-head-lab-works")
+
+        if capacity_int < 1:
+            messages.error(request, "Количество мест должно быть не меньше 1.")
+            return redirect("lab-head-lab-works")
+
+        if lab_work.capacity != capacity_int:
+            lab_work.capacity = capacity_int
+            lab_work.save(update_fields=["capacity"])
+            sync_open_session_capacities(lab_work)
+        messages.success(request, f"Вместимость ЛР «{lab_work.title}» обновлена.")
         return redirect("lab-head-lab-works")
 
 

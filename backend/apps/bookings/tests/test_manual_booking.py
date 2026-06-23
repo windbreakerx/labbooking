@@ -138,7 +138,7 @@ class TestStaffManualBookingWeb:
         assert response.status_code == 302
         assert not student.bookings.filter(lab_session=foreign_session).exists()
 
-    def test_manual_booking_still_enforces_room_capacity(
+    def test_manual_booking_bypasses_room_capacity(
         self,
         staff,
         student,
@@ -169,6 +169,7 @@ class TestStaffManualBookingWeb:
             number=2,
             title="ЛР 2",
             duration_minutes=90,
+            capacity=5,
             is_published=True,
         )
         second_lab.training_centers.add(room.training_center)
@@ -194,4 +195,4 @@ class TestStaffManualBookingWeb:
             {"student_id": student.pk, "session_id": parallel_session.pk},
         )
         assert response.status_code == 302
-        assert not student.bookings.filter(lab_session=parallel_session).exists()
+        assert student.bookings.filter(lab_session=parallel_session).exists()

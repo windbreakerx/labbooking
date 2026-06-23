@@ -150,11 +150,31 @@ class TestLabHeadBindings:
                 "number": 2,
                 "title": "Новая ЛР",
                 "duration_minutes": 90,
+                "capacity": 3,
             },
         )
         assert response.status_code == 302
         lab_work = LabWork.objects.get(discipline=own_discipline, number=2)
+        assert lab_work.capacity == 3
         assert lab_work.training_centers.filter(pk=own_tc.pk).exists()
+
+    def test_update_lab_work_capacity(self, client_logged_in, own_tc, own_discipline):
+        lab_work = LabWork.objects.create(
+            discipline=own_discipline,
+            number=3,
+            title="ЛР для редактирования",
+            duration_minutes=90,
+            capacity=10,
+            is_published=True,
+        )
+        lab_work.training_centers.add(own_tc)
+        response = client_logged_in.post(
+            reverse("lab-head-lab-work-update", kwargs={"pk": lab_work.pk}),
+            {"capacity": 3},
+        )
+        assert response.status_code == 302
+        lab_work.refresh_from_db()
+        assert lab_work.capacity == 3
 
     def test_create_discipline(self, client_logged_in, own_tc, semester):
         response = client_logged_in.post(

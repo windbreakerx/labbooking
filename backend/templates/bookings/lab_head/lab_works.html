@@ -27,6 +27,7 @@
         <label>№ ЛР <input type="number" name="number" min="1" required></label>
         <label>Название <input type="text" name="title" required></label>
         <label>Длительность (мин) <input type="number" name="duration_minutes" value="90" min="30" step="5"></label>
+        <label>Макс. мест <input type="number" name="capacity" value="30" min="1" required></label>
     </div>
     <div class="form-actions">
         <button type="submit">Сохранить</button>
@@ -36,7 +37,7 @@
 <div class="table-wrap">
     <table class="table table--compact table--sticky responsive-table">
         <thead>
-            <tr><th>Дисциплина</th><th>№</th><th>Название</th><th>Длительность</th><th>Опубликовано</th></tr>
+            <tr><th>Дисциплина</th><th>№</th><th>Название</th><th>Длительность</th><th>Макс. мест</th><th>Опубликовано</th></tr>
         </thead>
         <tbody>
             {% for lw in lab_works %}
@@ -45,6 +46,13 @@
                 <td data-label="№"><span class="badge badge--muted">ЛР {{ lw.number }}</span></td>
                 <td data-label="Название"><strong>{{ lw.title }}</strong></td>
                 <td data-label="Длительность">{{ lw.duration_minutes }} мин</td>
+                <td data-label="Макс. мест">
+                    <form method="post" action="{% url 'lab-head-lab-work-update' lw.pk %}" class="inline-form">
+                        {% csrf_token %}
+                        <input type="number" name="capacity" value="{{ lw.capacity }}" min="1" required aria-label="Макс. мест для {{ lw.title }}">
+                        <button type="submit" class="button button--secondary button--sm">Сохранить</button>
+                    </form>
+                </td>
                 <td data-label="Опубликовано">
                     {% if lw.is_published %}
                     <span class="status-badge status-badge--with-dot status-badge--visited">Да</span>
@@ -54,7 +62,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5">
+            <tr><td colspan="6">
                 <div class="empty-state empty-state--icon">
                     <p>Нет лабораторных работ.</p>
                     <p class="muted">Сначала привяжите дисциплины, затем добавьте ЛР.</p>

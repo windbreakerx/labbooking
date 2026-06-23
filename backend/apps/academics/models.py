@@ -82,6 +82,7 @@ class LabWork(models.Model):
     title = models.CharField("Название", max_length=256)
     description = models.TextField("Описание", blank=True)
     duration_minutes = models.PositiveIntegerField("Длительность (мин)", default=90)
+    capacity = models.PositiveIntegerField("Макс. мест", default=30)
     is_published = models.BooleanField("Опубликовано", default=True)
     methodics_file = models.FileField(
         "Методичка (PDF)",

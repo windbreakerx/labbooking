@@ -22,7 +22,7 @@ class RoomSerializer(serializers.ModelSerializer):
 class LabWorkSerializer(serializers.ModelSerializer):
     class Meta:
         model = LabWork
-        fields = ("id", "number", "title", "description", "duration_minutes")
+        fields = ("id", "number", "title", "description", "duration_minutes", "capacity")
 
 
 class DisciplineSerializer(serializers.ModelSerializer):

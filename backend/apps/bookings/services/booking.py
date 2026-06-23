@@ -159,11 +159,12 @@ class BookingService:
         booked_count = session.bookings.filter(current_status=BookingStatus.BOOKED).count()
         if not skip_rules and booked_count >= session.capacity:
             raise BookingError("Нет свободных мест.")
-        room_overlap_booked = self._room_overlap_booked(session)
-        if room_overlap_booked >= session.room.capacity:
-            raise BookingError(
-                f"Аудитория {session.room.number} заполнена на это время. Выберите другую пару."
-            )
+        if not skip_rules:
+            room_overlap_booked = self._room_overlap_booked(session)
+            if room_overlap_booked >= session.room.capacity:
+                raise BookingError(
+                    f"Аудитория {session.room.number} заполнена на это время. Выберите другую пару."
+                )
 
         booking = Booking.objects.create(
             student=student,

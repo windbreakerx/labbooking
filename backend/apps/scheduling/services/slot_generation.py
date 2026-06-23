@@ -10,6 +10,7 @@ from django.utils import timezone
 from apps.academics.models import LabWork, Semester
 from apps.bookings.services.session_availability import UNIVERSITY_PAIR_SLOTS
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
+from apps.scheduling.services.capacity import lab_session_capacity
 
 EXCLUDED_ROOM_NUMBERS = {"2116"}
 
@@ -61,7 +62,7 @@ def generate_lab_sessions(
                     starts_at=starts_at,
                     defaults={
                         "ends_at": ends_at,
-                        "capacity": room.capacity,
+                        "capacity": lab_session_capacity(lab_work, room),
                         "status": LabSessionStatus.OPEN,
                     },
                 )

@@ -377,6 +377,7 @@ class Command(BaseCommand):
                             "title": spec["title"],
                             "description": f"Целевые группы: {spec['target_groups']}",
                             "duration_minutes": spec["duration"],
+                            "capacity": spec["capacity"],
                             "is_published": True,
                         },
                     )
@@ -395,7 +396,6 @@ class Command(BaseCommand):
                         {
                             "lab_work": lab_work,
                             "room": rooms[spec["room_number"]],
-                            "capacity": spec["capacity"],
                         }
                     )
 
@@ -441,7 +441,7 @@ class Command(BaseCommand):
                             "ends_at": starts_at + timedelta(
                                 minutes=plan["lab_work"].duration_minutes
                             ),
-                            "capacity": min(plan["capacity"], plan["room"].capacity),
+                            "capacity": min(plan["lab_work"].capacity, plan["room"].capacity),
                             "status": LabSessionStatus.OPEN,
                             "teacher": teacher,
                         },
