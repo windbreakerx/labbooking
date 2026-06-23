@@ -11,6 +11,21 @@
     </div>
 </header>
 
+<section class="card card--form filter-panel">
+    <form method="get" class="form-grid filter-panel__form">
+        <label class="form-grid__full">
+            Поиск
+            <input type="search" name="q" value="{{ search_query }}" placeholder="Название, инв. №, аудитория, описание">
+        </label>
+        <div class="form-actions form-grid__full">
+            <button type="submit">Найти</button>
+            {% if search_query %}
+            <a class="button button--secondary" href="{% url 'lab-head-stands' %}">Сбросить</a>
+            {% endif %}
+        </div>
+    </form>
+</section>
+
 <div class="table-wrap">
     <table class="table table--compact table--sticky responsive-table">
         <thead><tr><th>Название</th><th>Инв. №</th><th>Ауд.</th></tr></thead>
@@ -23,7 +38,13 @@
             </tr>
             {% empty %}
             <tr><td colspan="3">
-                <div class="empty-state empty-state--icon"><p>Стендов нет.</p></div>
+                <div class="empty-state empty-state--icon">
+                    {% if search_query %}
+                    <p>По запросу «{{ search_query }}» ничего не найдено.</p>
+                    {% else %}
+                    <p>Стендов нет.</p>
+                    {% endif %}
+                </div>
             </td></tr>
             {% endfor %}
         </tbody>

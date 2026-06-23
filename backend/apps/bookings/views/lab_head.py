@@ -12,6 +12,8 @@ from apps.academics.querysets import staff_managed_disciplines_qs, staff_managed
 from apps.bookings.services.lab_head import (
     is_lab_head_user,
     lab_head_active_semester,
+    filter_lab_head_lab_works,
+    filter_lab_head_stands,
     lab_head_bindable_disciplines_qs,
     lab_head_bindable_lab_works_qs,
     lab_head_discipline_in_scope,
@@ -244,11 +246,12 @@ class LabHeadLabWorksView(LabHeadRequiredMixin, ListView):
     context_object_name = "lab_works"
 
     def get_queryset(self):
-        return (
+        qs = (
             staff_managed_lab_works_qs(self.request.user)
             .select_related("discipline", "default_room", "default_room__training_center")
             .prefetch_related("training_centers", "laboratories", "laboratories__training_center")
         )
+        return filter_lab_head_lab_works(qs, self.request.GET.get("q", ""))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -259,6 +262,7 @@ class LabHeadLabWorksView(LabHeadRequiredMixin, ListView):
         ctx["laboratories"] = lab_head_laboratories_qs(self.request.user)
         ctx["rooms"] = lab_head_rooms_qs(self.request.user)
         ctx["edit_lab_work_id"] = self.request.GET.get("edit", "").strip()
+        ctx["search_query"] = self.request.GET.get("q", "").strip()
         return ctx
 
 
@@ -378,12 +382,14 @@ class LabHeadStandsView(LabHeadRequiredMixin, ListView):
 
     def get_queryset(self):
         tc = self.get_training_center()
-        return LabStand.objects.filter(training_center=tc).select_related("training_center", "room")
+        qs = LabStand.objects.filter(training_center=tc).select_related("training_center", "room")
+        return filter_lab_head_stands(qs, self.request.GET.get("q", ""))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["training_center"] = self.get_training_center()
         ctx["rooms"] = lab_head_rooms_qs(self.request.user)
+        ctx["search_query"] = self.request.GET.get("q", "").strip()
         return ctx
 
 

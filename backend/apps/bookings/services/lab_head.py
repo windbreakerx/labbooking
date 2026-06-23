@@ -1,4 +1,4 @@
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
 from apps.academics.models import Discipline, LabWork, Semester
 from apps.academics.querysets import (
@@ -7,7 +7,7 @@ from apps.academics.querysets import (
     staff_managed_disciplines_qs,
     staff_managed_lab_works_qs,
 )
-from apps.scheduling.models import Laboratory, Room, ScheduleEntry, TrainingCenter
+from apps.scheduling.models import LabStand, Laboratory, Room, ScheduleEntry, TrainingCenter
 from apps.users.models import User, UserRole
 
 
@@ -44,6 +44,70 @@ def lab_head_people_qs(user: User) -> QuerySet[User]:
         .prefetch_related("profile__disciplines")
         .order_by("last_name", "first_name")
     )
+
+
+def _published_search_q(query: str) -> Q:
+    lower = query.lower()
+    if lower in {"да", "yes"}:
+        return Q(is_published=True)
+    if lower in {"нет", "no"}:
+        return Q(is_published=False)
+    if "опублик" in lower:
+        return Q(is_published=True)
+    if "снят" in lower or "скрыт" in lower:
+        return Q(is_published=False)
+    return Q()
+
+
+def lab_head_lab_work_search_q(query: str) -> Q:
+    query = (query or "").strip()
+    if not query:
+        return Q()
+
+    search_q = (
+        Q(title__icontains=query)
+        | Q(description__icontains=query)
+        | Q(discipline__title__icontains=query)
+        | Q(laboratories__name__icontains=query)
+        | Q(training_centers__name__icontains=query)
+        | Q(default_room__number__icontains=query)
+        | _published_search_q(query)
+    )
+    if query.isdigit():
+        number = int(query)
+        search_q |= Q(number=number) | Q(duration_minutes=number) | Q(capacity=number)
+        search_q |= Q(training_centers__number=number)
+    return search_q
+
+
+def filter_lab_head_lab_works(qs: QuerySet[LabWork], query: str) -> QuerySet[LabWork]:
+    search_q = lab_head_lab_work_search_q(query)
+    if not search_q:
+        return qs
+    return qs.filter(search_q).distinct()
+
+
+def lab_head_stand_search_q(query: str) -> Q:
+    query = (query or "").strip()
+    if not query:
+        return Q()
+
+    search_q = (
+        Q(name__icontains=query)
+        | Q(inventory_number__icontains=query)
+        | Q(description__icontains=query)
+        | Q(room__number__icontains=query)
+    )
+    if query.isdigit():
+        search_q |= Q(training_center__number=int(query))
+    return search_q
+
+
+def filter_lab_head_stands(qs: QuerySet[LabStand], query: str) -> QuerySet[LabStand]:
+    search_q = lab_head_stand_search_q(query)
+    if not search_q:
+        return qs
+    return qs.filter(search_q).distinct()
 
 
 def lab_head_bindable_disciplines_qs(user: User) -> QuerySet[Discipline]:

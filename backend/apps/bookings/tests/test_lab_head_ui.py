@@ -253,6 +253,94 @@ class TestLabHeadBindings:
 
 
 @pytest.mark.django_db
+class TestLabHeadLabWorksSearch:
+    @pytest.fixture
+    def own_lab_work(self, own_discipline, own_laboratory, own_room):
+        lab_work = LabWork.objects.create(
+            discipline=own_discipline,
+            number=7,
+            title="Измерение сопротивления",
+            duration_minutes=120,
+            capacity=15,
+            is_published=True,
+            default_room=own_room,
+        )
+        lab_work.laboratories.add(own_laboratory)
+        lab_work.training_centers.add(own_laboratory.training_center)
+        return lab_work
+
+    def test_search_by_title(self, client_logged_in, own_lab_work):
+        response = client_logged_in.get(reverse("lab-head-lab-works"), {"q": "сопротив"})
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert own_lab_work.title in content
+
+    def test_search_by_discipline(self, client_logged_in, own_lab_work, own_discipline):
+        response = client_logged_in.get(reverse("lab-head-lab-works"), {"q": "завлаба"})
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert own_lab_work.title in content
+        assert own_discipline.title in content
+
+    def test_search_by_number(self, client_logged_in, own_lab_work):
+        response = client_logged_in.get(reverse("lab-head-lab-works"), {"q": "7"})
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert own_lab_work.title in content
+
+    def test_search_by_room(self, client_logged_in, own_lab_work, own_room):
+        response = client_logged_in.get(reverse("lab-head-lab-works"), {"q": own_room.number})
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert own_lab_work.title in content
+
+    def test_search_no_results(self, client_logged_in, own_lab_work):
+        response = client_logged_in.get(reverse("lab-head-lab-works"), {"q": "несуществующий запрос xyz"})
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert own_lab_work.title not in content
+        assert "ничего не найдено" in content
+
+
+@pytest.mark.django_db
+class TestLabHeadStandsSearch:
+    @pytest.fixture
+    def own_stand(self, own_tc, own_room):
+        return LabStand.objects.create(
+            name="Осциллограф Tektronix",
+            inventory_number="INV-042",
+            training_center=own_tc,
+            room=own_room,
+            description="Стенд для лаборатории электроники",
+        )
+
+    def test_search_by_name(self, client_logged_in, own_stand):
+        response = client_logged_in.get(reverse("lab-head-stands"), {"q": "осцилл"})
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert own_stand.name in content
+
+    def test_search_by_inventory_number(self, client_logged_in, own_stand):
+        response = client_logged_in.get(reverse("lab-head-stands"), {"q": "INV-042"})
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert own_stand.name in content
+
+    def test_search_by_room(self, client_logged_in, own_stand, own_room):
+        response = client_logged_in.get(reverse("lab-head-stands"), {"q": own_room.number})
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert own_stand.name in content
+
+    def test_search_no_results(self, client_logged_in, own_stand):
+        response = client_logged_in.get(reverse("lab-head-stands"), {"q": "несуществующий стенд xyz"})
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert own_stand.name not in content
+        assert "ничего не найдено" in content
+
+
+@pytest.mark.django_db
 class TestLabHeadStandsAndSchedule:
     def test_create_stand(self, client_logged_in, own_tc, own_room):
         response = client_logged_in.post(
