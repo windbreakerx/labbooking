@@ -1223,6 +1223,14 @@ label:has(.field-error) textarea {
     cursor: not-allowed;
 }
 
+.row-actions__item--danger {
+    color: var(--color-danger);
+}
+
+.row-actions__item--danger:hover {
+    background: var(--color-danger-soft);
+}
+
 /* Lists */
 
 .list {
@@ -3005,6 +3013,17 @@ a.report-card--link:focus-visible {
 
 .discipline-panel__badges {
     flex-shrink: 0;
+}
+
+.discipline-panel__menu {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.discipline-bind-table-wrap {
+    max-height: 20rem;
+    overflow-y: auto;
+    margin-top: var(--space-3);
 }
 
 .discipline-panel__action {

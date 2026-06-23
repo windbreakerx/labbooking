@@ -9,17 +9,17 @@
     </div>
     <div class="page-actions">
         <button type="button" class="button" id="lab-work-create-open">Добавить ЛР</button>
-        <a class="button button--secondary" href="{% url 'lab-head-home' %}">На главную</a>
     </div>
 </header>
 
 <div class="table-wrap">
     <table class="table table--compact table--sticky responsive-table lab-work-table">
         <thead>
-            <tr><th>Название</th><th>№</th><th>Дисциплина</th><th>Длительность</th><th>Макс. мест</th><th>Опубликовано</th></tr>
+            <tr><th>Название</th><th>№</th><th>Дисциплина</th><th>Учебный центр</th><th>Аудитория</th><th>Длительность</th><th>Макс. мест</th><th>Опубликовано</th></tr>
         </thead>
         <tbody>
             {% for lw in lab_works %}
+            {% with bound_tc=lw.training_centers.all|first %}
             <tr
                 class="lab-work-row"
                 tabindex="0"
@@ -28,6 +28,8 @@
                 data-title="{{ lw.title|escapejs }}"
                 data-number="{{ lw.number }}"
                 data-discipline-id="{{ lw.discipline_id }}"
+                data-training-center-id="{% if bound_tc %}{{ bound_tc.pk }}{% else %}{{ training_center.pk }}{% endif %}"
+                data-room-id="{% if lw.default_room_id %}{{ lw.default_room_id }}{% endif %}"
                 data-duration="{{ lw.duration_minutes }}"
                 data-capacity="{{ lw.capacity }}"
                 data-published="{{ lw.is_published|yesno:'1,0' }}"
@@ -36,6 +38,10 @@
                 <td data-label="Название"><strong>{{ lw.title }}</strong></td>
                 <td data-label="№"><span class="badge badge--muted">№{{ lw.number }}</span></td>
                 <td data-label="Дисциплина">{{ lw.discipline.title }}</td>
+                <td data-label="Учебный центр">
+                    {% if bound_tc %}УЦ №{{ bound_tc.number }}{% else %}УЦ №{{ training_center.number }}{% endif %}
+                </td>
+                <td data-label="Аудитория">{% if lw.default_room %}{{ lw.default_room.number }}{% else %}<span class="muted">—</span>{% endif %}</td>
                 <td data-label="Длительность">{{ lw.duration_minutes }} мин</td>
                 <td data-label="Макс. мест">{{ lw.capacity }}</td>
                 <td data-label="Опубликовано">
@@ -46,8 +52,9 @@
                     {% endif %}
                 </td>
             </tr>
+            {% endwith %}
             {% empty %}
-            <tr><td colspan="6">
+            <tr><td colspan="8">
                 <div class="empty-state empty-state--icon">
                     <p>Нет лабораторных работ.</p>
                     <p class="muted">Сначала привяжите дисциплины, затем добавьте ЛР.</p>
@@ -58,7 +65,7 @@
     </table>
 </div>
 
-<dialog id="lab-work-create-dialog" class="app-dialog" aria-labelledby="lab-work-create-title">
+<dialog id="lab-work-create-dialog" class="app-dialog app-dialog--wide" aria-labelledby="lab-work-create-title">
     <div class="app-dialog__header">
         <h2 class="card__title" id="lab-work-create-title">Добавить лабораторную работу</h2>
     </div>
@@ -74,6 +81,21 @@
                 {% endfor %}
             </select>
         </label>
+        <label>Учебный центр
+            <select name="training_center" required>
+                {% for tc in training_centers %}
+                <option value="{{ tc.pk }}" selected>УЦ №{{ tc.number }}{% if tc.name %} — {{ tc.name }}{% endif %}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Аудитория
+            <select name="default_room">
+                <option value="">— не выбрана —</option>
+                {% for room in rooms %}
+                <option value="{{ room.pk }}">{{ room.number }}</option>
+                {% endfor %}
+            </select>
+        </label>
         <label>Длительность (мин) <input type="number" name="duration_minutes" value="90" min="30" step="5"></label>
         <label>Макс. мест <input type="number" name="capacity" value="30" min="1" required></label>
         <div class="app-dialog__actions form-grid__full">
@@ -83,7 +105,7 @@
     </form>
 </dialog>
 
-<dialog id="lab-work-edit-dialog" class="app-dialog" aria-labelledby="lab-work-edit-heading">
+<dialog id="lab-work-edit-dialog" class="app-dialog app-dialog--wide" aria-labelledby="lab-work-edit-heading">
     <div class="app-dialog__header">
         <h2 class="card__title" id="lab-work-edit-heading">Редактирование лабораторной работы</h2>
         <p class="muted" id="lab-work-edit-subtitle"></p>
@@ -96,6 +118,21 @@
             <select name="discipline" id="lab-work-edit-discipline" required>
                 {% for d in lab_disciplines %}
                 <option value="{{ d.pk }}">{{ d.title }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Учебный центр
+            <select name="training_center" id="lab-work-edit-training-center" required>
+                {% for tc in training_centers %}
+                <option value="{{ tc.pk }}">УЦ №{{ tc.number }}{% if tc.name %} — {{ tc.name }}{% endif %}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Аудитория
+            <select name="default_room" id="lab-work-edit-room">
+                <option value="">— не выбрана —</option>
+                {% for room in rooms %}
+                <option value="{{ room.pk }}">{{ room.number }}</option>
                 {% endfor %}
             </select>
         </label>
@@ -146,6 +183,8 @@
         document.getElementById('lab-work-edit-title-input').value = row.getAttribute('data-title') || '';
         document.getElementById('lab-work-edit-number').value = row.getAttribute('data-number') || '';
         document.getElementById('lab-work-edit-discipline').value = row.getAttribute('data-discipline-id') || '';
+        document.getElementById('lab-work-edit-training-center').value = row.getAttribute('data-training-center-id') || '';
+        document.getElementById('lab-work-edit-room').value = row.getAttribute('data-room-id') || '';
         document.getElementById('lab-work-edit-duration').value = row.getAttribute('data-duration') || '';
         document.getElementById('lab-work-edit-capacity').value = row.getAttribute('data-capacity') || '';
         document.getElementById('lab-work-edit-published').checked = row.getAttribute('data-published') === '1';

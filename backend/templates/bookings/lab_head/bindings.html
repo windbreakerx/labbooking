@@ -8,7 +8,7 @@
         <p class="page-description">Привязка дисциплин к лаборатории. Раскройте дисциплину, чтобы увидеть её лабораторные работы.</p>
     </div>
     <div class="page-actions">
-        <a class="button button--secondary" href="{% url 'lab-head-home' %}">На главную</a>
+        <button type="button" class="button button--secondary" id="discipline-bind-open">Привязать дисциплину</button>
     </div>
 </header>
 
@@ -41,10 +41,22 @@
                 <span class="discipline-panel__badges">
                     <span class="badge badge--muted">{{ d.managed_lab_works|length }} ЛР</span>
                 </span>
-                <form method="post" action="{% url 'lab-head-discipline-unbind' d.pk %}" class="discipline-panel__action" onclick="event.stopPropagation()">
-                    {% csrf_token %}
-                    <button type="submit" class="button button--secondary button--sm">Отвязать</button>
-                </form>
+                <details class="row-actions discipline-panel__menu" onclick="event.stopPropagation()">
+                    <summary class="row-actions__trigger" aria-label="Действия с дисциплиной">⋮</summary>
+                    <div class="row-actions__menu">
+                        <form
+                            method="post"
+                            action="{% url 'lab-head-discipline-unbind' d.pk %}"
+                            class="discipline-unbind-form"
+                            data-discipline-title="{{ d.title|escapejs }}"
+                        >
+                            {% csrf_token %}
+                            <button type="submit" class="row-actions__item row-actions__item--button row-actions__item--danger">
+                                Отвязать от лаборатории
+                            </button>
+                        </form>
+                    </div>
+                </details>
             </summary>
             <div class="discipline-panel__body">
                 {% if d.managed_lab_works %}
@@ -100,22 +112,28 @@
         {% if search_query %}
         По запросу «{{ search_query }}» ничего не найдено.
         {% else %}
-        Нет дисциплин. Привяжите нужные из каталога ниже.
+        Нет дисциплин. Нажмите «Привязать дисциплину», чтобы добавить из каталога.
         {% endif %}
     </p>
     {% endif %}
 </section>
 
-{% if bindable_disciplines %}
-<section class="card card--form">
-    <h2 class="card__title">Привязать существующую дисциплину</h2>
-    <p class="muted">Дисциплины из общего каталога активного семестра, ещё не привязанные к вашей лаборатории.</p>
-    <div class="table-wrap">
-        <table class="table table--compact responsive-table">
+<dialog id="discipline-bind-dialog" class="app-dialog app-dialog--wide" aria-labelledby="discipline-bind-title">
+    <div class="app-dialog__header">
+        <h2 class="card__title" id="discipline-bind-title">Привязать дисциплину</h2>
+        <p class="muted">Дисциплины из общего каталога активного семестра, ещё не привязанные к вашей лаборатории.</p>
+    </div>
+    <label class="form-grid__full">
+        Поиск
+        <input type="search" id="discipline-bind-search" placeholder="Начните вводить название">
+    </label>
+    {% if bindable_disciplines %}
+    <div class="table-wrap discipline-bind-table-wrap">
+        <table class="table table--compact responsive-table" id="discipline-bind-table">
             <thead><tr><th>Название</th><th></th></tr></thead>
             <tbody>
                 {% for d in bindable_disciplines %}
-                <tr>
+                <tr data-title="{{ d.title|lower }}">
                     <td data-label="Название">{{ d.title }}</td>
                     <td data-label="">
                         <form method="post" action="{% url 'lab-head-discipline-bind' d.pk %}">
@@ -128,6 +146,70 @@
             </tbody>
         </table>
     </div>
-</section>
-{% endif %}
+    {% else %}
+    <p class="muted">Все дисциплины каталога уже привязаны к вашей лаборатории.</p>
+    {% endif %}
+    <div class="app-dialog__actions">
+        <button type="button" class="button button--secondary" data-dialog-close>Закрыть</button>
+    </div>
+</dialog>
+
+<script>
+(function () {
+    var bindDialog = document.getElementById('discipline-bind-dialog');
+    var bindOpenBtn = document.getElementById('discipline-bind-open');
+    var bindSearch = document.getElementById('discipline-bind-search');
+
+    function bindDialogControls(dialog) {
+        if (!dialog) {
+            return;
+        }
+        dialog.addEventListener('click', function (e) {
+            if (e.target === dialog) {
+                dialog.close();
+            }
+        });
+        dialog.querySelectorAll('[data-dialog-close]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dialog.close();
+            });
+        });
+    }
+
+    if (bindOpenBtn && bindDialog) {
+        bindOpenBtn.addEventListener('click', function () {
+            if (bindSearch) {
+                bindSearch.value = '';
+                filterBindRows('');
+            }
+            bindDialog.showModal();
+        });
+    }
+
+    function filterBindRows(query) {
+        var normalized = (query || '').trim().toLowerCase();
+        document.querySelectorAll('#discipline-bind-table tbody tr').forEach(function (row) {
+            var title = row.getAttribute('data-title') || '';
+            row.hidden = normalized && title.indexOf(normalized) === -1;
+        });
+    }
+
+    if (bindSearch) {
+        bindSearch.addEventListener('input', function () {
+            filterBindRows(bindSearch.value);
+        });
+    }
+
+    document.querySelectorAll('.discipline-unbind-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            var title = form.getAttribute('data-discipline-title') || 'дисциплину';
+            if (!confirm('Отвязать «' + title + '» от лаборатории? Дисциплина останется в каталоге.')) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    bindDialogControls(bindDialog);
+})();
+</script>
 {% endblock %}

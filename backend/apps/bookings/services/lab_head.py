@@ -74,6 +74,21 @@ def lab_head_rooms_qs(user: User) -> QuerySet[Room]:
     return Room.objects.filter(training_center=tc).select_related("training_center").order_by("number")
 
 
+def lab_head_training_centers_qs(user: User) -> QuerySet[TrainingCenter]:
+    tc = lab_head_training_center(user)
+    if not tc:
+        return TrainingCenter.objects.none()
+    return TrainingCenter.objects.filter(pk=tc.pk).order_by("number")
+
+
+def lab_head_room_in_scope(user: User, room_id: int) -> Room | None:
+    return lab_head_rooms_qs(user).filter(pk=room_id).first()
+
+
+def lab_head_training_center_in_scope(user: User, training_center_id: int) -> TrainingCenter | None:
+    return lab_head_training_centers_qs(user).filter(pk=training_center_id).first()
+
+
 def lab_head_schedule_qs(user: User) -> QuerySet[ScheduleEntry]:
     from apps.bookings.services import staff_lab_filter
 
@@ -137,6 +152,8 @@ def lab_head_update_lab_work(
     duration_minutes: int,
     capacity: int,
     is_published: bool,
+    training_center: TrainingCenter,
+    default_room: Room | None = None,
 ) -> LabWork:
     title = title.strip()
     if not title:
@@ -149,6 +166,10 @@ def lab_head_update_lab_work(
         raise ValueError("Количество мест должно быть не меньше 1.")
     if not lab_head_discipline_in_scope(user, discipline.pk):
         raise ValueError("Дисциплина недоступна.")
+    if not lab_head_training_center_in_scope(user, training_center.pk):
+        raise ValueError("Учебный центр недоступен.")
+    if default_room and default_room.training_center_id != training_center.pk:
+        raise ValueError("Аудитория должна относиться к выбранному учебному центру.")
 
     duplicate = LabWork.objects.filter(discipline=discipline, number=number).exclude(pk=lab_work.pk).exists()
     if duplicate:
@@ -161,6 +182,7 @@ def lab_head_update_lab_work(
     lab_work.duration_minutes = duration_minutes
     lab_work.capacity = capacity
     lab_work.is_published = is_published
+    lab_work.default_room = default_room
     lab_work.save(
         update_fields=[
             "title",
@@ -169,8 +191,10 @@ def lab_head_update_lab_work(
             "duration_minutes",
             "capacity",
             "is_published",
+            "default_room",
         ]
     )
+    lab_work.training_centers.set([training_center.pk])
     if capacity_changed:
         from apps.scheduling.services.capacity import sync_open_session_capacities
 

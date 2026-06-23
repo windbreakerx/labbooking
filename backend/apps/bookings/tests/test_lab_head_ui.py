@@ -142,11 +142,13 @@ class TestLabHeadBindings:
         assert response.status_code == 302
         assert not own_discipline.training_centers.filter(pk=own_tc.pk).exists()
 
-    def test_create_lab_work(self, client_logged_in, own_tc, own_discipline):
+    def test_create_lab_work(self, client_logged_in, own_tc, own_discipline, own_room):
         response = client_logged_in.post(
             reverse("lab-head-lab-work-create"),
             {
                 "discipline": own_discipline.pk,
+                "training_center": own_tc.pk,
+                "default_room": own_room.pk,
                 "number": 2,
                 "title": "Новая ЛР",
                 "duration_minutes": 90,
@@ -156,6 +158,7 @@ class TestLabHeadBindings:
         assert response.status_code == 302
         lab_work = LabWork.objects.get(discipline=own_discipline, number=2)
         assert lab_work.capacity == 3
+        assert lab_work.default_room_id == own_room.pk
         assert lab_work.training_centers.filter(pk=own_tc.pk).exists()
 
     def test_create_discipline_disabled_for_lab_head(self, client_logged_in, own_tc, semester):
@@ -177,7 +180,7 @@ class TestLabHeadBindings:
         assert own_discipline.title in content
         assert foreign_discipline.title not in content
 
-    def test_update_lab_work(self, client_logged_in, own_tc, own_discipline):
+    def test_update_lab_work(self, client_logged_in, own_tc, own_discipline, own_room):
         lab_work = LabWork.objects.create(
             discipline=own_discipline,
             number=3,
@@ -193,6 +196,8 @@ class TestLabHeadBindings:
                 "title": "ЛР обновлённая",
                 "number": 3,
                 "discipline": own_discipline.pk,
+                "training_center": own_tc.pk,
+                "default_room": own_room.pk,
                 "duration_minutes": 120,
                 "capacity": 3,
                 "is_published": "on",
@@ -203,6 +208,7 @@ class TestLabHeadBindings:
         assert lab_work.capacity == 3
         assert lab_work.title == "ЛР обновлённая"
         assert lab_work.duration_minutes == 120
+        assert lab_work.default_room_id == own_room.pk
         assert lab_work.is_published is True
 
     def test_unpublish_lab_work(self, client_logged_in, own_tc, own_discipline):
@@ -221,6 +227,7 @@ class TestLabHeadBindings:
                 "title": lab_work.title,
                 "number": lab_work.number,
                 "discipline": own_discipline.pk,
+                "training_center": own_tc.pk,
                 "duration_minutes": lab_work.duration_minutes,
                 "capacity": lab_work.capacity,
             },
