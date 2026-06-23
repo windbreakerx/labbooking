@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
-from apps.scheduling.models import Holiday, LabSession, LabSessionStatus, LabStand, Room, TrainingCenter
+from apps.scheduling.models import Holiday, LabSession, LabSessionStatus, LabStand, Laboratory, Room, TrainingCenter
 from apps.users.models import User, UserRole
 
 # Университетские пары (начало слота).
@@ -42,6 +42,7 @@ class Command(BaseCommand):
         group_name: str = "",
         student_id: str = "",
         training_center=None,
+        laboratory=None,
         student_group=None,
     ):
         user, _ = User.objects.update_or_create(
@@ -60,6 +61,7 @@ class Command(BaseCommand):
         profile.group_name = group_name
         profile.student_id = student_id
         profile.training_center = training_center
+        profile.laboratory = laboratory
         if student_group is not None:
             profile.student_group = student_group
         profile.save()
@@ -84,7 +86,11 @@ class Command(BaseCommand):
 
         training_center, _ = TrainingCenter.objects.update_or_create(
             number=1,
-            defaults={"name": "Комплексная учебная лаборатория нефтегазового факультета"},
+            defaults={"name": "Нефтегазовый факультет"},
+        )
+        laboratory, _ = Laboratory.objects.update_or_create(
+            training_center=training_center,
+            name="Комплексная учебная лаборатория нефтегазового факультета",
         )
 
         rooms_payload = [
@@ -127,6 +133,7 @@ class Command(BaseCommand):
                 role=role,
                 is_staff=True,
                 training_center=training_center,
+                laboratory=laboratory,
             )
 
         teachers = []
@@ -146,6 +153,7 @@ class Command(BaseCommand):
                     role=UserRole.TEACHER,
                     is_staff=False,
                     training_center=training_center,
+                    laboratory=laboratory,
                 )
             )
 
@@ -353,6 +361,7 @@ class Command(BaseCommand):
                     },
                 )
                 discipline.training_centers.add(training_center)
+                discipline.laboratories.add(laboratory)
                 disciplines_by_department[department_name].append(discipline)
 
                 lab_specs = special_lab_specs.get(discipline_title)
@@ -382,6 +391,7 @@ class Command(BaseCommand):
                         },
                     )
                     lab_work.training_centers.add(training_center)
+                    lab_work.laboratories.add(laboratory)
                     if spec["stand_name"]:
                         LabStand.objects.update_or_create(
                             name=spec["stand_name"],

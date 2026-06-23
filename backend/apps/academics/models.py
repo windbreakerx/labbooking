@@ -60,6 +60,12 @@ class Discipline(models.Model):
         "scheduling.TrainingCenter",
         blank=True,
         related_name="disciplines",
+        verbose_name="Учебные центры",
+    )
+    laboratories = models.ManyToManyField(
+        "scheduling.Laboratory",
+        blank=True,
+        related_name="disciplines",
         verbose_name="Лаборатории",
     )
 
@@ -92,6 +98,12 @@ class LabWork(models.Model):
     )
     training_centers = models.ManyToManyField(
         "scheduling.TrainingCenter",
+        blank=True,
+        related_name="lab_works",
+        verbose_name="Учебные центры",
+    )
+    laboratories = models.ManyToManyField(
+        "scheduling.Laboratory",
         blank=True,
         related_name="lab_works",
         verbose_name="Лаборатории",

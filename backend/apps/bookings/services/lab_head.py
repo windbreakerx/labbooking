@@ -2,11 +2,12 @@ from django.db.models import QuerySet
 
 from apps.academics.models import Discipline, LabWork, Semester
 from apps.academics.querysets import (
+    resolve_staff_laboratory,
     resolve_staff_training_center,
     staff_managed_disciplines_qs,
     staff_managed_lab_works_qs,
 )
-from apps.scheduling.models import Room, ScheduleEntry, TrainingCenter
+from apps.scheduling.models import Laboratory, Room, ScheduleEntry, TrainingCenter
 from apps.users.models import User, UserRole
 
 
@@ -18,53 +19,68 @@ def lab_head_training_center(user: User) -> TrainingCenter | None:
     return resolve_staff_training_center(user)
 
 
+def lab_head_laboratory(user: User) -> Laboratory | None:
+    return resolve_staff_laboratory(user)
+
+
+def sync_training_centers_for_laboratories(obj) -> None:
+    tc_ids = obj.laboratories.values_list("training_center_id", flat=True).distinct()
+    obj.training_centers.set(tc_ids)
+
+
 def lab_head_people_qs(user: User) -> QuerySet[User]:
+    laboratory = lab_head_laboratory(user)
     tc = lab_head_training_center(user)
-    if not tc:
+    if not laboratory and not tc:
         return User.objects.none()
+    filters = {"role__in": [UserRole.LAB_ADMIN, UserRole.TEACHER]}
+    if laboratory:
+        filters["profile__laboratory"] = laboratory
+    elif tc:
+        filters["profile__training_center"] = tc
     return (
-        User.objects.filter(
-            role__in=[UserRole.LAB_ADMIN, UserRole.TEACHER],
-            profile__training_center=tc,
-        )
-        .select_related("profile", "profile__training_center")
+        User.objects.filter(**filters)
+        .select_related("profile", "profile__training_center", "profile__laboratory")
         .prefetch_related("profile__disciplines")
         .order_by("last_name", "first_name")
     )
 
 
 def lab_head_bindable_disciplines_qs(user: User) -> QuerySet[Discipline]:
-    tc = lab_head_training_center(user)
-    if not tc:
+    laboratory = lab_head_laboratory(user)
+    if not laboratory:
         return Discipline.objects.none()
     return (
         Discipline.objects.filter(semester__is_active=True)
-        .exclude(training_centers=tc)
+        .exclude(laboratories=laboratory)
         .order_by("title")
     )
 
 
 def lab_head_bindable_lab_works_qs(user: User) -> QuerySet[LabWork]:
-    tc = lab_head_training_center(user)
-    if not tc:
+    laboratory = lab_head_laboratory(user)
+    if not laboratory:
         return LabWork.objects.none()
     discipline_ids = staff_managed_disciplines_qs(user).values_list("pk", flat=True)
     return (
         LabWork.objects.filter(discipline_id__in=discipline_ids)
-        .exclude(training_centers=tc)
+        .exclude(laboratories=laboratory)
         .select_related("discipline")
         .order_by("discipline__title", "number")
     )
 
 
 def lab_head_teachers_qs(user: User) -> QuerySet[User]:
+    laboratory = lab_head_laboratory(user)
     tc = lab_head_training_center(user)
-    if not tc:
+    if not laboratory and not tc:
         return User.objects.none()
-    return User.objects.filter(
-        role=UserRole.TEACHER,
-        profile__training_center=tc,
-    ).order_by("last_name", "first_name")
+    filters = {"role": UserRole.TEACHER}
+    if laboratory:
+        filters["profile__laboratory"] = laboratory
+    else:
+        filters["profile__training_center"] = tc
+    return User.objects.filter(**filters).order_by("last_name", "first_name")
 
 
 def lab_head_rooms_qs(user: User) -> QuerySet[Room]:
@@ -81,12 +97,23 @@ def lab_head_training_centers_qs(user: User) -> QuerySet[TrainingCenter]:
     return TrainingCenter.objects.filter(pk=tc.pk).order_by("number")
 
 
+def lab_head_laboratories_qs(user: User) -> QuerySet[Laboratory]:
+    tc = lab_head_training_center(user)
+    if not tc:
+        return Laboratory.objects.none()
+    return Laboratory.objects.filter(training_center=tc).select_related("training_center").order_by("name")
+
+
 def lab_head_room_in_scope(user: User, room_id: int) -> Room | None:
     return lab_head_rooms_qs(user).filter(pk=room_id).first()
 
 
 def lab_head_training_center_in_scope(user: User, training_center_id: int) -> TrainingCenter | None:
     return lab_head_training_centers_qs(user).filter(pk=training_center_id).first()
+
+
+def lab_head_laboratory_in_scope(user: User, laboratory_id: int) -> Laboratory | None:
+    return lab_head_laboratories_qs(user).filter(pk=laboratory_id).first()
 
 
 def lab_head_schedule_qs(user: User) -> QuerySet[ScheduleEntry]:
@@ -108,9 +135,9 @@ def lab_head_active_semester() -> Semester | None:
 
 
 def lab_head_create_discipline(user: User, *, title: str, description: str = "") -> Discipline:
-    tc = lab_head_training_center(user)
+    laboratory = lab_head_laboratory(user)
     semester = lab_head_active_semester()
-    if not tc:
+    if not laboratory:
         raise ValueError("Лаборатория не указана.")
     if not semester:
         raise ValueError("Нет активного семестра.")
@@ -126,7 +153,8 @@ def lab_head_create_discipline(user: User, *, title: str, description: str = "")
     )
     discipline.code = f"DISC-{discipline.pk}"
     discipline.save(update_fields=["code"])
-    discipline.training_centers.add(tc)
+    discipline.laboratories.add(laboratory)
+    sync_training_centers_for_laboratories(discipline)
     return discipline
 
 
@@ -152,7 +180,7 @@ def lab_head_update_lab_work(
     duration_minutes: int,
     capacity: int,
     is_published: bool,
-    training_center: TrainingCenter,
+    laboratory: Laboratory,
     default_room: Room | None = None,
 ) -> LabWork:
     title = title.strip()
@@ -166,10 +194,10 @@ def lab_head_update_lab_work(
         raise ValueError("Количество мест должно быть не меньше 1.")
     if not lab_head_discipline_in_scope(user, discipline.pk):
         raise ValueError("Дисциплина недоступна.")
-    if not lab_head_training_center_in_scope(user, training_center.pk):
-        raise ValueError("Учебный центр недоступен.")
-    if default_room and default_room.training_center_id != training_center.pk:
-        raise ValueError("Аудитория должна относиться к выбранному учебному центру.")
+    if not lab_head_laboratory_in_scope(user, laboratory.pk):
+        raise ValueError("Лаборатория недоступна.")
+    if default_room and default_room.training_center_id != laboratory.training_center_id:
+        raise ValueError("Аудитория должна относиться к учебному центру лаборатории.")
 
     duplicate = LabWork.objects.filter(discipline=discipline, number=number).exclude(pk=lab_work.pk).exists()
     if duplicate:
@@ -194,7 +222,8 @@ def lab_head_update_lab_work(
             "default_room",
         ]
     )
-    lab_work.training_centers.set([training_center.pk])
+    lab_work.laboratories.set([laboratory.pk])
+    sync_training_centers_for_laboratories(lab_work)
     if capacity_changed:
         from apps.scheduling.services.capacity import sync_open_session_capacities
 

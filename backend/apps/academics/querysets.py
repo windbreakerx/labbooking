@@ -1,7 +1,7 @@
 from django.db.models import Q, QuerySet
 
 from apps.academics.models import Discipline, LabWork, StudentGroup
-from apps.scheduling.models import TrainingCenter
+from apps.scheduling.models import Laboratory, TrainingCenter
 from apps.users.models import User, UserRole
 
 
@@ -84,7 +84,21 @@ def resolve_staff_training_center(user: User) -> TrainingCenter | None:
     profile = getattr(user, "profile", None)
     if not profile:
         return None
+    if profile.laboratory_id:
+        return profile.laboratory.training_center
     return profile.training_center
+
+
+def resolve_staff_laboratory(user: User) -> Laboratory | None:
+    profile = getattr(user, "profile", None)
+    if not profile:
+        return None
+    if profile.laboratory_id:
+        return profile.laboratory
+    tc = profile.training_center
+    if not tc:
+        return None
+    return tc.laboratories.order_by("name").first()
 
 
 def staff_disciplines_qs(user: User) -> QuerySet[Discipline]:
@@ -92,6 +106,9 @@ def staff_disciplines_qs(user: User) -> QuerySet[Discipline]:
     qs = published_disciplines_qs()
     if user.role == UserRole.SYS_ADMIN:
         return qs
+    laboratory = resolve_staff_laboratory(user)
+    if laboratory:
+        return qs.filter(laboratories=laboratory)
     tc = resolve_staff_training_center(user)
     if not tc:
         return qs.none()
@@ -103,6 +120,9 @@ def staff_managed_disciplines_qs(user: User) -> QuerySet[Discipline]:
     qs = Discipline.objects.select_related("semester")
     if user.role == UserRole.SYS_ADMIN:
         return qs.order_by("title")
+    laboratory = resolve_staff_laboratory(user)
+    if laboratory:
+        return qs.filter(laboratories=laboratory).order_by("title")
     tc = resolve_staff_training_center(user)
     if not tc:
         return Discipline.objects.none()
@@ -118,6 +138,9 @@ def staff_lab_works_qs(user: User, discipline_id: int | None = None) -> QuerySet
         qs = qs.filter(discipline_id=discipline_id)
     if user.role == UserRole.SYS_ADMIN:
         return qs
+    laboratory = resolve_staff_laboratory(user)
+    if laboratory:
+        return qs.filter(laboratories=laboratory)
     tc = resolve_staff_training_center(user)
     if not tc:
         return LabWork.objects.none()
@@ -128,6 +151,9 @@ def staff_managed_lab_works_qs(user: User) -> QuerySet[LabWork]:
     qs = LabWork.objects.select_related("discipline")
     if user.role == UserRole.SYS_ADMIN:
         return qs.order_by("discipline", "number")
+    laboratory = resolve_staff_laboratory(user)
+    if laboratory:
+        return qs.filter(laboratories=laboratory).order_by("discipline", "number")
     tc = resolve_staff_training_center(user)
     if not tc:
         return LabWork.objects.none()

@@ -13,7 +13,29 @@ class TrainingCenter(models.Model):
         verbose_name_plural = "Учебные центры"
 
     def __str__(self):
+        if self.name:
+            return f"УЦ №{self.number} — {self.name}"
         return f"УЦ №{self.number}"
+
+
+class Laboratory(models.Model):
+    training_center = models.ForeignKey(
+        TrainingCenter,
+        on_delete=models.CASCADE,
+        related_name="laboratories",
+        verbose_name="Учебный центр",
+    )
+    name = models.CharField("Название", max_length=256)
+    short_name = models.CharField("Краткое название", max_length=64, blank=True)
+
+    class Meta:
+        verbose_name = "Лаборатория"
+        verbose_name_plural = "Лаборатории"
+        ordering = ["training_center", "name"]
+        unique_together = [("training_center", "name")]
+
+    def __str__(self):
+        return self.name
 
 
 class Room(models.Model):

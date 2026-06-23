@@ -3,7 +3,7 @@
 {% block content %}
 <header class="page-header">
     <div class="page-header__content">
-        <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
+        <p class="page-eyebrow">Кабинет завлаба{% if laboratory %} · {{ laboratory.name }}{% endif %}{% if training_center %} · УЦ №{{ training_center.number }}{% endif %}</p>
         <h1 class="page-title">Лабораторные работы</h1>
         <p class="page-description">Список работ вашей лаборатории. Нажмите на строку, чтобы отредактировать.</p>
     </div>
@@ -15,11 +15,11 @@
 <div class="table-wrap">
     <table class="table table--compact table--sticky responsive-table lab-work-table">
         <thead>
-            <tr><th>Название</th><th>№</th><th>Дисциплина</th><th>Учебный центр</th><th>Аудитория</th><th>Длительность</th><th>Макс. мест</th><th>Опубликовано</th></tr>
+            <tr><th>Название</th><th>№</th><th>Дисциплина</th><th>Лаборатория</th><th>УЦ</th><th>Аудитория</th><th>Длительность</th><th>Макс. мест</th><th>Опубликовано</th></tr>
         </thead>
         <tbody>
             {% for lw in lab_works %}
-            {% with bound_tc=lw.training_centers.all|first %}
+            {% with bound_lab=lw.laboratories.all|first %}
             <tr
                 class="lab-work-row"
                 tabindex="0"
@@ -28,7 +28,8 @@
                 data-title="{{ lw.title|escapejs }}"
                 data-number="{{ lw.number }}"
                 data-discipline-id="{{ lw.discipline_id }}"
-                data-training-center-id="{% if bound_tc %}{{ bound_tc.pk }}{% else %}{{ training_center.pk }}{% endif %}"
+                data-laboratory-id="{% if bound_lab %}{{ bound_lab.pk }}{% elif laboratory %}{{ laboratory.pk }}{% endif %}"
+                data-tc-label="{% if bound_lab %}УЦ №{{ bound_lab.training_center.number }}{% if bound_lab.training_center.name %} — {{ bound_lab.training_center.name }}{% endif %}{% elif training_center %}УЦ №{{ training_center.number }}{% if training_center.name %} — {{ training_center.name }}{% endif %}{% endif %}"
                 data-room-id="{% if lw.default_room_id %}{{ lw.default_room_id }}{% endif %}"
                 data-duration="{{ lw.duration_minutes }}"
                 data-capacity="{{ lw.capacity }}"
@@ -38,9 +39,8 @@
                 <td data-label="Название"><strong>{{ lw.title }}</strong></td>
                 <td data-label="№"><span class="badge badge--muted">№{{ lw.number }}</span></td>
                 <td data-label="Дисциплина">{{ lw.discipline.title }}</td>
-                <td data-label="Учебный центр">
-                    {% if bound_tc %}УЦ №{{ bound_tc.number }}{% else %}УЦ №{{ training_center.number }}{% endif %}
-                </td>
+                <td data-label="Лаборатория">{% if bound_lab %}{{ bound_lab.name }}{% elif laboratory %}{{ laboratory.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td data-label="УЦ">{% if bound_lab %}№{{ bound_lab.training_center.number }}{% elif training_center %}№{{ training_center.number }}{% else %}<span class="muted">—</span>{% endif %}</td>
                 <td data-label="Аудитория">{% if lw.default_room %}{{ lw.default_room.number }}{% else %}<span class="muted">—</span>{% endif %}</td>
                 <td data-label="Длительность">{{ lw.duration_minutes }} мин</td>
                 <td data-label="Макс. мест">{{ lw.capacity }}</td>
@@ -54,7 +54,7 @@
             </tr>
             {% endwith %}
             {% empty %}
-            <tr><td colspan="8">
+            <tr><td colspan="9">
                 <div class="empty-state empty-state--icon">
                     <p>Нет лабораторных работ.</p>
                     <p class="muted">Сначала привяжите дисциплины, затем добавьте ЛР.</p>
@@ -69,7 +69,7 @@
     <div class="app-dialog__header">
         <h2 class="card__title" id="lab-work-create-title">Добавить лабораторную работу</h2>
     </div>
-    <form method="post" action="{% url 'lab-head-lab-work-create' %}" class="form-grid">
+    <form method="post" action="{% url 'lab-head-lab-work-create' %}" class="form-grid" id="lab-work-create-form">
         {% csrf_token %}
         <label>Название <input type="text" name="title" required maxlength="256"></label>
         <label>№ ЛР <input type="number" name="number" min="1" required></label>
@@ -82,9 +82,12 @@
             </select>
         </label>
         <label>Учебный центр
-            <select name="training_center" required>
-                {% for tc in training_centers %}
-                <option value="{{ tc.pk }}" selected>УЦ №{{ tc.number }}{% if tc.name %} — {{ tc.name }}{% endif %}</option>
+            <input type="text" id="lab-work-create-tc" readonly>
+        </label>
+        <label>Лаборатория
+            <select name="laboratory" id="lab-work-create-laboratory" required>
+                {% for lab in laboratories %}
+                <option value="{{ lab.pk }}" data-tc-label="УЦ №{{ lab.training_center.number }}{% if lab.training_center.name %} — {{ lab.training_center.name }}{% endif %}">{{ lab.name }}</option>
                 {% endfor %}
             </select>
         </label>
@@ -122,9 +125,12 @@
             </select>
         </label>
         <label>Учебный центр
-            <select name="training_center" id="lab-work-edit-training-center" required>
-                {% for tc in training_centers %}
-                <option value="{{ tc.pk }}">УЦ №{{ tc.number }}{% if tc.name %} — {{ tc.name }}{% endif %}</option>
+            <input type="text" id="lab-work-edit-tc" readonly>
+        </label>
+        <label>Лаборатория
+            <select name="laboratory" id="lab-work-edit-laboratory" required>
+                {% for lab in laboratories %}
+                <option value="{{ lab.pk }}" data-tc-label="УЦ №{{ lab.training_center.number }}{% if lab.training_center.name %} — {{ lab.training_center.name }}{% endif %}">{{ lab.name }}</option>
                 {% endfor %}
             </select>
         </label>
@@ -138,10 +144,12 @@
         </label>
         <label>Длительность (мин) <input type="number" name="duration_minutes" id="lab-work-edit-duration" min="30" step="5" required></label>
         <label>Макс. мест <input type="number" name="capacity" id="lab-work-edit-capacity" min="1" required></label>
-        <label class="checkbox-inline form-grid__full">
-            <input type="checkbox" name="is_published" id="lab-work-edit-published">
-            Опубликовано (доступна для записи студентов)
-        </label>
+        <div class="form-grid__full">
+            <label class="checkbox-inline">
+                <input type="checkbox" name="is_published" id="lab-work-edit-published">
+                <span>Опубликовано (доступна для записи студентов)</span>
+            </label>
+        </div>
         <p class="muted form-grid__full">Снимите публикацию, чтобы скрыть ЛР из записи, не удаляя её из базы.</p>
         <div class="app-dialog__actions form-grid__full">
             <button type="submit">Сохранить</button>
@@ -157,6 +165,14 @@
     var editForm = document.getElementById('lab-work-edit-form');
     var editSubtitle = document.getElementById('lab-work-edit-subtitle');
     var createOpenBtn = document.getElementById('lab-work-create-open');
+
+    function syncTrainingCenterLabel(selectEl, targetInput) {
+        if (!selectEl || !targetInput) {
+            return;
+        }
+        var option = selectEl.options[selectEl.selectedIndex];
+        targetInput.value = option ? (option.getAttribute('data-tc-label') || '') : '';
+    }
 
     function bindDialog(dialog) {
         if (!dialog) {
@@ -183,11 +199,12 @@
         document.getElementById('lab-work-edit-title-input').value = row.getAttribute('data-title') || '';
         document.getElementById('lab-work-edit-number').value = row.getAttribute('data-number') || '';
         document.getElementById('lab-work-edit-discipline').value = row.getAttribute('data-discipline-id') || '';
-        document.getElementById('lab-work-edit-training-center').value = row.getAttribute('data-training-center-id') || '';
+        document.getElementById('lab-work-edit-laboratory').value = row.getAttribute('data-laboratory-id') || '';
         document.getElementById('lab-work-edit-room').value = row.getAttribute('data-room-id') || '';
         document.getElementById('lab-work-edit-duration').value = row.getAttribute('data-duration') || '';
         document.getElementById('lab-work-edit-capacity').value = row.getAttribute('data-capacity') || '';
         document.getElementById('lab-work-edit-published').checked = row.getAttribute('data-published') === '1';
+        document.getElementById('lab-work-edit-tc').value = row.getAttribute('data-tc-label') || '';
         if (editSubtitle) {
             editSubtitle.textContent = row.getAttribute('data-title') || '';
         }
@@ -197,8 +214,25 @@
     bindDialog(createDialog);
     bindDialog(editDialog);
 
+    var createLaboratorySelect = document.getElementById('lab-work-create-laboratory');
+    var createTcInput = document.getElementById('lab-work-create-tc');
+    var editLaboratorySelect = document.getElementById('lab-work-edit-laboratory');
+    var editTcInput = document.getElementById('lab-work-edit-tc');
+
+    if (createLaboratorySelect) {
+        createLaboratorySelect.addEventListener('change', function () {
+            syncTrainingCenterLabel(createLaboratorySelect, createTcInput);
+        });
+    }
+    if (editLaboratorySelect) {
+        editLaboratorySelect.addEventListener('change', function () {
+            syncTrainingCenterLabel(editLaboratorySelect, editTcInput);
+        });
+    }
+
     if (createOpenBtn && createDialog) {
         createOpenBtn.addEventListener('click', function () {
+            syncTrainingCenterLabel(createLaboratorySelect, createTcInput);
             createDialog.showModal();
         });
     }

@@ -3,7 +3,7 @@
 {% block content %}
 <header class="page-header">
     <div class="page-header__content">
-        <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
+        <p class="page-eyebrow">Кабинет завлаба{% if laboratory %} · {{ laboratory.name }}{% endif %}{% if training_center %} · УЦ №{{ training_center.number }}{% endif %}</p>
         <h1 class="page-title">Дисциплины</h1>
         <p class="page-description">Привязка дисциплин к лаборатории. Раскройте дисциплину, чтобы увидеть её лабораторные работы.</p>
     </div>
@@ -210,6 +210,30 @@
     });
 
     bindDialogControls(bindDialog);
+
+    document.querySelectorAll('.discipline-panel__menu').forEach(function (menu) {
+        menu.addEventListener('toggle', function () {
+            if (!menu.open) {
+                return;
+            }
+            document.querySelectorAll('.discipline-panel__menu[open]').forEach(function (other) {
+                if (other !== menu) {
+                    other.removeAttribute('open');
+                }
+            });
+            var panel = menu.querySelector('.row-actions__menu');
+            if (!panel) {
+                return;
+            }
+            panel.classList.remove('row-actions__menu--flip');
+            requestAnimationFrame(function () {
+                var rect = panel.getBoundingClientRect();
+                if (rect.bottom > window.innerHeight - 8) {
+                    panel.classList.add('row-actions__menu--flip');
+                }
+            });
+        });
+    });
 })();
 </script>
 {% endblock %}

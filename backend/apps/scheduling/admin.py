@@ -1,12 +1,19 @@
 from django.contrib import admin
 
-from .models import Holiday, LabSession, LabStand, Room, ScheduleEntry, TrainingCenter
+from .models import Holiday, LabSession, LabStand, Laboratory, Room, ScheduleEntry, TrainingCenter
 
 
 @admin.register(TrainingCenter)
 class TrainingCenterAdmin(admin.ModelAdmin):
     list_display = ("number", "name")
     search_fields = ("number", "name")
+
+
+@admin.register(Laboratory)
+class LaboratoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "training_center", "short_name")
+    list_filter = ("training_center",)
+    search_fields = ("name", "short_name")
 
 
 @admin.register(Room)

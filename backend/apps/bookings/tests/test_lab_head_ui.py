@@ -2,7 +2,7 @@ import pytest
 from django.urls import reverse
 
 from apps.academics.models import Discipline, LabWork, Semester
-from apps.scheduling.models import LabStand, Room, ScheduleEntry, TrainingCenter
+from apps.scheduling.models import LabStand, Laboratory, Room, ScheduleEntry, TrainingCenter
 from apps.users.models import User, UserRole
 
 
@@ -18,16 +18,26 @@ def semester(db):
 
 @pytest.fixture
 def own_tc():
-    return TrainingCenter.objects.create(number=21, name="Лаборатория завлаба")
+    return TrainingCenter.objects.create(number=21, name="Учебный центр завлаба")
+
+
+@pytest.fixture
+def own_laboratory(own_tc):
+    return Laboratory.objects.create(training_center=own_tc, name="Лаборатория завлаба")
 
 
 @pytest.fixture
 def foreign_tc():
-    return TrainingCenter.objects.create(number=22, name="Чужая лаборатория")
+    return TrainingCenter.objects.create(number=22, name="Учебный центр чужой")
 
 
 @pytest.fixture
-def lab_head(db, own_tc):
+def foreign_laboratory(foreign_tc):
+    return Laboratory.objects.create(training_center=foreign_tc, name="Чужая лаборатория")
+
+
+@pytest.fixture
+def lab_head(db, own_tc, own_laboratory):
     user = User.objects.create_user(
         email="lab-head-ui@spmi.ru",
         password="pass",
@@ -37,12 +47,13 @@ def lab_head(db, own_tc):
         is_staff=True,
     )
     user.profile.training_center = own_tc
-    user.profile.save(update_fields=["training_center"])
+    user.profile.laboratory = own_laboratory
+    user.profile.save(update_fields=["training_center", "laboratory"])
     return user
 
 
 @pytest.fixture
-def staff_admin(db, own_tc):
+def staff_admin(db, own_tc, own_laboratory):
     user = User.objects.create_user(
         email="staff-ui@spmi.ru",
         password="pass",
@@ -52,20 +63,23 @@ def staff_admin(db, own_tc):
         is_staff=True,
     )
     user.profile.training_center = own_tc
-    user.profile.save(update_fields=["training_center"])
+    user.profile.laboratory = own_laboratory
+    user.profile.save(update_fields=["training_center", "laboratory"])
     return user
 
 
 @pytest.fixture
-def own_discipline(semester, own_tc):
+def own_discipline(semester, own_laboratory, own_tc):
     d = Discipline.objects.create(title="Дисциплина завлаба", semester=semester, is_published=True)
+    d.laboratories.add(own_laboratory)
     d.training_centers.add(own_tc)
     return d
 
 
 @pytest.fixture
-def foreign_discipline(semester, foreign_tc):
+def foreign_discipline(semester, foreign_laboratory, foreign_tc):
     d = Discipline.objects.create(title="Чужая дисциплина", semester=semester, is_published=True)
+    d.laboratories.add(foreign_laboratory)
     d.training_centers.add(foreign_tc)
     return d
 
@@ -128,26 +142,26 @@ class TestLabHeadPeople:
 
 @pytest.mark.django_db
 class TestLabHeadBindings:
-    def test_bind_discipline_to_lab(self, client_logged_in, own_tc, foreign_discipline):
+    def test_bind_discipline_to_lab(self, client_logged_in, own_laboratory, foreign_discipline):
         response = client_logged_in.post(
             reverse("lab-head-discipline-bind", kwargs={"pk": foreign_discipline.pk}),
         )
         assert response.status_code == 302
-        assert foreign_discipline.training_centers.filter(pk=own_tc.pk).exists()
+        assert foreign_discipline.laboratories.filter(pk=own_laboratory.pk).exists()
 
-    def test_unbind_discipline_from_lab(self, client_logged_in, own_tc, own_discipline):
+    def test_unbind_discipline_from_lab(self, client_logged_in, own_laboratory, own_discipline):
         response = client_logged_in.post(
             reverse("lab-head-discipline-unbind", kwargs={"pk": own_discipline.pk}),
         )
         assert response.status_code == 302
-        assert not own_discipline.training_centers.filter(pk=own_tc.pk).exists()
+        assert not own_discipline.laboratories.filter(pk=own_laboratory.pk).exists()
 
-    def test_create_lab_work(self, client_logged_in, own_tc, own_discipline, own_room):
+    def test_create_lab_work(self, client_logged_in, own_laboratory, own_discipline, own_room):
         response = client_logged_in.post(
             reverse("lab-head-lab-work-create"),
             {
                 "discipline": own_discipline.pk,
-                "training_center": own_tc.pk,
+                "laboratory": own_laboratory.pk,
                 "default_room": own_room.pk,
                 "number": 2,
                 "title": "Новая ЛР",
@@ -159,7 +173,7 @@ class TestLabHeadBindings:
         lab_work = LabWork.objects.get(discipline=own_discipline, number=2)
         assert lab_work.capacity == 3
         assert lab_work.default_room_id == own_room.pk
-        assert lab_work.training_centers.filter(pk=own_tc.pk).exists()
+        assert lab_work.laboratories.filter(pk=own_laboratory.pk).exists()
 
     def test_create_discipline_disabled_for_lab_head(self, client_logged_in, own_tc, semester):
         response = client_logged_in.post(
@@ -172,15 +186,15 @@ class TestLabHeadBindings:
         assert response.status_code == 302
         assert not Discipline.objects.filter(title="Новая дисциплина").exists()
 
-    def test_bindings_search_by_title(self, client_logged_in, own_discipline, foreign_discipline, own_tc):
-        foreign_discipline.training_centers.add(own_tc)
+    def test_bindings_search_by_title(self, client_logged_in, own_discipline, foreign_discipline, own_laboratory):
+        foreign_discipline.laboratories.add(own_laboratory)
         response = client_logged_in.get(reverse("lab-head-bindings"), {"q": "завлаба"})
         assert response.status_code == 200
         content = response.content.decode()
         assert own_discipline.title in content
         assert foreign_discipline.title not in content
 
-    def test_update_lab_work(self, client_logged_in, own_tc, own_discipline, own_room):
+    def test_update_lab_work(self, client_logged_in, own_laboratory, own_discipline, own_room):
         lab_work = LabWork.objects.create(
             discipline=own_discipline,
             number=3,
@@ -189,14 +203,15 @@ class TestLabHeadBindings:
             capacity=10,
             is_published=True,
         )
-        lab_work.training_centers.add(own_tc)
+        lab_work.laboratories.add(own_laboratory)
+        lab_work.training_centers.add(own_laboratory.training_center)
         response = client_logged_in.post(
             reverse("lab-head-lab-work-update", kwargs={"pk": lab_work.pk}),
             {
                 "title": "ЛР обновлённая",
                 "number": 3,
                 "discipline": own_discipline.pk,
-                "training_center": own_tc.pk,
+                "laboratory": own_laboratory.pk,
                 "default_room": own_room.pk,
                 "duration_minutes": 120,
                 "capacity": 3,
@@ -211,7 +226,7 @@ class TestLabHeadBindings:
         assert lab_work.default_room_id == own_room.pk
         assert lab_work.is_published is True
 
-    def test_unpublish_lab_work(self, client_logged_in, own_tc, own_discipline):
+    def test_unpublish_lab_work(self, client_logged_in, own_laboratory, own_discipline):
         lab_work = LabWork.objects.create(
             discipline=own_discipline,
             number=4,
@@ -220,14 +235,14 @@ class TestLabHeadBindings:
             capacity=10,
             is_published=True,
         )
-        lab_work.training_centers.add(own_tc)
+        lab_work.laboratories.add(own_laboratory)
         response = client_logged_in.post(
             reverse("lab-head-lab-work-update", kwargs={"pk": lab_work.pk}),
             {
                 "title": lab_work.title,
                 "number": lab_work.number,
                 "discipline": own_discipline.pk,
-                "training_center": own_tc.pk,
+                "laboratory": own_laboratory.pk,
                 "duration_minutes": lab_work.duration_minutes,
                 "capacity": lab_work.capacity,
             },
@@ -256,7 +271,7 @@ class TestLabHeadStandsAndSchedule:
         client_logged_in,
         semester,
         own_discipline,
-        own_tc,
+        own_laboratory,
         own_room,
     ):
         lab_work = LabWork.objects.create(
@@ -266,7 +281,8 @@ class TestLabHeadStandsAndSchedule:
             duration_minutes=90,
             is_published=True,
         )
-        lab_work.training_centers.add(own_tc)
+        lab_work.laboratories.add(own_laboratory)
+        lab_work.training_centers.add(own_laboratory.training_center)
         response = client_logged_in.post(
             reverse("lab-head-schedule-create"),
             {

@@ -7,27 +7,10 @@
         <h1 class="page-title">Лабораторные стенды</h1>
         <p class="page-description">Учёт стендов вашей лаборатории.</p>
     </div>
+    <div class="page-actions">
+        <button type="button" class="button" id="stand-create-open">Добавить стенд</button>
+    </div>
 </header>
-
-<form method="post" action="{% url 'lab-head-stand-create' %}" class="card card--form create-panel stand-form">
-    {% csrf_token %}
-    <h2 class="card__title">Добавить стенд</h2>
-    <div class="form-grid">
-        <label>Наименование <input type="text" name="name" required></label>
-        <label>Инв. номер <input type="text" name="inventory_number" required></label>
-        <label>Аудитория
-            <select name="room" required>
-                {% for r in rooms %}
-                <option value="{{ r.pk }}">ауд. {{ r.number }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label class="form-grid__full">Описание <textarea name="description" rows="2"></textarea></label>
-    </div>
-    <div class="form-actions">
-        <button type="submit">Сохранить</button>
-    </div>
-</form>
 
 <div class="table-wrap">
     <table class="table table--compact table--sticky responsive-table">
@@ -47,4 +30,52 @@
         </tbody>
     </table>
 </div>
+
+<dialog id="stand-create-dialog" class="app-dialog app-dialog--wide" aria-labelledby="stand-create-title">
+    <div class="app-dialog__header">
+        <h2 class="card__title" id="stand-create-title">Добавить стенд</h2>
+    </div>
+    <form method="post" action="{% url 'lab-head-stand-create' %}" class="form-grid">
+        {% csrf_token %}
+        <label>Наименование <input type="text" name="name" required></label>
+        <label>Инв. номер <input type="text" name="inventory_number" required></label>
+        <label>Аудитория
+            <select name="room" required>
+                {% for r in rooms %}
+                <option value="{{ r.pk }}">ауд. {{ r.number }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="form-grid__full">Описание <textarea name="description" rows="2"></textarea></label>
+        <div class="app-dialog__actions form-grid__full">
+            <button type="submit">Сохранить</button>
+            <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+(function () {
+    var dialog = document.getElementById('stand-create-dialog');
+    var openBtn = document.getElementById('stand-create-open');
+    if (!dialog) {
+        return;
+    }
+    dialog.addEventListener('click', function (e) {
+        if (e.target === dialog) {
+            dialog.close();
+        }
+    });
+    dialog.querySelectorAll('[data-dialog-close]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            dialog.close();
+        });
+    });
+    if (openBtn) {
+        openBtn.addEventListener('click', function () {
+            dialog.showModal();
+        });
+    }
+})();
+</script>
 {% endblock %}

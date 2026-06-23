@@ -2950,10 +2950,24 @@ a.report-card--link:focus-visible {
 }
 
 .checkbox-inline {
-    display: flex;
-    align-items: flex-start;
+    display: inline-flex;
+    align-items: center;
     gap: var(--space-2);
     font-size: var(--text-sm);
+    width: auto;
+    max-width: 100%;
+    margin-bottom: 0;
+}
+
+.checkbox-inline input[type="checkbox"] {
+    width: auto;
+    min-height: auto;
+    margin-top: 0;
+    flex-shrink: 0;
+}
+
+.form-grid .checkbox-inline {
+    display: inline-flex;
 }
 
 .nav__group--lab-head .nav__group-inner {
@@ -2966,13 +2980,19 @@ a.report-card--link:focus-visible {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+    overflow: visible;
 }
 
 .discipline-panel {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface-muted);
-    overflow: hidden;
+    overflow: visible;
+    position: relative;
+}
+
+.discipline-panel[open] {
+    overflow: visible;
 }
 
 .discipline-panel__summary {
@@ -2982,6 +3002,15 @@ a.report-card--link:focus-visible {
     padding: var(--space-3) var(--space-4);
     cursor: pointer;
     list-style: none;
+    position: relative;
+    z-index: 1;
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+}
+
+.discipline-panel[open] > .discipline-panel__summary {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 .discipline-panel__summary::-webkit-details-marker {
@@ -3018,6 +3047,12 @@ a.report-card--link:focus-visible {
 .discipline-panel__menu {
     flex-shrink: 0;
     margin-left: auto;
+    z-index: 3;
+}
+
+.discipline-panel__menu .row-actions__menu {
+    min-width: 220px;
+    z-index: var(--z-dropdown);
 }
 
 .discipline-bind-table-wrap {

@@ -91,6 +91,14 @@ class UserProfile(models.Model):
         null=True,
         blank=True,
         related_name="staff_profiles",
+        verbose_name="Учебный центр",
+    )
+    laboratory = models.ForeignKey(
+        "scheduling.Laboratory",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staff_profiles",
         verbose_name="Лаборатория",
     )
     disciplines = models.ManyToManyField(
