@@ -53,12 +53,13 @@
                         <span class="nav__group-label">Завлаб</span>
                         <div class="nav__group-inner">
                             <div class="nav__section">
-                                <a class="nav__link" href="{% url 'lab-head-home' %}">Кабинет</a>
+                                <span class="nav__section-title">Студенты</span>
                                 <a class="nav__link" href="{% url 'staff-bookings' %}">Записавшиеся</a>
                                 <a class="nav__link" href="{% url 'staff-support' %}">Обращения</a>
                                 <a class="nav__link" href="{% url 'staff-reports' %}">Отчёты</a>
                             </div>
                             <div class="nav__section">
+                                <span class="nav__section-title">Кабинет</span>
                                 <a class="nav__link" href="{% url 'lab-head-people' %}">Сотрудники</a>
                                 <a class="nav__link" href="{% url 'lab-head-bindings' %}">Дисциплины</a>
                                 <a class="nav__link" href="{% url 'lab-head-lab-works' %}">Лаб. работы</a>

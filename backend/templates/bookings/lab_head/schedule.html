@@ -5,91 +5,11 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
         <h1 class="page-title">Расписание на аудиторию</h1>
-        <p class="page-description">Шаблоны расписания для генерации слотов записи.</p>
     </div>
 </header>
 
-{% if active_semester %}
-<form method="post" action="{% url 'lab-head-schedule-create' %}" class="card card--form create-panel">
-    {% csrf_token %}
-    <h2 class="card__title">Добавить запись расписания · {{ active_semester.name }}</h2>
-    <div class="form-grid">
-        <label>Лабораторная работа
-            <select name="lab_work" required>
-                <option value="">— выберите —</option>
-                {% for lw in lab_works %}
-                <option value="{{ lw.pk }}">{{ lw.discipline.title }} — ЛР {{ lw.number }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Аудитория
-            <select name="room" required>
-                {% for r in rooms %}
-                <option value="{{ r.pk }}">ауд. {{ r.number }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>День недели
-            <select name="weekday" required>
-                {% for label in weekday_labels %}
-                <option value="{{ forloop.counter0 }}">{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Время начала <input type="time" name="start_time" required value="10:35"></label>
-        <label>Неделя
-            <select name="week_parity">
-                {% for value, label in week_parity_choices %}
-                <option value="{{ value }}">{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Преподаватель
-            <select name="teacher">
-                <option value="">— не указан —</option>
-                {% for t in teachers %}
-                <option value="{{ t.pk }}">{{ t.full_name }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Мест <input type="number" name="capacity" value="30" min="1"></label>
-        <label>Длительность (мин) <input type="number" name="duration_minutes" value="90" min="30" step="5"></label>
-    </div>
-    <div class="form-actions">
-        <button type="submit">Сохранить</button>
-    </div>
-</form>
-{% else %}
-<div class="message message--error">Нет активного семестра — добавление расписания недоступно.</div>
-{% endif %}
-
-<div class="table-wrap">
-    <table class="table table--compact table--sticky responsive-table">
-        <thead>
-            <tr><th>ЛР</th><th>Ауд.</th><th>День</th><th>Время</th><th>Неделя</th><th>Преподаватель</th></tr>
-        </thead>
-        <tbody>
-            {% for row in schedule_rows %}
-            {% with e=row.entry %}
-            <tr>
-                <td data-label="ЛР">{{ e.lab_work }}</td>
-                <td data-label="Ауд.">{{ e.room.number }}</td>
-                <td data-label="День">{{ row.weekday_label }}</td>
-                <td data-label="Время"><strong>{{ e.start_time|time:"H:i" }}</strong></td>
-                <td data-label="Неделя"><span class="badge badge--muted">{{ e.get_week_parity_display }}</span></td>
-                <td data-label="Преподаватель">{{ e.teacher.full_name|default:"—" }}</td>
-            </tr>
-            {% endwith %}
-            {% empty %}
-            <tr><td colspan="6">
-                <div class="empty-state empty-state--icon">
-                    <p>Записей расписания нет.</p>
-                    <p class="muted">Добавьте первую запись с помощью формы выше.</p>
-                </div>
-            </td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="empty-state empty-state--icon">
+    <p>На доработке</p>
+    <p class="muted">Раздел временно недоступен.</p>
 </div>
-<p class="admin-note muted">Генерация слотов: <code>python manage.py generate_sessions</code></p>
 {% endblock %}

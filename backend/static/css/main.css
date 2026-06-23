@@ -2588,18 +2588,21 @@ a.report-card--link:focus-visible {
 /* Responsive */
 
 @media (max-width: 1280px) {
-    .nav__group--staff {
+    .nav__group--staff,
+    .nav__group--lab-head {
         width: 100%;
     }
 
-    .nav__group--staff .nav__section {
+    .nav__group--staff .nav__section,
+    .nav__group--lab-head .nav__section {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(6.75rem, 1fr));
         gap: var(--space-1) var(--space-2);
         align-items: center;
     }
 
-    .nav__group--staff .nav__section-title {
+    .nav__group--staff .nav__section-title,
+    .nav__group--lab-head .nav__section-title {
         grid-column: 1 / -1;
         width: 100%;
     }
@@ -2610,7 +2613,8 @@ a.report-card--link:focus-visible {
         flex-direction: column;
     }
 
-    .nav__group--staff .nav__section {
+    .nav__group--staff .nav__section,
+    .nav__group--lab-head .nav__section {
         flex: 1 1 auto;
         width: 100%;
     }
@@ -2688,7 +2692,8 @@ a.report-card--link:focus-visible {
         width: 100%;
     }
 
-    .nav__group--staff .nav__section {
+    .nav__group--staff .nav__section,
+    .nav__group--lab-head .nav__section {
         grid-template-columns: 1fr;
     }
 
@@ -2976,6 +2981,11 @@ a.report-card--link:focus-visible {
     gap: var(--space-2) var(--space-4);
 }
 
+.nav__group--lab-head .nav__section {
+    flex: 1 1 13rem;
+    min-width: 0;
+}
+
 .discipline-list {
     display: flex;
     flex-direction: column;
@@ -2989,9 +2999,18 @@ a.report-card--link:focus-visible {
     background: var(--color-surface-muted);
     overflow: visible;
     position: relative;
+    z-index: 0;
+}
+
+.discipline-panel:has(.discipline-panel__menu[open]) {
+    z-index: var(--z-dropdown);
 }
 
 .discipline-panel[open] {
+    overflow: visible;
+}
+
+.card:has(.discipline-list) {
     overflow: visible;
 }
 
@@ -3051,8 +3070,12 @@ a.report-card--link:focus-visible {
 }
 
 .discipline-panel__menu .row-actions__menu {
-    min-width: 220px;
-    z-index: var(--z-dropdown);
+    min-width: 15.5rem;
+    z-index: calc(var(--z-dropdown) + 1);
+}
+
+.discipline-panel__menu .row-actions__item--button {
+    white-space: nowrap;
 }
 
 .discipline-bind-table-wrap {

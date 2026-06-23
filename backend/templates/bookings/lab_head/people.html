@@ -5,78 +5,11 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
         <h1 class="page-title">Сотрудники и преподаватели</h1>
-        <p class="page-description">Пользователи вашей лаборатории и их привязка к дисциплинам.</p>
     </div>
 </header>
 
-<form method="post" action="{% url 'lab-head-person-create' %}" class="card card--form create-panel">
-    {% csrf_token %}
-    <h2 class="card__title">Добавить сотрудника или преподавателя</h2>
-    <div class="form-grid">
-        <label>Email <input type="email" name="email" required placeholder="user@spmi.ru"></label>
-        <label>Имя <input type="text" name="first_name" required></label>
-        <label>Фамилия <input type="text" name="last_name" required></label>
-        <label>Роль
-            <select name="role" required>
-                {% for value, label in role_choices %}
-                <option value="{{ value }}">{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Временный пароль <input type="text" name="password" placeholder="ChangeMe123!"></label>
-    </div>
-    <div class="form-actions">
-        <button type="submit">Добавить</button>
-    </div>
-</form>
-
-<div class="table-wrap table-wrap--menus">
-    <table class="table table--compact table--sticky responsive-table">
-        <thead>
-            <tr><th>ФИО</th><th>Email</th><th>Роль</th><th>Дисциплины</th><th>Привязки</th></tr>
-        </thead>
-        <tbody>
-            {% for person in people %}
-            <tr>
-                <td data-label="ФИО"><strong>{{ person.full_name }}</strong></td>
-                <td data-label="Email"><span class="muted">{{ person.email }}</span></td>
-                <td data-label="Роль"><span class="badge badge--muted">{{ person.get_role_display }}</span></td>
-                <td data-label="Дисциплины">
-                    {% for d in person.profile.disciplines.all %}
-                    <span class="badge badge--muted">{{ d.title|truncatechars:40 }}</span>
-                    {% empty %}
-                    <span class="muted">—</span>
-                    {% endfor %}
-                </td>
-                <td data-label="Привязки">
-                    <form method="post" action="{% url 'lab-head-person-bindings' person.pk %}" class="bindings-form">
-                        {% csrf_token %}
-                        <div class="bindings-form__checks">
-                            {% for d in lab_disciplines %}
-                            <label class="checkbox-inline">
-                                <input type="checkbox" name="disciplines" value="{{ d.pk }}"
-                                    {% if d in person.profile.disciplines.all %}checked{% endif %}>
-                                {{ d.title|truncatechars:50 }}
-                            </label>
-                            {% empty %}
-                            <span class="muted">Сначала привяжите дисциплины к лаборатории.</span>
-                            {% endfor %}
-                        </div>
-                        {% if lab_disciplines %}
-                        <button type="submit" class="button--sm">Сохранить</button>
-                        {% endif %}
-                    </form>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5">
-                <div class="empty-state empty-state--icon">
-                    <p>Нет сотрудников и преподавателей в вашей лаборатории.</p>
-                    <p class="muted">Добавьте первого пользователя с помощью формы выше.</p>
-                </div>
-            </td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="empty-state empty-state--icon">
+    <p>На доработке</p>
+    <p class="muted">Раздел временно недоступен.</p>
 </div>
 {% endblock %}
