@@ -115,6 +115,12 @@ else
   echo "WARN: логотип не найден в staticfiles. Проверьте backend/static/img/spmi-logo.png"
 fi
 
+if $COMPOSE exec -T web test -f /app/staticfiles/img/spmi-logo.svg; then
+  echo "==> Favicon SVG: staticfiles/img/spmi-logo.svg найден"
+else
+  echo "WARN: spmi-logo.svg не найден в staticfiles. Проверьте backend/static/img/spmi-logo.svg"
+fi
+
 SMOKE_URL="http://127.0.0.1"
 if [[ "$USE_HTTPS" -eq 1 ]]; then
   SMOKE_URL=$(grep -E '^SITE_URL=' .env 2>/dev/null | cut -d= -f2- | tr -d ' "'\''' || true)

@@ -8,8 +8,10 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.bookings.views.health import HealthView
 from apps.users.jwt_views import EmailTokenObtainPairView
 from apps.users.views import SSOLoginView, WebLoginView, WebLogoutView
+from config.views import favicon
 
 urlpatterns = [
+    path("favicon.ico", favicon, name="favicon"),
     path("admin/", admin.site.urls),
     path("login/", WebLoginView.as_view(), name="login"),
     path("logout/", WebLogoutView.as_view(), name="logout"),
