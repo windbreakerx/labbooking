@@ -57,7 +57,8 @@ run_pytest() {
   echo "==> Запуск: python -m pytest $*"
   # Контейнер web задаёт DJANGO_SETTINGS_MODULE=prod — pytest-django берёт его из env,
   # из-за SECURE_SSL_REDIRECT тесты получают 301. Принудительно включаем test settings.
-  $COMPOSE exec -T web sh -c 'DJANGO_SETTINGS_MODULE=config.settings.test python -m pytest "$@"' sh "$@"
+  # PYTEST_CACHE_DIR — appuser не может писать в /app/.pytest_cache в production-образе.
+  $COMPOSE exec -T web sh -c 'export PYTEST_CACHE_DIR=/tmp/pytest-cache; DJANGO_SETTINGS_MODULE=config.settings.test python -m pytest "$@"' sh "$@"
 }
 
 install_dev_deps
