@@ -1,14 +1,36 @@
 from django.db import migrations, models
 
+ALLOWED_DURATIONS = (30, 45, 60, 90)
+
+
+def normalize_lab_work_durations(apps, schema_editor):
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE academics_labwork
+            SET duration_minutes = CASE
+                WHEN duration_minutes <= 37 THEN 30
+                WHEN duration_minutes <= 52 THEN 45
+                WHEN duration_minutes <= 75 THEN 60
+                ELSE 90
+            END
+            WHERE duration_minutes NOT IN (30, 45, 60, 90)
+            """
+        )
+
 
 def backfill_primary_stand(apps, schema_editor):
     LabWork = apps.get_model("academics", "LabWork")
     LabStand = apps.get_model("scheduling", "LabStand")
+    Room = apps.get_model("scheduling", "Room")
 
-    for lab_work in LabWork.objects.exclude(default_room__isnull=True):
+    for lab_work in LabWork.objects.exclude(default_room_id__isnull=True):
+        room = Room.objects.filter(pk=lab_work.default_room_id).first()
+        if room is None:
+            continue
         candidates = LabStand.objects.filter(
-            training_center_id=lab_work.default_room.training_center_id,
-            room_id=lab_work.default_room_id,
+            training_center_id=room.training_center_id,
+            room_id=room.id,
         )
         stand = candidates.filter(description__icontains=lab_work.title[:64]).first()
         if stand is None:
@@ -16,11 +38,12 @@ def backfill_primary_stand(apps, schema_editor):
         if stand is None:
             stand = candidates.first()
         if stand is not None:
-            lab_work.primary_stand_id = stand.id
-            lab_work.save(update_fields=["primary_stand"])
+            LabWork.objects.filter(pk=lab_work.pk).update(primary_stand_id=stand.id)
 
 
 class Migration(migrations.Migration):
+    atomic = False
+
     dependencies = [
         ("academics", "0006_laboratory"),
         ("scheduling", "0004_populate_laboratories"),
@@ -36,6 +59,7 @@ class Migration(migrations.Migration):
                 verbose_name="Длительность (мин)",
             ),
         ),
+        migrations.RunPython(normalize_lab_work_durations, migrations.RunPython.noop),
         migrations.AddField(
             model_name="labwork",
             name="primary_stand",
@@ -51,7 +75,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="labwork",
             constraint=models.CheckConstraint(
-                check=models.Q(duration_minutes__in=(30, 45, 60, 90)),
+                check=models.Q(duration_minutes__in=ALLOWED_DURATIONS),
                 name="academics_labwork_allowed_duration",
             ),
         ),
