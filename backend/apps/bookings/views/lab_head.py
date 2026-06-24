@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
-from apps.academics.models import LabWork
+from apps.academics.models import ALLOWED_LAB_DURATIONS, LabWork
 from apps.academics.querysets import staff_managed_disciplines_qs, staff_managed_lab_works_qs
 from apps.bookings.services.lab_head import (
     is_lab_head_user,
@@ -25,12 +25,15 @@ from apps.bookings.services.lab_head import (
     lab_head_room_in_scope,
     lab_head_rooms_qs,
     lab_head_schedule_qs,
+    lab_head_stand_in_scope,
+    lab_head_stands_qs,
     lab_head_teachers_qs,
     lab_head_training_center,
     lab_head_training_center_in_scope,
     lab_head_training_centers_qs,
     lab_head_update_lab_work,
     sync_training_centers_for_laboratories,
+    validate_lab_duration_minutes,
 )
 from apps.scheduling.models import LabStand, ScheduleEntry, WeekParity
 from apps.users.models import User, UserRole
@@ -248,7 +251,12 @@ class LabHeadLabWorksView(LabHeadRequiredMixin, ListView):
     def get_queryset(self):
         qs = (
             staff_managed_lab_works_qs(self.request.user)
-            .select_related("discipline", "default_room", "default_room__training_center")
+            .select_related(
+                "discipline",
+                "default_room",
+                "default_room__training_center",
+                "primary_stand",
+            )
             .prefetch_related("training_centers", "laboratories", "laboratories__training_center")
         )
         return filter_lab_head_lab_works(qs, self.request.GET.get("q", ""))
@@ -261,6 +269,8 @@ class LabHeadLabWorksView(LabHeadRequiredMixin, ListView):
         ctx["training_centers"] = lab_head_training_centers_qs(self.request.user)
         ctx["laboratories"] = lab_head_laboratories_qs(self.request.user)
         ctx["rooms"] = lab_head_rooms_qs(self.request.user)
+        ctx["stands"] = lab_head_stands_qs(self.request.user)
+        ctx["duration_options"] = ALLOWED_LAB_DURATIONS
         ctx["edit_lab_work_id"] = self.request.GET.get("edit", "").strip()
         ctx["search_query"] = self.request.GET.get("q", "").strip()
         return ctx
@@ -271,6 +281,7 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
         discipline_id = request.POST.get("discipline")
         laboratory_id = request.POST.get("laboratory", "").strip()
         room_id = request.POST.get("default_room", "").strip()
+        stand_id = request.POST.get("primary_stand", "").strip()
         number = request.POST.get("number", "").strip()
         title = request.POST.get("title", "").strip()
         duration = request.POST.get("duration_minutes", "").strip() or "90"
@@ -279,6 +290,7 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
         discipline = lab_head_discipline_in_scope(request.user, int(discipline_id)) if discipline_id else None
         laboratory = lab_head_laboratory_in_scope(request.user, int(laboratory_id)) if laboratory_id else None
         default_room = lab_head_room_in_scope(request.user, int(room_id)) if room_id else None
+        primary_stand = lab_head_stand_in_scope(request.user, int(stand_id)) if stand_id else None
 
         if not discipline or not laboratory or not number or not title:
             messages.error(request, "Заполните дисциплину, лабораторию, номер и название ЛР.")
@@ -286,8 +298,14 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
         if room_id and not default_room:
             messages.error(request, "Выбранная аудитория недоступна.")
             return redirect("lab-head-lab-works")
+        if stand_id and not primary_stand:
+            messages.error(request, "Выбранный стенд недоступен.")
+            return redirect("lab-head-lab-works")
         if default_room and default_room.training_center_id != laboratory.training_center_id:
             messages.error(request, "Аудитория должна относиться к учебному центру лаборатории.")
+            return redirect("lab-head-lab-works")
+        if primary_stand and primary_stand.training_center_id != laboratory.training_center_id:
+            messages.error(request, "Стенд должен относиться к учебному центру лаборатории.")
             return redirect("lab-head-lab-works")
 
         try:
@@ -300,6 +318,11 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
 
         if capacity_int < 1:
             messages.error(request, "Количество мест должно быть не меньше 1.")
+            return redirect("lab-head-lab-works")
+        try:
+            validate_lab_duration_minutes(duration_int)
+        except ValueError as exc:
+            messages.error(request, str(exc))
             return redirect("lab-head-lab-works")
 
         if LabWork.objects.filter(discipline=discipline, number=number_int).exists():
@@ -314,6 +337,7 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
             capacity=capacity_int,
             is_published=True,
             default_room=default_room,
+            primary_stand=primary_stand,
         )
         lab_work.laboratories.set([laboratory.pk])
         sync_training_centers_for_laboratories(lab_work)
@@ -331,9 +355,11 @@ class LabHeadLabWorkUpdateView(LabHeadRequiredMixin, View):
         discipline_id = request.POST.get("discipline", "").strip()
         laboratory_id = request.POST.get("laboratory", "").strip()
         room_id = request.POST.get("default_room", "").strip()
+        stand_id = request.POST.get("primary_stand", "").strip()
         discipline = lab_head_discipline_in_scope(request.user, int(discipline_id)) if discipline_id else None
         laboratory = lab_head_laboratory_in_scope(request.user, int(laboratory_id)) if laboratory_id else None
         default_room = lab_head_room_in_scope(request.user, int(room_id)) if room_id else None
+        primary_stand = lab_head_stand_in_scope(request.user, int(stand_id)) if stand_id else None
         title = request.POST.get("title", "").strip()
         number = request.POST.get("number", "").strip()
         duration = request.POST.get("duration_minutes", "").strip()
@@ -345,6 +371,9 @@ class LabHeadLabWorkUpdateView(LabHeadRequiredMixin, View):
             return redirect("lab-head-lab-works")
         if room_id and not default_room:
             messages.error(request, "Выбранная аудитория недоступна.")
+            return redirect("lab-head-lab-works")
+        if stand_id and not primary_stand:
+            messages.error(request, "Выбранный стенд недоступен.")
             return redirect("lab-head-lab-works")
 
         try:
@@ -367,6 +396,7 @@ class LabHeadLabWorkUpdateView(LabHeadRequiredMixin, View):
                 is_published=is_published,
                 laboratory=laboratory,
                 default_room=default_room,
+                primary_stand=primary_stand,
             )
         except ValueError as exc:
             messages.error(request, str(exc))
@@ -479,6 +509,11 @@ class LabHeadScheduleCreateView(LabHeadRequiredMixin, View):
             start_time = datetime.strptime(start_time_raw, "%H:%M").time()
         except ValueError:
             messages.error(request, "Проверьте день недели, время, места и длительность.")
+            return redirect("lab-head-schedule")
+        try:
+            validate_lab_duration_minutes(duration_int)
+        except ValueError as exc:
+            messages.error(request, str(exc))
             return redirect("lab-head-schedule")
 
         if week_parity not in WeekParity.values:

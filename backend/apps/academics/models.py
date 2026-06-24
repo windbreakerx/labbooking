@@ -1,6 +1,9 @@
 from django.core.validators import FileExtensionValidator
 from django.db import models
 
+ALLOWED_LAB_DURATIONS = (30, 45, 60, 90)
+ALLOWED_LAB_DURATIONS_CHOICES = tuple((value, f"{value} мин") for value in ALLOWED_LAB_DURATIONS)
+
 
 class Semester(models.Model):
     name = models.CharField("Название", max_length=128)
@@ -87,7 +90,11 @@ class LabWork(models.Model):
     number = models.PositiveIntegerField("Номер", default=1)
     title = models.CharField("Название", max_length=256)
     description = models.TextField("Описание", blank=True)
-    duration_minutes = models.PositiveIntegerField("Длительность (мин)", default=90)
+    duration_minutes = models.PositiveIntegerField(
+        "Длительность (мин)",
+        default=90,
+        choices=ALLOWED_LAB_DURATIONS_CHOICES,
+    )
     capacity = models.PositiveIntegerField("Макс. мест", default=30)
     is_published = models.BooleanField("Опубликовано", default=True)
     methodics_file = models.FileField(
@@ -116,12 +123,26 @@ class LabWork(models.Model):
         related_name="default_lab_works",
         verbose_name="Аудитория по умолчанию",
     )
+    primary_stand = models.ForeignKey(
+        "scheduling.LabStand",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="primary_for_lab_works",
+        verbose_name="Основной стенд",
+    )
 
     class Meta:
         verbose_name = "Лабораторная работа"
         verbose_name_plural = "Лабораторные работы"
         ordering = ["discipline", "number"]
         unique_together = [("discipline", "number")]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(duration_minutes__in=ALLOWED_LAB_DURATIONS),
+                name="academics_labwork_allowed_duration",
+            )
+        ]
 
     def __str__(self):
         return f"{self.discipline.title} — ЛР {self.number}: {self.title}"

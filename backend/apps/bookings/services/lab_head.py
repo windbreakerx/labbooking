@@ -1,6 +1,6 @@
 from django.db.models import Q, QuerySet
 
-from apps.academics.models import Discipline, LabWork, Semester
+from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, Semester
 from apps.academics.querysets import (
     resolve_staff_laboratory,
     resolve_staff_training_center,
@@ -71,6 +71,8 @@ def lab_head_lab_work_search_q(query: str) -> Q:
         | Q(laboratories__name__icontains=query)
         | Q(training_centers__name__icontains=query)
         | Q(default_room__number__icontains=query)
+        | Q(primary_stand__name__icontains=query)
+        | Q(primary_stand__inventory_number__icontains=query)
         | _published_search_q(query)
     )
     if query.isdigit():
@@ -180,6 +182,24 @@ def lab_head_laboratory_in_scope(user: User, laboratory_id: int) -> Laboratory |
     return lab_head_laboratories_qs(user).filter(pk=laboratory_id).first()
 
 
+def lab_head_stands_qs(user: User) -> QuerySet[LabStand]:
+    tc = lab_head_training_center(user)
+    if not tc:
+        return LabStand.objects.none()
+    return LabStand.objects.filter(training_center=tc).select_related("training_center", "room").order_by("name")
+
+
+def lab_head_stand_in_scope(user: User, stand_id: int) -> LabStand | None:
+    return lab_head_stands_qs(user).filter(pk=stand_id).first()
+
+
+def validate_lab_duration_minutes(duration_minutes: int) -> int:
+    if duration_minutes not in ALLOWED_LAB_DURATIONS:
+        allowed = ", ".join(str(value) for value in ALLOWED_LAB_DURATIONS)
+        raise ValueError(f"Длительность должна быть одной из: {allowed} минут.")
+    return duration_minutes
+
+
 def lab_head_schedule_qs(user: User) -> QuerySet[ScheduleEntry]:
     from apps.bookings.services import staff_lab_filter
 
@@ -246,14 +266,14 @@ def lab_head_update_lab_work(
     is_published: bool,
     laboratory: Laboratory,
     default_room: Room | None = None,
+    primary_stand: LabStand | None = None,
 ) -> LabWork:
     title = title.strip()
     if not title:
         raise ValueError("Укажите название лабораторной работы.")
     if number < 1:
         raise ValueError("Номер ЛР должен быть не меньше 1.")
-    if duration_minutes < 30:
-        raise ValueError("Длительность должна быть не меньше 30 минут.")
+    validate_lab_duration_minutes(duration_minutes)
     if capacity < 1:
         raise ValueError("Количество мест должно быть не меньше 1.")
     if not lab_head_discipline_in_scope(user, discipline.pk):
@@ -262,6 +282,8 @@ def lab_head_update_lab_work(
         raise ValueError("Лаборатория недоступна.")
     if default_room and default_room.training_center_id != laboratory.training_center_id:
         raise ValueError("Аудитория должна относиться к учебному центру лаборатории.")
+    if primary_stand and primary_stand.training_center_id != laboratory.training_center_id:
+        raise ValueError("Стенд должен относиться к учебному центру лаборатории.")
 
     duplicate = LabWork.objects.filter(discipline=discipline, number=number).exclude(pk=lab_work.pk).exists()
     if duplicate:
@@ -275,6 +297,7 @@ def lab_head_update_lab_work(
     lab_work.capacity = capacity
     lab_work.is_published = is_published
     lab_work.default_room = default_room
+    lab_work.primary_stand = primary_stand
     lab_work.save(
         update_fields=[
             "title",
@@ -284,6 +307,7 @@ def lab_head_update_lab_work(
             "capacity",
             "is_published",
             "default_room",
+            "primary_stand",
         ]
     )
     lab_work.laboratories.set([laboratory.pk])

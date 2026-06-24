@@ -10,7 +10,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils.text import slugify
 
-from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
+from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, Semester, StudentGroup
 from apps.bookings.models import Booking
 from apps.integrations.lr_accounting.parser import ParsedLabWork, ParsedWorkbook, parse_workbook
 from apps.integrations.lr_accounting.students import (
@@ -246,8 +246,9 @@ class Command(BaseCommand):
                 if lab_work.default_room_id != room.id:
                     lab_work.default_room = room
                     changed = True
-                if parsed_lab.duration_minutes and lab_work.duration_minutes != parsed_lab.duration_minutes:
-                    lab_work.duration_minutes = parsed_lab.duration_minutes
+                normalized_duration = self._normalize_duration(parsed_lab.duration_minutes)
+                if normalized_duration and lab_work.duration_minutes != normalized_duration:
+                    lab_work.duration_minutes = normalized_duration
                     changed = True
                 if changed:
                     lab_work.save(update_fields=["default_room", "duration_minutes"])
@@ -265,7 +266,7 @@ class Command(BaseCommand):
                     discipline=discipline,
                     number=parsed_lab.catalog_number or next_number,
                     title=parsed_lab.title,
-                    duration_minutes=parsed_lab.duration_minutes or 90,
+                    duration_minutes=self._normalize_duration(parsed_lab.duration_minutes) or 90,
                     default_room=room,
                     is_published=True,
                 )
@@ -339,7 +340,7 @@ class Command(BaseCommand):
                         continue
                 lab_work = upsert_lab(discipline_title=discipline_title, parsed_lab=parsed_lab, room=room)
                 if lab_work and parsed_lab.stand_name:
-                    _, created = LabStand.objects.update_or_create(
+                    stand, created = LabStand.objects.update_or_create(
                         name=parsed_lab.stand_name,
                         training_center=training_center,
                         room=room,
@@ -350,6 +351,9 @@ class Command(BaseCommand):
                     )
                     if created:
                         stats["stands"] += 1
+                    if lab_work.primary_stand_id != stand.id:
+                        lab_work.primary_stand = stand
+                        lab_work.save(update_fields=["primary_stand"])
 
         return stats
 
@@ -358,3 +362,16 @@ class Command(BaseCommand):
         slug = slugify(title, allow_unicode=False)
         slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-")
         return (slug[:24] or "discipline").upper()
+
+    def _normalize_duration(self, duration: int | None) -> int | None:
+        if duration is None:
+            return None
+        if duration in ALLOWED_LAB_DURATIONS:
+            return duration
+        nearest = min(ALLOWED_LAB_DURATIONS, key=lambda value: abs(value - duration))
+        self.stdout.write(
+            self.style.WARNING(
+                f"Длительность {duration} мин заменена на допустимое значение {nearest} мин."
+            )
+        )
+        return nearest

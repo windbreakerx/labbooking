@@ -9,7 +9,7 @@
                 hx-swap="innerHTML">← Выбрать другой день</button>
     </div>
     <p class="selected-value"><span>Выбранный день</span> {{ date }}</p>
-    <label>Время
+    <label>Интервал времени
         <select name="time"
                 class="booking-select"
                 hx-get="{% url filter_route|default:'book-filter' lab_work_id %}"
@@ -22,5 +22,5 @@
             {% endfor %}
         </select>
     </label>
-    <p class="muted booking-step-panel__hint">После выбора времени система покажет доступные учебные центры или слоты.</p>
+    <p class="muted booking-step-panel__hint">После выбора интервала система покажет доступные учебные центры или слоты.</p>
 </section>

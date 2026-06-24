@@ -42,6 +42,26 @@ class TestLabSessionCapacity:
         assert session is not None
         assert session.capacity == 3
 
+    def test_generate_sessions_creates_interval_starts(self, discipline, semester):
+        tc = TrainingCenter.objects.create(number=18)
+        room = Room.objects.create(training_center=tc, number="1801", capacity=10)
+        lab_work = LabWork.objects.create(
+            discipline=discipline,
+            number=3,
+            title="ЛР 60 минут",
+            duration_minutes=60,
+            capacity=3,
+            is_published=True,
+            default_room=room,
+        )
+        generate_lab_sessions(semester=semester, weeks=1)
+        starts = {
+            timezone.localtime(start).strftime("%H:%M")
+            for start in LabSession.objects.filter(lab_work=lab_work).values_list("starts_at", flat=True)
+        }
+        assert "10:35" in starts
+        assert "11:05" in starts
+
     def test_sync_open_session_capacities(self, discipline, semester):
         tc = TrainingCenter.objects.create(number=9)
         room = Room.objects.create(training_center=tc, number="901", capacity=10)

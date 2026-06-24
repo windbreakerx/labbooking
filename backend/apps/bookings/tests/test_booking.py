@@ -5,16 +5,17 @@ from django.test import Client, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.academics.models import LabWork
+from apps.academics.models import Discipline, LabWork
 from apps.bookings.models import BookingStatus, SupportMessage, SupportTicket
 from apps.bookings.services import BookingError, BookingService
 from apps.bookings.services.session_availability import (
     booking_date_window,
     bookable_sessions_qs,
     is_day_open_for_booking,
+    is_pair_time_for_booking,
 )
 from apps.bookings.tests.conftest import next_open_weekday_pair
-from apps.scheduling.models import LabSession, LabSessionStatus, Room, TrainingCenter
+from apps.scheduling.models import LabSession, LabSessionStatus, LabStand, Room, TrainingCenter
 from apps.users.models import User, UserRole
 
 
@@ -180,6 +181,95 @@ class TestBookingService:
         assert called["count"] == 1
         assert called["session_id"] == session.pk
 
+    def test_shared_stand_blocks_parallel_booking(
+        self,
+        student,
+        session,
+        room,
+        semester,
+        student_group,
+    ):
+        stand = LabStand.objects.create(
+            name="Общий стенд",
+            inventory_number="ST-001",
+            training_center=room.training_center,
+            room=room,
+        )
+        session.lab_work.primary_stand = stand
+        session.lab_work.save(update_fields=["primary_stand"])
+
+        discipline_two = Discipline.objects.create(
+            title="Вторая дисциплина",
+            semester=session.lab_work.discipline.semester,
+            is_published=True,
+        )
+        student_group.disciplines.add(discipline_two)
+        second_lab = LabWork.objects.create(
+            discipline=discipline_two,
+            number=1,
+            title="ЛР на том же стенде",
+            duration_minutes=90,
+            is_published=True,
+            primary_stand=stand,
+        )
+        second_session = LabSession.objects.create(
+            lab_work=second_lab,
+            room=room,
+            semester=semester,
+            starts_at=session.starts_at,
+            ends_at=session.ends_at,
+            capacity=2,
+            status=LabSessionStatus.OPEN,
+        )
+        other_student = _assign_student_group(
+            User.objects.create_user(
+                email="stand-conflict@stud.spmi.ru",
+                password="pass",
+                first_name="S",
+                last_name="C",
+                role=UserRole.STUDENT,
+            ),
+            student_group,
+        )
+        BookingService().create_booking(student, session.pk)
+        with pytest.raises(BookingError, match="Стенд уже занят"):
+            BookingService().create_booking(other_student, second_session.pk)
+
+    def test_student_cannot_book_overlapping_intervals(
+        self,
+        student,
+        session,
+        semester,
+        student_group,
+    ):
+        other_tc = TrainingCenter.objects.create(number=77)
+        other_room = Room.objects.create(training_center=other_tc, number="777", capacity=10)
+        discipline_two = Discipline.objects.create(
+            title="Термодинамика",
+            semester=session.lab_work.discipline.semester,
+            is_published=True,
+        )
+        student_group.disciplines.add(discipline_two)
+        second_lab = LabWork.objects.create(
+            discipline=discipline_two,
+            number=1,
+            title="ЛР 2",
+            duration_minutes=60,
+            is_published=True,
+        )
+        overlapping_session = LabSession.objects.create(
+            lab_work=second_lab,
+            room=other_room,
+            semester=semester,
+            starts_at=session.starts_at + timezone.timedelta(minutes=30),
+            ends_at=session.ends_at + timezone.timedelta(minutes=30),
+            capacity=5,
+            status=LabSessionStatus.OPEN,
+        )
+        BookingService().create_booking(student, session.pk)
+        with pytest.raises(BookingError, match="пересекающееся время"):
+            BookingService().create_booking(student, overlapping_session.pk)
+
 
 @pytest.mark.django_db
 class TestSessionAvailability:
@@ -250,6 +340,48 @@ class TestSessionAvailability:
         assert s1 in qs
         assert s2 not in qs
         assert s3 not in qs
+
+    def test_offset_interval_inside_pair_is_bookable(self):
+        offset_start = next_open_weekday_pair(days_ahead=3, hour=11, minute=35)
+        assert is_pair_time_for_booking(offset_start) is True
+
+    def test_student_busy_intervals_are_hidden(self, student, student_group, session, semester):
+        BookingService().create_booking(student, session.pk)
+        discipline_two = Discipline.objects.create(
+            title="Гидравлика",
+            semester=session.lab_work.discipline.semester,
+            is_published=True,
+        )
+        student_group.disciplines.add(discipline_two)
+        second_lab = LabWork.objects.create(
+            discipline=discipline_two,
+            number=1,
+            title="ЛР 2",
+            duration_minutes=60,
+            is_published=True,
+        )
+        overlap = LabSession.objects.create(
+            lab_work=second_lab,
+            room=session.room,
+            semester=semester,
+            starts_at=session.starts_at,
+            ends_at=session.starts_at + timezone.timedelta(minutes=60),
+            capacity=2,
+            status=LabSessionStatus.OPEN,
+        )
+        free_start = next_open_weekday_pair(days_ahead=5, hour=10, minute=35)
+        free_slot = LabSession.objects.create(
+            lab_work=second_lab,
+            room=session.room,
+            semester=semester,
+            starts_at=free_start,
+            ends_at=free_start + timezone.timedelta(minutes=60),
+            capacity=2,
+            status=LabSessionStatus.OPEN,
+        )
+        qs = bookable_sessions_qs(lab_work_id=second_lab.pk, student=student)
+        assert overlap not in qs
+        assert free_slot in qs
 
 
 @pytest.mark.django_db

@@ -88,8 +88,8 @@ class LabSessionListView(generics.ListAPIView):
             if lab_work_id:
                 if not accessible.filter(pk=int(lab_work_id)).exists():
                     return LabSession.objects.none()
-                return bookable_sessions_qs(lab_work_id=int(lab_work_id))
-            return bookable_sessions_qs().filter(lab_work__in=accessible)
+                return bookable_sessions_qs(lab_work_id=int(lab_work_id), student=user)
+            return bookable_sessions_qs(student=user).filter(lab_work__in=accessible)
         if is_staff_user(user):
             accessible = staff_lab_works_qs(user)
             qs = bookable_sessions_qs(lab_work_id=int(lab_work_id)) if lab_work_id else bookable_sessions_qs()
@@ -124,6 +124,9 @@ class LabSessionFilterView(APIView):
             date=request.query_params.get("date") or None,
             time_str=request.query_params.get("time") or None,
             tc_number=request.query_params.get("tc") or None,
+            sessions_qs=bookable_sessions_qs(lab_work_id=int(lab_work), student=request.user)
+            if request.user.role == UserRole.STUDENT
+            else None,
         )
         return Response(data)
 

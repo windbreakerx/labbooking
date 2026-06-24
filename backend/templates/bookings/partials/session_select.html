@@ -8,7 +8,7 @@
             <option value="">—</option>
             {% for s in sessions %}
             <option value="{{ s.pk }}">
-                {{ s.starts_at|date:"d.m.Y H:i" }} — свободно {{ s.available_seats }}/{{ s.capacity }}
+                {{ s.starts_at|date:"d.m.Y H:i" }}-{{ s.ends_at|date:"H:i" }} — свободно {{ s.available_seats }}/{{ s.capacity }}
             </option>
             {% endfor %}
         </select>

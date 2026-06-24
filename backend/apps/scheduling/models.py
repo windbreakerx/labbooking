@@ -1,6 +1,11 @@
 from django.db import models
 
-from apps.academics.models import LabWork, Semester
+from apps.academics.models import (
+    ALLOWED_LAB_DURATIONS,
+    ALLOWED_LAB_DURATIONS_CHOICES,
+    LabWork,
+    Semester,
+)
 from apps.users.models import User
 
 
@@ -120,11 +125,22 @@ class LabSession(models.Model):
             lab_session__starts_at__lt=self.ends_at,
             lab_session__ends_at__gt=self.starts_at,
         ).count()
+        stand_overlap_booked = 0
+        stand_id = self.lab_work.primary_stand_id
+        if stand_id:
+            stand_overlap_booked = Booking.objects.filter(
+                current_status=BookingStatus.BOOKED,
+                lab_session__lab_work__primary_stand_id=stand_id,
+                lab_session__starts_at__lt=self.ends_at,
+                lab_session__ends_at__gt=self.starts_at,
+            ).count()
+        stand_available = 1 - stand_overlap_booked if stand_id else self.capacity
         return max(
             0,
             min(
                 self.capacity - session_booked,
                 self.room.capacity - room_overlap_booked,
+                stand_available,
             ),
         )
 
@@ -191,7 +207,11 @@ class ScheduleEntry(models.Model):
     )
     weekday = models.PositiveSmallIntegerField("День недели (0=Пн)")
     start_time = models.TimeField("Время начала")
-    duration_minutes = models.PositiveIntegerField("Длительность (мин)", default=90)
+    duration_minutes = models.PositiveIntegerField(
+        "Длительность (мин)",
+        default=90,
+        choices=ALLOWED_LAB_DURATIONS_CHOICES,
+    )
     capacity = models.PositiveIntegerField("Мест", default=30)
     teacher = models.ForeignKey(
         User,
@@ -206,6 +226,12 @@ class ScheduleEntry(models.Model):
         verbose_name = "Запись расписания"
         verbose_name_plural = "Расписание"
         ordering = ["weekday", "start_time"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(duration_minutes__in=ALLOWED_LAB_DURATIONS),
+                name="scheduling_scheduleentry_allowed_duration",
+            )
+        ]
 
     def __str__(self):
         return f"{self.lab_work} — день {self.weekday} {self.start_time}"

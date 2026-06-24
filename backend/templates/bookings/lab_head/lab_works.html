@@ -45,6 +45,7 @@
                 data-laboratory-id="{% if bound_lab %}{{ bound_lab.pk }}{% elif laboratory %}{{ laboratory.pk }}{% endif %}"
                 data-tc-label="{% if bound_lab %}УЦ №{{ bound_lab.training_center.number }}{% if bound_lab.training_center.name %} — {{ bound_lab.training_center.name }}{% endif %}{% elif training_center %}УЦ №{{ training_center.number }}{% if training_center.name %} — {{ training_center.name }}{% endif %}{% endif %}"
                 data-room-id="{% if lw.default_room_id %}{{ lw.default_room_id }}{% endif %}"
+                data-stand-id="{% if lw.primary_stand_id %}{{ lw.primary_stand_id }}{% endif %}"
                 data-duration="{{ lw.duration_minutes }}"
                 data-capacity="{{ lw.capacity }}"
                 data-published="{{ lw.is_published|yesno:'1,0' }}"
@@ -117,7 +118,21 @@
                 {% endfor %}
             </select>
         </label>
-        <label>Длительность (мин) <input type="number" name="duration_minutes" value="90" min="30" step="5"></label>
+        <label>Стенд
+            <select name="primary_stand">
+                <option value="">— не выбран —</option>
+                {% for stand in stands %}
+                <option value="{{ stand.pk }}">{{ stand.name }} ({{ stand.inventory_number }})</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Длительность (мин)
+            <select name="duration_minutes" required>
+                {% for duration in duration_options %}
+                <option value="{{ duration }}" {% if duration == 90 %}selected{% endif %}>{{ duration }}</option>
+                {% endfor %}
+            </select>
+        </label>
         <label>Макс. мест <input type="number" name="capacity" value="30" min="1" required></label>
         <div class="app-dialog__actions form-grid__full">
             <button type="submit">Сохранить</button>
@@ -160,7 +175,21 @@
                 {% endfor %}
             </select>
         </label>
-        <label>Длительность (мин) <input type="number" name="duration_minutes" id="lab-work-edit-duration" min="30" step="5" required></label>
+        <label>Стенд
+            <select name="primary_stand" id="lab-work-edit-stand">
+                <option value="">— не выбран —</option>
+                {% for stand in stands %}
+                <option value="{{ stand.pk }}">{{ stand.name }} ({{ stand.inventory_number }})</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Длительность (мин)
+            <select name="duration_minutes" id="lab-work-edit-duration" required>
+                {% for duration in duration_options %}
+                <option value="{{ duration }}">{{ duration }}</option>
+                {% endfor %}
+            </select>
+        </label>
         <label>Макс. мест <input type="number" name="capacity" id="lab-work-edit-capacity" min="1" required></label>
         <div class="form-grid__full">
             <label class="checkbox-inline">
@@ -219,6 +248,7 @@
         document.getElementById('lab-work-edit-discipline').value = row.getAttribute('data-discipline-id') || '';
         document.getElementById('lab-work-edit-laboratory').value = row.getAttribute('data-laboratory-id') || '';
         document.getElementById('lab-work-edit-room').value = row.getAttribute('data-room-id') || '';
+        document.getElementById('lab-work-edit-stand').value = row.getAttribute('data-stand-id') || '';
         document.getElementById('lab-work-edit-duration').value = row.getAttribute('data-duration') || '';
         document.getElementById('lab-work-edit-capacity').value = row.getAttribute('data-capacity') || '';
         document.getElementById('lab-work-edit-published').checked = row.getAttribute('data-published') === '1';

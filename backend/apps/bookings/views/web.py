@@ -30,10 +30,11 @@ from apps.bookings.services import (
     staff_lab_filter,
 )
 from apps.bookings.services.session_availability import (
+    bookable_sessions_qs,
     get_session_filter_options,
     get_sessions_for_date_time,
     get_sessions_for_selection,
-    pair_meta_by_time,
+    session_interval_label,
     staff_manual_sessions_qs,
 )
 from apps.scheduling.models import LabSession, TrainingCenter
@@ -132,9 +133,6 @@ def _render_manual_filter_partial(request, lab_work_id: int, date, time_str, tc_
             ).select_related("room", "room__training_center")
         )
         if len(sessions) == 1:
-            pair_label = ""
-            if meta := pair_meta_by_time(time_str):
-                _, pair_label = meta
             return render(
                 request,
                 "bookings/partials/session_confirm.html",
@@ -143,7 +141,7 @@ def _render_manual_filter_partial(request, lab_work_id: int, date, time_str, tc_
                     "session": sessions[0],
                     "date": date,
                     "time": time_str,
-                    "pair_label": pair_label,
+                    "pair_label": session_interval_label(sessions[0]),
                 },
             )
         if len(sessions) > 1:
@@ -267,7 +265,8 @@ class BookLabWorkWebView(LoginRequiredMixin, View):
             student_lab_works_qs(request.user),
             pk=lab_work_id,
         )
-        filter_data = get_session_filter_options(lab_work_id)
+        sessions_qs = bookable_sessions_qs(lab_work_id=lab_work_id, student=request.user)
+        filter_data = get_session_filter_options(lab_work_id, sessions_qs=sessions_qs)
         return render(
             request,
             self.template_name,
@@ -297,6 +296,7 @@ class BookFilterPartialView(LoginRequiredMixin, View):
         if request.user.role != UserRole.STUDENT:
             return HttpResponseForbidden()
         get_object_or_404(student_lab_works_qs(request.user), pk=lab_work_id)
+        student_sessions_qs = bookable_sessions_qs(lab_work_id=lab_work_id, student=request.user)
         date = request.GET.get("date") or None
         time_str = request.GET.get("time") or None
         tc_number = request.GET.get("tc") or None
@@ -309,10 +309,13 @@ class BookFilterPartialView(LoginRequiredMixin, View):
                     "room__training_center",
                 )
             )
+            allowed_session_ids = set(student_sessions_qs.values_list("pk", flat=True))
+            sessions = [
+                session
+                for session in sessions
+                if session.pk in allowed_session_ids
+            ]
             if len(sessions) == 1:
-                pair_label = ""
-                if meta := pair_meta_by_time(time_str):
-                    _, pair_label = meta
                 return render(
                     request,
                     "bookings/partials/session_confirm.html",
@@ -320,7 +323,7 @@ class BookFilterPartialView(LoginRequiredMixin, View):
                         "session": sessions[0],
                         "date": date,
                         "time": time_str,
-                        "pair_label": pair_label,
+                        "pair_label": session_interval_label(sessions[0]),
                     },
                 )
             if len(sessions) > 1:
@@ -346,14 +349,26 @@ class BookFilterPartialView(LoginRequiredMixin, View):
                 )
 
         if room_id and date and time_str:
-            sessions = get_sessions_for_selection(lab_work_id, date, time_str, int(room_id))
+            sessions = get_sessions_for_selection(
+                lab_work_id,
+                date,
+                time_str,
+                int(room_id),
+                sessions_qs=student_sessions_qs,
+            )
             return render(
                 request,
                 "bookings/partials/session_select.html",
                 {"sessions": sessions},
             )
 
-        filter_data = get_session_filter_options(lab_work_id, date, time_str, tc_number)
+        filter_data = get_session_filter_options(
+            lab_work_id,
+            date,
+            time_str,
+            tc_number,
+            sessions_qs=student_sessions_qs,
+        )
         template_map = {
             "date": "bookings/partials/filter_date_calendar.html",
             "time": "bookings/partials/filter_time.html",

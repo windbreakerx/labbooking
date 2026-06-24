@@ -20,9 +20,11 @@ class RoomSerializer(serializers.ModelSerializer):
 
 
 class LabWorkSerializer(serializers.ModelSerializer):
+    primary_stand_id = serializers.IntegerField(source="primary_stand_id", read_only=True)
+
     class Meta:
         model = LabWork
-        fields = ("id", "number", "title", "description", "duration_minutes", "capacity")
+        fields = ("id", "number", "title", "description", "duration_minutes", "capacity", "primary_stand_id")
 
 
 class DisciplineSerializer(serializers.ModelSerializer):

@@ -1,7 +1,7 @@
 import pytest
 from django.urls import reverse
 
-from apps.academics.models import Discipline, LabWork, Semester
+from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, Semester
 from apps.scheduling.models import LabStand, Laboratory, Room, ScheduleEntry, TrainingCenter
 from apps.users.models import User, UserRole
 
@@ -90,6 +90,16 @@ def own_room(own_tc):
 
 
 @pytest.fixture
+def own_stand(own_tc, own_room):
+    return LabStand.objects.create(
+        name="Стенд завлаба",
+        inventory_number="ST-101",
+        training_center=own_tc,
+        room=own_room,
+    )
+
+
+@pytest.fixture
 def client_logged_in(client, lab_head):
     client.force_login(lab_head)
     return client
@@ -156,7 +166,7 @@ class TestLabHeadBindings:
         assert response.status_code == 302
         assert not own_discipline.laboratories.filter(pk=own_laboratory.pk).exists()
 
-    def test_create_lab_work(self, client_logged_in, own_laboratory, own_discipline, own_room):
+    def test_create_lab_work(self, client_logged_in, own_laboratory, own_discipline, own_room, own_stand):
         response = client_logged_in.post(
             reverse("lab-head-lab-work-create"),
             {
@@ -165,14 +175,16 @@ class TestLabHeadBindings:
                 "default_room": own_room.pk,
                 "number": 2,
                 "title": "Новая ЛР",
-                "duration_minutes": 90,
+                "duration_minutes": 60,
                 "capacity": 3,
+                "primary_stand": own_stand.pk,
             },
         )
         assert response.status_code == 302
         lab_work = LabWork.objects.get(discipline=own_discipline, number=2)
         assert lab_work.capacity == 3
         assert lab_work.default_room_id == own_room.pk
+        assert lab_work.primary_stand_id == own_stand.pk
         assert lab_work.laboratories.filter(pk=own_laboratory.pk).exists()
 
     def test_create_discipline_disabled_for_lab_head(self, client_logged_in, own_tc, semester):
@@ -194,7 +206,7 @@ class TestLabHeadBindings:
         assert own_discipline.title in content
         assert foreign_discipline.title not in content
 
-    def test_update_lab_work(self, client_logged_in, own_laboratory, own_discipline, own_room):
+    def test_update_lab_work(self, client_logged_in, own_laboratory, own_discipline, own_room, own_stand):
         lab_work = LabWork.objects.create(
             discipline=own_discipline,
             number=3,
@@ -213,17 +225,19 @@ class TestLabHeadBindings:
                 "discipline": own_discipline.pk,
                 "laboratory": own_laboratory.pk,
                 "default_room": own_room.pk,
-                "duration_minutes": 120,
+                "duration_minutes": 60,
                 "capacity": 3,
                 "is_published": "on",
+                "primary_stand": own_stand.pk,
             },
         )
         assert response.status_code == 302
         lab_work.refresh_from_db()
         assert lab_work.capacity == 3
         assert lab_work.title == "ЛР обновлённая"
-        assert lab_work.duration_minutes == 120
+        assert lab_work.duration_minutes == 60
         assert lab_work.default_room_id == own_room.pk
+        assert lab_work.primary_stand_id == own_stand.pk
         assert lab_work.is_published is True
 
     def test_unpublish_lab_work(self, client_logged_in, own_laboratory, own_discipline):
@@ -260,7 +274,7 @@ class TestLabHeadLabWorksSearch:
             discipline=own_discipline,
             number=7,
             title="Измерение сопротивления",
-            duration_minutes=120,
+            duration_minutes=90,
             capacity=15,
             is_published=True,
             default_room=own_room,
@@ -385,6 +399,81 @@ class TestLabHeadStandsAndSchedule:
         )
         assert response.status_code == 302
         assert ScheduleEntry.objects.filter(lab_work=lab_work, room=own_room).exists()
+
+    def test_create_lab_work_rejects_invalid_duration(self, client_logged_in, own_laboratory, own_discipline):
+        response = client_logged_in.post(
+            reverse("lab-head-lab-work-create"),
+            {
+                "discipline": own_discipline.pk,
+                "laboratory": own_laboratory.pk,
+                "number": 5,
+                "title": "ЛР с неверной длительностью",
+                "duration_minutes": 35,
+                "capacity": 3,
+            },
+        )
+        assert response.status_code == 302
+        assert not LabWork.objects.filter(title="ЛР с неверной длительностью").exists()
+
+    def test_update_lab_work_rejects_invalid_duration(self, client_logged_in, own_laboratory, own_discipline):
+        lab_work = LabWork.objects.create(
+            discipline=own_discipline,
+            number=10,
+            title="ЛР для проверки длительности",
+            duration_minutes=90,
+            capacity=10,
+            is_published=True,
+        )
+        lab_work.laboratories.add(own_laboratory)
+        response = client_logged_in.post(
+            reverse("lab-head-lab-work-update", kwargs={"pk": lab_work.pk}),
+            {
+                "title": lab_work.title,
+                "number": lab_work.number,
+                "discipline": own_discipline.pk,
+                "laboratory": own_laboratory.pk,
+                "duration_minutes": 35,
+                "capacity": 5,
+                "is_published": "on",
+            },
+        )
+        assert response.status_code == 302
+        lab_work.refresh_from_db()
+        assert lab_work.duration_minutes == 90
+
+    def test_schedule_rejects_invalid_duration(
+        self,
+        client_logged_in,
+        own_discipline,
+        own_laboratory,
+        own_room,
+    ):
+        lab_work = LabWork.objects.create(
+            discipline=own_discipline,
+            number=11,
+            title="ЛР для расписания",
+            duration_minutes=90,
+            is_published=True,
+        )
+        lab_work.laboratories.add(own_laboratory)
+        lab_work.training_centers.add(own_laboratory.training_center)
+        response = client_logged_in.post(
+            reverse("lab-head-schedule-create"),
+            {
+                "lab_work": lab_work.pk,
+                "room": own_room.pk,
+                "weekday": 0,
+                "start_time": "10:35",
+                "week_parity": "BOTH",
+                "capacity": 10,
+                "duration_minutes": 35,
+            },
+        )
+        assert response.status_code == 302
+        assert not ScheduleEntry.objects.filter(lab_work=lab_work, room=own_room, duration_minutes=35).exists()
+
+    def test_allowed_durations_constant(self):
+        assert ALLOWED_LAB_DURATIONS == (30, 45, 60, 90)
 
 
 @pytest.mark.django_db

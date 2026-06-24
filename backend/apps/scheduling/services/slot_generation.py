@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
 
-from apps.academics.models import LabWork, Semester
-from apps.bookings.services.session_availability import UNIVERSITY_PAIR_SLOTS
+from apps.academics.models import ALLOWED_LAB_DURATIONS, LabWork, Semester
+from apps.bookings.services.session_availability import pair_start_times_for_duration
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
 from apps.scheduling.services.capacity import lab_session_capacity
 
@@ -22,8 +22,8 @@ def generate_lab_sessions(
     now: datetime | None = None,
 ) -> int:
     """
-    Для каждой опубликованной ЛР с default_room создаёт слоты на все будние дни
-    и все университетские пары в пределах горизонта записи.
+    Для каждой опубликованной ЛР с default_room создаёт интервальные слоты
+    внутри университетских пар на все будние дни в пределах горизонта записи.
     """
     local_now = timezone.localtime(now or timezone.now())
     today = local_now.date()
@@ -40,6 +40,9 @@ def generate_lab_sessions(
     )
 
     holidays = set(Holiday.objects.values_list("date", flat=True))
+    starts_by_duration = {
+        duration: set(pair_start_times_for_duration(duration)) for duration in ALLOWED_LAB_DURATIONS
+    }
     created = 0
 
     for day_offset in range(1, days_ahead + 1):
@@ -47,13 +50,15 @@ def generate_lab_sessions(
         if session_date.weekday() >= 5 or session_date in holidays:
             continue
 
-        for _, start_time, _ in UNIVERSITY_PAIR_SLOTS:
+        for start_time in sorted(starts_by_duration[30]):
             starts_at = timezone.make_aware(datetime.combine(session_date, start_time), tz)
             if starts_at <= local_now:
                 continue
 
             for lab_work in lab_works:
                 room = lab_work.default_room
+                if start_time not in starts_by_duration.get(lab_work.duration_minutes, set()):
+                    continue
                 ends_at = starts_at + timedelta(minutes=lab_work.duration_minutes)
                 _, was_created = LabSession.objects.update_or_create(
                     lab_work=lab_work,

@@ -88,6 +88,25 @@ class BookingService:
             lab_session__ends_at__gt=session.starts_at,
         ).count()
 
+    def _stand_overlap_booked(self, session: LabSession) -> int:
+        stand_id = session.lab_work.primary_stand_id
+        if not stand_id:
+            return 0
+        return Booking.objects.filter(
+            current_status=BookingStatus.BOOKED,
+            lab_session__lab_work__primary_stand_id=stand_id,
+            lab_session__starts_at__lt=session.ends_at,
+            lab_session__ends_at__gt=session.starts_at,
+        ).count()
+
+    def _student_overlap_booked(self, student: User, session: LabSession) -> bool:
+        return Booking.objects.filter(
+            student=student,
+            current_status__in=ACTIVE_STATUSES,
+            lab_session__starts_at__lt=session.ends_at,
+            lab_session__ends_at__gt=session.starts_at,
+        ).exists()
+
     def _lock_overlapping_room_sessions(self, session: LabSession):
         """
         Блокирует все пересекающиеся слоты аудитории в рамках транзакции.
@@ -100,6 +119,17 @@ class BookingService:
             ends_at__gt=session.starts_at,
         )
         # Принудительно выполняем SELECT ... FOR UPDATE.
+        list(overlapping_qs.values_list("id", flat=True))
+
+    def _lock_overlapping_stand_sessions(self, session: LabSession):
+        stand_id = session.lab_work.primary_stand_id
+        if not stand_id:
+            return
+        overlapping_qs = LabSession.objects.select_for_update().filter(
+            lab_work__primary_stand_id=stand_id,
+            starts_at__lt=session.ends_at,
+            ends_at__gt=session.starts_at,
+        )
         list(overlapping_qs.values_list("id", flat=True))
 
     def _validate_cancel_window(self, booking: Booking, by_staff: bool = False):
@@ -138,10 +168,11 @@ class BookingService:
     ) -> Booking:
         session = (
             LabSession.objects.select_for_update()
-            .select_related("lab_work", "lab_work__discipline", "room")
+            .select_related("lab_work", "lab_work__discipline", "lab_work__primary_stand", "room")
             .get(pk=session_id)
         )
         self._lock_overlapping_room_sessions(session)
+        self._lock_overlapping_stand_sessions(session)
         skip_rules = skip_student_rules or manual
         self._validate_booking_window(session, skip_student_rules=skip_rules)
         if not skip_rules and student.role == UserRole.STUDENT:
@@ -155,6 +186,8 @@ class BookingService:
                 session.lab_work.discipline_id,
                 session.lab_work_id,
             )
+            if self._student_overlap_booked(student, session):
+                raise BookingError("У вас уже есть запись на пересекающееся время.")
 
         booked_count = session.bookings.filter(current_status=BookingStatus.BOOKED).count()
         if not skip_rules and booked_count >= session.capacity:
@@ -165,6 +198,9 @@ class BookingService:
                 raise BookingError(
                     f"Аудитория {session.room.number} заполнена на это время. Выберите другую пару."
                 )
+            stand_overlap_booked = self._stand_overlap_booked(session)
+            if stand_overlap_booked >= 1:
+                raise BookingError("Стенд уже занят на это время. Выберите другой интервал.")
 
         booking = Booking.objects.create(
             student=student,

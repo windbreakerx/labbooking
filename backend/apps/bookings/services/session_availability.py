@@ -1,9 +1,11 @@
 from datetime import datetime, time, timedelta
+from functools import lru_cache
 
 from django.conf import settings
 from django.db.models import QuerySet
 from django.utils import timezone
 
+from apps.academics.models import ALLOWED_LAB_DURATIONS
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
 
 UNIVERSITY_PAIR_SLOTS = [
@@ -66,18 +68,102 @@ def is_weekday_for_booking(session_dt: datetime) -> bool:
     return local_dt.weekday() < 5
 
 
+def _minutes_between(start: time, end: time) -> int:
+    start_minutes = start.hour * 60 + start.minute
+    end_minutes = end.hour * 60 + end.minute
+    return end_minutes - start_minutes
+
+
+@lru_cache(maxsize=None)
+def _reachable_sums(max_minutes: int) -> set[int]:
+    reachable = {0}
+    changed = True
+    while changed:
+        changed = False
+        snapshot = tuple(reachable)
+        for value in snapshot:
+            for duration in ALLOWED_LAB_DURATIONS:
+                candidate = value + duration
+                if candidate <= max_minutes and candidate not in reachable:
+                    reachable.add(candidate)
+                    changed = True
+    return reachable
+
+
+@lru_cache(maxsize=None)
+def _pair_start_offsets(pair_minutes: int) -> tuple[int, ...]:
+    reachable = _reachable_sums(pair_minutes)
+    offsets = sorted(
+        offset
+        for offset in reachable
+        if any(offset + duration <= pair_minutes for duration in ALLOWED_LAB_DURATIONS)
+    )
+    return tuple(offsets)
+
+
+def _pair_slot_for_time(moment: time) -> tuple[int, time, time] | None:
+    minute_value = moment.hour * 60 + moment.minute
+    for number, pair_start, pair_end in UNIVERSITY_PAIR_SLOTS:
+        pair_start_minutes = pair_start.hour * 60 + pair_start.minute
+        pair_end_minutes = pair_end.hour * 60 + pair_end.minute
+        if pair_start_minutes <= minute_value < pair_end_minutes:
+            return number, pair_start, pair_end
+    return None
+
+
 def is_pair_time_for_booking(session_dt: datetime) -> bool:
     local_dt = timezone.localtime(session_dt)
     starts_at = local_dt.time().replace(second=0, microsecond=0)
-    return any(start == starts_at for _, start, _ in UNIVERSITY_PAIR_SLOTS)
+    slot = _pair_slot_for_time(starts_at)
+    if not slot:
+        return False
+    _, pair_start, pair_end = slot
+    pair_minutes = _minutes_between(pair_start, pair_end)
+    start_minutes = starts_at.hour * 60 + starts_at.minute
+    pair_start_minutes = pair_start.hour * 60 + pair_start.minute
+    offset = start_minutes - pair_start_minutes
+    return offset in _pair_start_offsets(pair_minutes)
 
 
 def pair_meta_by_time(time_str: str) -> tuple[int, str] | None:
-    for number, start, end in UNIVERSITY_PAIR_SLOTS:
-        value = f"{start.hour:02d}:{start.minute:02d}"
-        if value == time_str:
-            return number, f"{number} пара ({value}-{end.hour:02d}:{end.minute:02d})"
-    return None
+    try:
+        starts_at = datetime.strptime(time_str, "%H:%M").time()
+    except ValueError:
+        return None
+    slot = _pair_slot_for_time(starts_at)
+    if not slot:
+        return None
+    number, pair_start, pair_end = slot
+    start_value = f"{starts_at.hour:02d}:{starts_at.minute:02d}"
+    pair_start_value = f"{pair_start.hour:02d}:{pair_start.minute:02d}"
+    pair_end_value = f"{pair_end.hour:02d}:{pair_end.minute:02d}"
+    if start_value == pair_start_value:
+        return number, f"{number} пара ({pair_start_value}-{pair_end_value})"
+    return number, f"{number} пара ({start_value}, окно {pair_start_value}-{pair_end_value})"
+
+
+def session_interval_label(session: LabSession) -> str:
+    local_start = timezone.localtime(session.starts_at)
+    local_end = timezone.localtime(session.ends_at)
+    start_value = local_start.strftime("%H:%M")
+    end_value = local_end.strftime("%H:%M")
+    pair_info = pair_meta_by_time(start_value)
+    if not pair_info:
+        return f"{start_value}-{end_value}"
+    pair_number, _ = pair_info
+    return f"{start_value}-{end_value} ({pair_number} пара)"
+
+
+def pair_start_times_for_duration(duration_minutes: int) -> list[time]:
+    starts: list[time] = []
+    for _, pair_start, pair_end in UNIVERSITY_PAIR_SLOTS:
+        pair_minutes = _minutes_between(pair_start, pair_end)
+        for offset in _pair_start_offsets(pair_minutes):
+            if offset + duration_minutes > pair_minutes:
+                continue
+            total_minutes = pair_start.hour * 60 + pair_start.minute + offset
+            starts.append(time(total_minutes // 60, total_minutes % 60))
+    return starts
 
 
 def _filter_sessions_with_free_seats(qs: QuerySet[LabSession]) -> QuerySet[LabSession]:
@@ -121,7 +207,7 @@ def _filter_by_local_time(qs: QuerySet[LabSession], time_str: str) -> QuerySet[L
     return qs.filter(pk__in=session_ids)
 
 
-def bookable_sessions_qs(lab_work_id: int | None = None) -> QuerySet[LabSession]:
+def bookable_sessions_qs(lab_work_id: int | None = None, *, student=None) -> QuerySet[LabSession]:
     now = timezone.now()
     min_date, max_date = booking_date_window(now)
     holiday_dates = set(Holiday.objects.values_list("date", flat=True))
@@ -142,7 +228,23 @@ def bookable_sessions_qs(lab_work_id: int | None = None) -> QuerySet[LabSession]
     if holiday_dates:
         qs = qs.exclude(starts_at__date__in=holiday_dates)
 
-    return _filter_sessions_with_free_seats(qs)
+    qs = _filter_sessions_with_free_seats(qs)
+    if student is not None:
+        from apps.bookings.models import BookingStatus
+
+        busy_bookings = student.bookings.filter(current_status=BookingStatus.BOOKED).select_related("lab_session")
+        busy_intervals = [
+            (booking.lab_session.starts_at, booking.lab_session.ends_at)
+            for booking in busy_bookings
+        ]
+        if busy_intervals:
+            session_ids = []
+            for session in qs:
+                if any(start < session.ends_at and end > session.starts_at for start, end in busy_intervals):
+                    continue
+                session_ids.append(session.pk)
+            qs = qs.filter(pk__in=session_ids) if session_ids else qs.none()
+    return qs
 
 
 def staff_manual_sessions_qs(lab_work_id: int) -> QuerySet[LabSession]:
@@ -189,17 +291,14 @@ def get_session_filter_options(
 
     if date:
         qs = _filter_by_local_date(qs, date)
-        times = sorted(
-            {timezone.localtime(s.starts_at).strftime("%H:%M") for s in qs},
-            key=lambda t: PAIR_ORDER_BY_START.get(t, 99),
-        )
+        sessions_by_start = {
+            timezone.localtime(session.starts_at).strftime("%H:%M"): session for session in qs
+        }
+        times = sorted(sessions_by_start.keys(), key=lambda t: t)
         if not time_str:
             options = []
             for t in times:
-                meta = pair_meta_by_time(t)
-                if meta:
-                    _, label = meta
-                    options.append({"value": t, "label": label})
+                options.append({"value": t, "label": session_interval_label(sessions_by_start[t])})
             return {"level": "time", "options": options}
 
     if time_str:
@@ -235,7 +334,8 @@ def get_session_filter_options(
         local_starts = timezone.localtime(session.starts_at)
         date_key = local_starts.date().isoformat()
         pair_key = local_starts.strftime("%H:%M")
-        pair_num = PAIR_ORDER_BY_START.get(pair_key)
+        pair_info = pair_meta_by_time(pair_key)
+        pair_num = pair_info[0] if pair_info else None
         if date_key not in date_meta:
             date_meta[date_key] = {"pairs": set(), "available_seats": 0}
         if pair_num:
