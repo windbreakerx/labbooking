@@ -1,6 +1,7 @@
 import logging
 
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
@@ -413,7 +414,11 @@ def staff_lab_filter(qs, user, *, training_center_lookup: str = "room__training_
     """Ограничивает queryset сотрудника своей лабораторией (SYS_ADMIN видит всё)."""
     if user.role == UserRole.SYS_ADMIN:
         return qs
-    tc = getattr(user.profile, "training_center", None)
+    try:
+        profile = user.profile
+    except (AttributeError, ObjectDoesNotExist):
+        profile = None
+    tc = getattr(profile, "training_center", None)
     if not tc:
         return qs.none()
     lookup_value = tc.pk if training_center_lookup in {"pk", "id"} else tc

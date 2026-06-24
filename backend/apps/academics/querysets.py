@@ -1,8 +1,16 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q, QuerySet
 
 from apps.academics.models import Discipline, LabWork, StudentGroup
 from apps.scheduling.models import Laboratory, TrainingCenter
 from apps.users.models import User, UserRole
+
+
+def _safe_profile(user: User):
+    try:
+        return user.profile
+    except (AttributeError, ObjectDoesNotExist):
+        return None
 
 
 def published_disciplines_qs():
@@ -21,7 +29,7 @@ def published_lab_works_qs(discipline_id: int):
 
 
 def resolve_student_group(user: User) -> StudentGroup | None:
-    profile = getattr(user, "profile", None)
+    profile = _safe_profile(user)
     if not profile:
         return None
     if profile.student_group_id:
@@ -81,7 +89,7 @@ def student_support_training_centers_qs(user: User) -> QuerySet[TrainingCenter]:
 
 
 def resolve_staff_training_center(user: User) -> TrainingCenter | None:
-    profile = getattr(user, "profile", None)
+    profile = _safe_profile(user)
     if not profile:
         return None
     if profile.laboratory_id:
@@ -90,7 +98,7 @@ def resolve_staff_training_center(user: User) -> TrainingCenter | None:
 
 
 def resolve_staff_laboratory(user: User) -> Laboratory | None:
-    profile = getattr(user, "profile", None)
+    profile = _safe_profile(user)
     if not profile:
         return None
     if profile.laboratory_id:

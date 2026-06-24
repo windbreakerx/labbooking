@@ -1,3 +1,4 @@
+from ipaddress import ip_address
 from django.conf import settings
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
@@ -43,9 +44,13 @@ from apps.users.models import UserRole
 
 def get_client_ip(request):
     forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
+    raw_ip = forwarded.split(",")[0].strip() if forwarded else request.META.get("REMOTE_ADDR")
+    if not raw_ip:
+        return None
+    try:
+        return str(ip_address(raw_ip))
+    except ValueError:
+        return None
 
 
 class DisciplineListView(generics.ListAPIView):
