@@ -235,6 +235,69 @@ class TestBookingService:
         with pytest.raises(BookingError, match="Стенд уже занят"):
             BookingService().create_booking(other_student, second_session.pk)
 
+    def test_shared_stand_allows_multiple_students_on_same_lab_session(
+        self,
+        student,
+        session,
+        room,
+        student_group,
+    ):
+        stand = LabStand.objects.create(
+            name="Стенд для группы",
+            inventory_number="ST-002",
+            training_center=room.training_center,
+            room=room,
+        )
+        session.lab_work.primary_stand = stand
+        session.lab_work.save(update_fields=["primary_stand"])
+        session.capacity = 3
+        session.save(update_fields=["capacity"])
+
+        second_student = _assign_student_group(
+            User.objects.create_user(
+                email="stand-group@stud.spmi.ru",
+                password="pass",
+                first_name="G",
+                last_name="R",
+                role=UserRole.STUDENT,
+            ),
+            student_group,
+        )
+        third_student = _assign_student_group(
+            User.objects.create_user(
+                email="stand-group2@stud.spmi.ru",
+                password="pass",
+                first_name="G",
+                last_name="R2",
+                role=UserRole.STUDENT,
+            ),
+            student_group,
+        )
+
+        BookingService().create_booking(student, session.pk)
+        BookingService().create_booking(second_student, session.pk)
+        BookingService().create_booking(third_student, session.pk)
+
+        assert session.available_seats == 0
+
+    def test_shared_stand_does_not_cap_available_seats_to_one(
+        self,
+        session,
+        room,
+    ):
+        stand = LabStand.objects.create(
+            name="Стенд без записей",
+            inventory_number="ST-003",
+            training_center=room.training_center,
+            room=room,
+        )
+        session.lab_work.primary_stand = stand
+        session.lab_work.save(update_fields=["primary_stand"])
+        session.capacity = 3
+        session.save(update_fields=["capacity"])
+
+        assert session.available_seats == 3
+
     def test_student_cannot_book_overlapping_intervals(
         self,
         student,

@@ -114,6 +114,23 @@ class LabSession(models.Model):
 
         return self.bookings.filter(current_status=BookingStatus.BOOKED).count()
 
+    def is_stand_blocked_by_other_lab_work(self) -> bool:
+        stand_id = self.lab_work.primary_stand_id
+        if not stand_id:
+            return False
+        from apps.bookings.models import Booking, BookingStatus
+
+        return (
+            Booking.objects.filter(
+                current_status=BookingStatus.BOOKED,
+                lab_session__lab_work__primary_stand_id=stand_id,
+                lab_session__starts_at__lt=self.ends_at,
+                lab_session__ends_at__gt=self.starts_at,
+            )
+            .exclude(lab_session__lab_work_id=self.lab_work_id)
+            .exists()
+        )
+
     @property
     def available_seats(self):
         from apps.bookings.models import Booking, BookingStatus
@@ -125,22 +142,13 @@ class LabSession(models.Model):
             lab_session__starts_at__lt=self.ends_at,
             lab_session__ends_at__gt=self.starts_at,
         ).count()
-        stand_overlap_booked = 0
-        stand_id = self.lab_work.primary_stand_id
-        if stand_id:
-            stand_overlap_booked = Booking.objects.filter(
-                current_status=BookingStatus.BOOKED,
-                lab_session__lab_work__primary_stand_id=stand_id,
-                lab_session__starts_at__lt=self.ends_at,
-                lab_session__ends_at__gt=self.starts_at,
-            ).count()
-        stand_available = 1 - stand_overlap_booked if stand_id else self.capacity
+        if self.is_stand_blocked_by_other_lab_work():
+            return 0
         return max(
             0,
             min(
                 self.capacity - session_booked,
                 self.room.capacity - room_overlap_booked,
-                stand_available,
             ),
         )
 

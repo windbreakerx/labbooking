@@ -88,16 +88,8 @@ class BookingService:
             lab_session__ends_at__gt=session.starts_at,
         ).count()
 
-    def _stand_overlap_booked(self, session: LabSession) -> int:
-        stand_id = session.lab_work.primary_stand_id
-        if not stand_id:
-            return 0
-        return Booking.objects.filter(
-            current_status=BookingStatus.BOOKED,
-            lab_session__lab_work__primary_stand_id=stand_id,
-            lab_session__starts_at__lt=session.ends_at,
-            lab_session__ends_at__gt=session.starts_at,
-        ).count()
+    def _stand_blocked_by_other_lab_work(self, session: LabSession) -> bool:
+        return session.is_stand_blocked_by_other_lab_work()
 
     def _student_overlap_booked(self, student: User, session: LabSession) -> bool:
         return Booking.objects.filter(
@@ -198,8 +190,7 @@ class BookingService:
                 raise BookingError(
                     f"Аудитория {session.room.number} заполнена на это время. Выберите другую пару."
                 )
-            stand_overlap_booked = self._stand_overlap_booked(session)
-            if stand_overlap_booked >= 1:
+            if self._stand_blocked_by_other_lab_work(session):
                 raise BookingError("Стенд уже занят на это время. Выберите другой интервал.")
 
         booking = Booking.objects.create(
