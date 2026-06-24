@@ -19,6 +19,7 @@ from apps.bookings.services.session_availability import (
     is_pair_time_for_booking,
     is_weekday_for_booking,
     booking_date_window,
+    room_capacity_would_be_exceeded,
 )
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
 from apps.users.models import User, UserRole
@@ -80,14 +81,6 @@ class BookingService:
             raise BookingError("Слот недоступен для записи.")
         if Holiday.objects.filter(date=session.starts_at.date()).exists():
             raise BookingError("Запись в праздничный день недоступна.")
-
-    def _room_overlap_booked(self, session: LabSession) -> int:
-        return Booking.objects.filter(
-            current_status=BookingStatus.BOOKED,
-            lab_session__room_id=session.room_id,
-            lab_session__starts_at__lt=session.ends_at,
-            lab_session__ends_at__gt=session.starts_at,
-        ).count()
 
     def _stand_blocked_by_other_lab_work(self, session: LabSession) -> bool:
         return session.is_stand_blocked_by_other_lab_work()
@@ -198,8 +191,7 @@ class BookingService:
         if not skip_rules and booked_count >= session.capacity:
             raise BookingError("Нет свободных мест.")
         if not skip_rules:
-            room_overlap_booked = self._room_overlap_booked(session)
-            if room_overlap_booked >= session.room.capacity:
+            if room_capacity_would_be_exceeded(session):
                 raise BookingError(
                     f"Аудитория {session.room.number} заполнена на это время. Выберите другую пару."
                 )

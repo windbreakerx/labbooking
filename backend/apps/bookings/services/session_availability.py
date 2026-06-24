@@ -166,6 +166,43 @@ def pair_start_times_for_duration(duration_minutes: int) -> list[time]:
     return starts
 
 
+def room_bookings_on_other_sessions(session: LabSession) -> int:
+    from apps.bookings.models import Booking, BookingStatus
+
+    return Booking.objects.filter(
+        current_status=BookingStatus.BOOKED,
+        lab_session__room_id=session.room_id,
+        lab_session__starts_at__lt=session.ends_at,
+        lab_session__ends_at__gt=session.starts_at,
+    ).exclude(lab_session_id=session.pk).count()
+
+
+def session_available_seats(session: LabSession) -> int:
+    from apps.bookings.models import BookingStatus
+
+    session_booked = session.bookings.filter(current_status=BookingStatus.BOOKED).count()
+    if session.is_stand_blocked_by_other_lab_work():
+        return 0
+
+    session_remaining = session.capacity - session_booked
+    other_room_booked = room_bookings_on_other_sessions(session)
+    if other_room_booked == 0:
+        return max(0, session_remaining)
+
+    room_remaining = session.room.capacity - other_room_booked - session_booked
+    return max(0, min(session_remaining, room_remaining))
+
+
+def room_capacity_would_be_exceeded(session: LabSession, *, extra_bookings: int = 1) -> bool:
+    from apps.bookings.models import BookingStatus
+
+    other_booked = room_bookings_on_other_sessions(session)
+    if other_booked == 0:
+        return False
+    session_booked = session.bookings.filter(current_status=BookingStatus.BOOKED).count()
+    return other_booked + session_booked + extra_bookings > session.room.capacity
+
+
 def _filter_sessions_with_free_seats(qs: QuerySet[LabSession]) -> QuerySet[LabSession]:
     now = timezone.now()
     session_ids = []
