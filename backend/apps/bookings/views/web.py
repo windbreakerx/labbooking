@@ -33,9 +33,12 @@ from apps.bookings.services import (
 )
 from apps.bookings.services.session_availability import (
     bookable_sessions_qs,
+    get_earliest_session_for_date_pair,
     get_session_filter_options,
+    get_student_pair_filter_options,
     get_sessions_for_date_time,
     get_sessions_for_selection,
+    pair_label,
     session_interval_label,
     staff_manual_sessions_qs,
 )
@@ -282,7 +285,7 @@ class BookLabWorkWebView(LoginRequiredMixin, View):
             pk=lab_work_id,
         )
         sessions_qs = bookable_sessions_qs(lab_work_id=lab_work_id, student=request.user)
-        filter_data = get_session_filter_options(lab_work_id, sessions_qs=sessions_qs)
+        filter_data = get_student_pair_filter_options(lab_work_id, sessions_qs=sessions_qs)
         return render(
             request,
             self.template_name,
@@ -314,92 +317,56 @@ class BookFilterPartialView(LoginRequiredMixin, View):
         get_object_or_404(student_lab_works_qs(request.user), pk=lab_work_id)
         student_sessions_qs = bookable_sessions_qs(lab_work_id=lab_work_id, student=request.user)
         date = request.GET.get("date") or None
-        time_str = request.GET.get("time") or None
-        tc_number = request.GET.get("tc") or None
-        room_id = request.GET.get("room") or None
+        pair_number = request.GET.get("pair") or None
 
-        if date and time_str and not room_id:
-            sessions = list(
-                get_sessions_for_date_time(lab_work_id, date, time_str).select_related(
-                    "room",
-                    "room__training_center",
+        if date and pair_number:
+            try:
+                parsed_pair = int(pair_number)
+            except ValueError:
+                parsed_pair = None
+            if parsed_pair:
+                session = get_earliest_session_for_date_pair(
+                    lab_work_id,
+                    date,
+                    parsed_pair,
+                    sessions_qs=student_sessions_qs,
                 )
-            )
-            allowed_session_ids = set(student_sessions_qs.values_list("pk", flat=True))
-            sessions = [
-                session
-                for session in sessions
-                if session.pk in allowed_session_ids
-            ]
-            if len(sessions) == 1:
-                return render(
-                    request,
-                    "bookings/partials/session_confirm.html",
-                    {
-                        "session": sessions[0],
-                        "date": date,
-                        "time": time_str,
-                        "pair_label": session_interval_label(sessions[0]),
-                    },
-                )
-            if len(sessions) > 1:
-                rooms = {s.room_id: s.room for s in sessions}
-                return render(
-                    request,
-                    "bookings/partials/filter_room.html",
-                    {
-                        "lab_work_id": lab_work_id,
-                        "date": date,
-                        "time": time_str,
-                        "options": [
-                            {
-                                "value": str(room.pk),
-                                "label": (
-                                    f"ауд. {room.number} "
-                                    f"(УЦ №{room.training_center.number})"
-                                ),
-                            }
-                            for room in sorted(rooms.values(), key=lambda r: r.number)
-                        ],
-                    },
-                )
-
-        if room_id and date and time_str:
-            sessions = get_sessions_for_selection(
-                lab_work_id,
-                date,
-                time_str,
-                int(room_id),
-                sessions_qs=student_sessions_qs,
-            )
+                if session:
+                    return render(
+                        request,
+                        "bookings/partials/session_confirm.html",
+                        {
+                            "session": session,
+                            "date": date,
+                            "pair": str(parsed_pair),
+                            "pair_label": session_interval_label(session),
+                        },
+                    )
             return render(
                 request,
                 "bookings/partials/session_select.html",
-                {"sessions": sessions},
+                {"sessions": []},
             )
 
-        filter_data = get_session_filter_options(
+        filter_data = get_student_pair_filter_options(
             lab_work_id,
-            date,
-            time_str,
-            tc_number,
+            date=date,
             sessions_qs=student_sessions_qs,
         )
         template_map = {
             "date": "bookings/partials/filter_date_calendar.html",
-            "time": "bookings/partials/filter_time.html",
-            "training_center": "bookings/partials/filter_tc.html",
-            "room": "bookings/partials/filter_room.html",
+            "pair": "bookings/partials/filter_pair.html",
         }
         context = {
             "lab_work_id": lab_work_id,
             "options": filter_data["options"],
             "date": date,
-            "time": time_str,
-            "tc": tc_number,
+            "pair": pair_number,
         }
         if filter_data["level"] == "date":
             context["calendar_months"] = build_calendar_months(filter_data["options"])
+        if filter_data["level"] == "pair":
+            context["pair_label"] = pair_label
         return render(
             request,
             template_map[filter_data["level"]],

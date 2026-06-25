@@ -36,7 +36,10 @@ from apps.bookings.serializers import (
 from apps.bookings.services import BookingError, BookingService, is_staff_user, staff_can_access_scoped_object, staff_lab_filter
 from apps.bookings.services.session_availability import (
     bookable_sessions_qs,
+    get_earliest_session_for_date_pair,
     get_session_filter_options,
+    get_student_pair_filter_options,
+    session_interval_label,
 )
 from apps.scheduling.models import LabSession
 from apps.users.models import UserRole
@@ -108,7 +111,7 @@ class LabSessionListView(generics.ListAPIView):
 
 
 class LabSessionFilterView(APIView):
-    """Каскадные фильтры: date → time → training_center → room."""
+    """Каскадные фильтры (student: date → pair; staff: date → time → tc → room)."""
 
     def get(self, request):
         lab_work = request.query_params.get("lab_work")
@@ -124,14 +127,53 @@ class LabSessionFilterView(APIView):
             int(lab_work),
         ):
             raise NotFound()
+        date = request.query_params.get("date") or None
+        time_str = request.query_params.get("time") or None
+        tc_number = request.query_params.get("tc") or None
+        pair = request.query_params.get("pair") or None
+        if request.user.role == UserRole.STUDENT:
+            student_qs = bookable_sessions_qs(lab_work_id=int(lab_work), student=request.user)
+            if date and pair:
+                try:
+                    pair_number = int(pair)
+                except ValueError:
+                    raise ValidationError({"pair": "Некорректный номер пары."})
+                session = get_earliest_session_for_date_pair(
+                    int(lab_work),
+                    date,
+                    pair_number,
+                    sessions_qs=student_qs,
+                )
+                if not session:
+                    return Response({"level": "confirm", "session": None})
+                return Response(
+                    {
+                        "level": "confirm",
+                        "session": {
+                            "id": session.pk,
+                            "starts_at": session.starts_at,
+                            "ends_at": session.ends_at,
+                            "room_id": session.room_id,
+                            "room_number": session.room.number,
+                            "training_center_number": session.room.training_center.number,
+                            "available_seats": session.available_seats,
+                            "capacity": session.capacity,
+                            "label": session_interval_label(session),
+                        },
+                    }
+                )
+            data = get_student_pair_filter_options(
+                int(lab_work),
+                date=date,
+                sessions_qs=student_qs,
+            )
+            return Response(data)
+
         data = get_session_filter_options(
             int(lab_work),
-            date=request.query_params.get("date") or None,
-            time_str=request.query_params.get("time") or None,
-            tc_number=request.query_params.get("tc") or None,
-            sessions_qs=bookable_sessions_qs(lab_work_id=int(lab_work), student=request.user)
-            if request.user.role == UserRole.STUDENT
-            else None,
+            date=date,
+            time_str=time_str,
+            tc_number=tc_number,
         )
         return Response(data)
 

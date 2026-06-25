@@ -31,7 +31,7 @@
             <dt>Дисциплина</dt>
             <dd>{{ lab_work.discipline.title }}</dd>
             <dt>Порядок</dt>
-            <dd>Дата → время → учебный центр → аудитория</dd>
+            <dd>Дата → пара → подтверждение</dd>
         </dl>
         <p class="booking-context__hint muted">Кнопка «Записаться» станет активной после выбора доступного слота.</p>
     </aside>
@@ -44,14 +44,10 @@
             </span>
             <span class="booking-step" data-step="2">
                 <span class="booking-step__num">2</span>
-                <span class="booking-step__label">Время</span>
+                <span class="booking-step__label">Пара</span>
             </span>
             <span class="booking-step" data-step="3">
                 <span class="booking-step__num">3</span>
-                <span class="booking-step__label">Место</span>
-            </span>
-            <span class="booking-step" data-step="4">
-                <span class="booking-step__num">4</span>
                 <span class="booking-step__label">Подтверждение</span>
             </span>
         </div>
@@ -99,12 +95,8 @@ function updateBookingStepper() {
     let active = 1;
 
     if (slot.querySelector('.booking-summary') || slot.querySelector('input[name=session_id][type=hidden]')) {
-        active = 4;
-    } else if (slot.querySelector('select[name=session_id]') || slot.querySelector('select[name=room]')) {
-        active = 4;
-    } else if (chain.querySelector('select[name=tc]') || chain.querySelector('select[name=room]')) {
         active = 3;
-    } else if (chain.querySelector('select[name=time]') || chain.querySelector('input[name=date][type=hidden]')) {
+    } else if (chain.querySelector('select[name=pair]') || chain.querySelector('input[name=date][type=hidden]')) {
         active = 2;
     } else if (chain.querySelector('.calendar-card')) {
         active = 1;

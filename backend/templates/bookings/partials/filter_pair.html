@@ -1,0 +1,26 @@
+<input type="hidden" name="date" value="{{ date }}">
+<section class="booking-step-panel">
+    <div class="booking-step-panel__header">
+        <span class="badge badge--muted booking-step-badge">Шаг 2</span>
+        <button type="button"
+                class="btn-link"
+                hx-get="{% url filter_route|default:'book-filter' lab_work_id %}"
+                hx-target="{{ filter_chain_selector|default:'#filter-chain' }}"
+                hx-swap="innerHTML">← Выбрать другой день</button>
+    </div>
+    <p class="selected-value"><span>Выбранный день</span> {{ date }}</p>
+    <label>Пара
+        <select name="pair"
+                class="booking-select"
+                hx-get="{% url filter_route|default:'book-filter' lab_work_id %}"
+                hx-target="{{ session_slot_selector|default:'#session-slot' }}"
+                hx-swap="innerHTML"
+                hx-include="{{ filter_chain_selector|default:'#filter-chain' }}">
+            <option value="">—</option>
+            {% for opt in options %}
+            <option value="{{ opt.value }}">{{ opt.label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <p class="muted booking-step-panel__hint">После выбора пары система автоматически назначит самый ранний доступный слот в её пределах.</p>
+</section>

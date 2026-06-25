@@ -244,6 +244,25 @@ def _filter_by_local_time(qs: QuerySet[LabSession], time_str: str) -> QuerySet[L
     return qs.filter(pk__in=session_ids)
 
 
+def _filter_by_pair_number(qs: QuerySet[LabSession], pair_number: int) -> QuerySet[LabSession]:
+    session_ids = []
+    for session in qs:
+        local_time = timezone.localtime(session.starts_at).strftime("%H:%M")
+        pair_info = pair_meta_by_time(local_time)
+        if pair_info and pair_info[0] == pair_number:
+            session_ids.append(session.pk)
+    if not session_ids:
+        return qs.none()
+    return qs.filter(pk__in=session_ids)
+
+
+def pair_label(number: int) -> str:
+    for pair_number, pair_start, pair_end in UNIVERSITY_PAIR_SLOTS:
+        if pair_number == number:
+            return f"{number} пара ({pair_start:%H:%M}-{pair_end:%H:%M})"
+    return f"{number} пара"
+
+
 def bookable_sessions_qs(lab_work_id: int | None = None, *, student=None) -> QuerySet[LabSession]:
     now = timezone.now()
     min_date, max_date = booking_date_window(now)
@@ -394,6 +413,57 @@ def get_session_filter_options(
             for d in dates
         ],
     }
+
+
+def get_student_pair_filter_options(
+    lab_work_id: int,
+    date: str | None = None,
+    *,
+    sessions_qs: QuerySet[LabSession] | None = None,
+) -> dict:
+    """Каскадные опции для студента: date → pair."""
+    qs = sessions_qs if sessions_qs is not None else bookable_sessions_qs(lab_work_id=lab_work_id)
+
+    if date:
+        qs = _filter_by_local_date(qs, date)
+        pairs: dict[int, int] = {}
+        for session in qs:
+            start_value = timezone.localtime(session.starts_at).strftime("%H:%M")
+            pair_info = pair_meta_by_time(start_value)
+            if not pair_info:
+                continue
+            pair_number = pair_info[0]
+            pairs[pair_number] = pairs.get(pair_number, 0) + session.available_seats
+        return {
+            "level": "pair",
+            "options": [
+                {
+                    "value": str(number),
+                    "label": pair_label(number),
+                    "available_seats": seats,
+                }
+                for number, seats in sorted(pairs.items(), key=lambda item: item[0])
+            ],
+        }
+
+    return get_session_filter_options(lab_work_id, sessions_qs=qs)
+
+
+def get_earliest_session_for_date_pair(
+    lab_work_id: int,
+    date: str,
+    pair_number: int,
+    *,
+    sessions_qs: QuerySet[LabSession] | None = None,
+) -> LabSession | None:
+    qs = sessions_qs if sessions_qs is not None else bookable_sessions_qs(lab_work_id=lab_work_id)
+    qs = _filter_by_local_date(qs, date)
+    qs = _filter_by_pair_number(qs, pair_number)
+    return (
+        qs.select_related("room", "room__training_center")
+        .order_by("starts_at", "room__training_center__number", "room__number", "pk")
+        .first()
+    )
 
 
 def get_sessions_for_date_time(

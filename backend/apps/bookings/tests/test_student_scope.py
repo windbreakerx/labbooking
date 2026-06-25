@@ -1,6 +1,8 @@
 import pytest
 from django.test import Client
+from django.utils import timezone
 from rest_framework.test import APIClient
+from datetime import datetime, time
 
 from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
 from apps.academics.querysets import (
@@ -11,6 +13,22 @@ from apps.academics.querysets import (
 from apps.bookings.services import BookingError, BookingService
 from apps.scheduling.models import LabSession, LabSessionStatus, Room, TrainingCenter
 from apps.users.models import User, UserRole
+
+
+def _next_weekday_at(hour: int, minute: int, *, days_ahead: int = 2):
+    tz = timezone.get_current_timezone()
+    now = timezone.now()
+    for offset in range(days_ahead, days_ahead + 14):
+        candidate_date = (now + timezone.timedelta(days=offset)).date()
+        if candidate_date.weekday() >= 5:
+            continue
+        candidate = timezone.make_aware(
+            datetime.combine(candidate_date, time(hour=hour, minute=minute)),
+            tz,
+        )
+        if candidate > now:
+            return candidate
+    raise RuntimeError("Не удалось подобрать ближайшую буднюю пару для теста.")
 
 
 @pytest.fixture
@@ -162,6 +180,115 @@ class TestStudentScopeWeb:
         client.force_login(scoped_student)
         response = client.get(f"/lab-works/{foreign_lab_work.pk}/book/")
         assert response.status_code == 404
+
+    def test_book_filter_shows_pair_not_inner_offsets(self, scoped_student, own_lab_work, room, semester):
+        starts = _next_weekday_at(14, 15)
+        for minute in (15, 45):
+            start = starts.replace(minute=minute)
+            LabSession.objects.create(
+                lab_work=own_lab_work,
+                room=room,
+                semester=semester,
+                starts_at=start,
+                ends_at=start + timezone.timedelta(minutes=45),
+                capacity=2,
+                status=LabSessionStatus.OPEN,
+            )
+        start = starts.replace(hour=15, minute=0)
+        LabSession.objects.create(
+            lab_work=own_lab_work,
+            room=room,
+            semester=semester,
+            starts_at=start,
+            ends_at=start + timezone.timedelta(minutes=45),
+            capacity=2,
+            status=LabSessionStatus.OPEN,
+        )
+
+        client = Client()
+        client.force_login(scoped_student)
+        date_value = starts.date().isoformat()
+        response = client.get(f"/lab-works/{own_lab_work.pk}/book/filter/?date={date_value}")
+
+        assert response.status_code == 200
+        body = response.content.decode()
+        assert "Пара" in body
+        assert "4 пара (14:15-15:45)" in body
+        assert "14:45-15:30" not in body
+
+    def test_book_filter_auto_picks_earliest_slot_in_pair(
+        self,
+        scoped_student,
+        own_lab_work,
+        own_discipline,
+        room,
+        semester,
+        student_group,
+    ):
+        other_student = User.objects.create_user(
+            email="other@stud.spmi.ru",
+            password="pass",
+            first_name="Other",
+            last_name="Student",
+            role=UserRole.STUDENT,
+        )
+        other_student.profile.student_group = student_group
+        other_student.profile.save(update_fields=["student_group"])
+
+        short_lab = LabWork.objects.create(
+            discipline=own_discipline,
+            number=2,
+            title="Короткая ЛР",
+            duration_minutes=30,
+            is_published=True,
+        )
+        student_group.lab_works.add(short_lab)
+
+        blocking_lab = LabWork.objects.create(
+            discipline=own_discipline,
+            number=3,
+            title="Блокирующая ЛР",
+            duration_minutes=45,
+            is_published=True,
+        )
+        student_group.lab_works.add(blocking_lab)
+
+        starts = _next_weekday_at(14, 15)
+        blocking_session = LabSession.objects.create(
+            lab_work=blocking_lab,
+            room=room,
+            semester=semester,
+            starts_at=starts,
+            ends_at=starts + timezone.timedelta(minutes=45),
+            capacity=1,
+            status=LabSessionStatus.OPEN,
+        )
+
+        target_sessions = []
+        for hour, minute in ((14, 15), (14, 45), (15, 0)):
+            start = starts.replace(hour=hour, minute=minute)
+            target_sessions.append(
+                LabSession.objects.create(
+                    lab_work=short_lab,
+                    room=room,
+                    semester=semester,
+                    starts_at=start,
+                    ends_at=start + timezone.timedelta(minutes=30),
+                    capacity=1,
+                    status=LabSessionStatus.OPEN,
+                )
+            )
+
+        BookingService(actor=scoped_student).create_booking(scoped_student, blocking_session.pk)
+
+        client = Client()
+        client.force_login(other_student)
+        date_value = starts.date().isoformat()
+        response = client.get(f"/lab-works/{short_lab.pk}/book/filter/?date={date_value}&pair=4")
+
+        assert response.status_code == 200
+        body = response.content.decode()
+        assert f'name="session_id" value="{target_sessions[2].pk}"' in body
 
 
 @pytest.mark.django_db
