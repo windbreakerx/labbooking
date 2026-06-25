@@ -5,23 +5,54 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Студент</p>
         <h1 class="page-title">Учебные дисциплины</h1>
-        <p class="page-description">Выберите дисциплину, чтобы увидеть доступные лабораторные работы и перейти к записи.</p>
+        <p class="page-description">Откройте кафедру, затем дисциплину — появится список лабораторных работ для записи.</p>
     </div>
 </header>
 
-{% if disciplines %}
-<div class="discipline-grid">
-    {% for d in disciplines %}
-    <a class="card card--interactive discipline-card" href="{% url 'lab-works' d.pk %}">
-        <div class="discipline-card__top">
-            <span class="discipline-card__badge badge badge--muted">Дисциплина</span>
+{% if department_groups %}
+<div class="catalog-tree">
+    {% for group in department_groups %}
+    <details class="catalog-dept">
+        <summary class="catalog-dept__summary">
+            <span class="catalog-dept__label">Кафедра</span>
+            <span class="catalog-dept__title">{% if group.department %}{{ group.department.title }}{% else %}Без кафедры{% endif %}</span>
+            <span class="catalog-dept__count">{{ group.disciplines|length }} дисц.</span>
+        </summary>
+        <div class="catalog-dept__body">
+            {% for d in group.disciplines %}
+            <details class="catalog-discipline">
+                <summary class="catalog-discipline__summary">
+                    <span class="catalog-discipline__label">Дисциплина</span>
+                    <span class="catalog-discipline__title">{{ d.title }}</span>
+                    <span class="catalog-discipline__count">{{ d.catalog_lab_works|length }} ЛР</span>
+                </summary>
+                <div class="catalog-discipline__body">
+                    {% if d.catalog_lab_works %}
+                    <p class="catalog-section-title">Лабораторные работы</p>
+                    <ul class="catalog-lab-works">
+                        {% for lw in d.catalog_lab_works %}
+                        <li>
+                            <a
+                                class="catalog-lab-work"
+                                href="{% url 'book-lab-work' lw.pk %}?discipline={{ d.pk }}"
+                            >
+                                <span class="catalog-lab-work__number">№{{ lw.number }}</span>
+                                <span class="catalog-lab-work__title">{{ lw.title }}</span>
+                                {% if lw.duration_minutes %}
+                                <span class="catalog-lab-work__meta">{{ lw.duration_minutes }} мин</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="muted catalog-empty">Лабораторные работы не добавлены.</p>
+                    {% endif %}
+                </div>
+            </details>
+            {% endfor %}
         </div>
-        <h2 class="discipline-card__title">{{ d.title }}</h2>
-        {% if d.description %}
-        <p class="discipline-card__desc">{{ d.description|truncatewords:18 }}</p>
-        {% endif %}
-        <span class="discipline-card__action">Открыть лабораторные работы →</span>
-    </a>
+    </details>
     {% endfor %}
 </div>
 {% else %}

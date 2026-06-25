@@ -8,7 +8,11 @@ from django.views import View
 from django.views.generic import ListView, TemplateView
 
 from apps.academics.models import ALLOWED_LAB_DURATIONS, Department, LabWork
-from apps.academics.querysets import staff_managed_disciplines_qs, staff_managed_lab_works_qs
+from apps.academics.querysets import (
+    department_discipline_groups,
+    staff_managed_disciplines_qs,
+    staff_managed_lab_works_qs,
+)
 from apps.bookings.services.lab_head import (
     is_lab_head_user,
     lab_head_active_semester,
@@ -174,16 +178,7 @@ class LabHeadBindingsView(LabHeadRequiredMixin, TemplateView):
             bindable_disciplines = lab_head_bindable_disciplines_qs(user)
 
         departments = list(lab_head_departments_for_disciplines(disciplines_qs))
-        department_groups = []
-        assigned_ids: set[int] = set()
-        for department in departments:
-            dept_disciplines = [d for d in lab_disciplines if d.department_id == department.pk]
-            assigned_ids.update(d.pk for d in dept_disciplines)
-            if dept_disciplines:
-                department_groups.append({"department": department, "disciplines": dept_disciplines})
-        unassigned = [d for d in lab_disciplines if d.pk not in assigned_ids]
-        if unassigned:
-            department_groups.append({"department": None, "disciplines": unassigned})
+        department_groups = department_discipline_groups(lab_disciplines, departments=departments)
 
         ctx["training_center"] = self.get_training_center()
         ctx["laboratory"] = lab_head_laboratory(user)

@@ -1,7 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q, QuerySet
 
-from apps.academics.models import Discipline, LabWork, StudentGroup
+from apps.academics.models import Department, Discipline, LabWork, StudentGroup
 from apps.scheduling.models import Laboratory, TrainingCenter
 from apps.users.models import User, UserRole
 
@@ -11,6 +11,33 @@ def _safe_profile(user: User):
         return user.profile
     except (AttributeError, ObjectDoesNotExist):
         return None
+
+
+def department_discipline_groups(
+    disciplines,
+    *,
+    departments=None,
+) -> list[dict]:
+    discipline_list = list(disciplines)
+    if departments is None:
+        department_ids = {d.department_id for d in discipline_list if d.department_id}
+        department_list = list(
+            Department.objects.filter(pk__in=department_ids).order_by("ordering", "title")
+        )
+    else:
+        department_list = list(departments)
+
+    groups: list[dict] = []
+    assigned_ids: set[int] = set()
+    for department in department_list:
+        dept_disciplines = [d for d in discipline_list if d.department_id == department.pk]
+        assigned_ids.update(d.pk for d in dept_disciplines)
+        if dept_disciplines:
+            groups.append({"department": department, "disciplines": dept_disciplines})
+    unassigned = [d for d in discipline_list if d.pk not in assigned_ids]
+    if unassigned:
+        groups.append({"department": None, "disciplines": unassigned})
+    return groups
 
 
 def published_disciplines_qs():

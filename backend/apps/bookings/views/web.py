@@ -11,6 +11,7 @@ from django.views.generic import DetailView, ListView, TemplateView
 
 from apps.academics.models import Discipline, LabWork
 from apps.academics.querysets import (
+    department_discipline_groups,
     published_disciplines_qs,
     staff_disciplines_qs,
     staff_lab_works_qs,
@@ -235,10 +236,27 @@ class DisciplineListWebView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         user = self.request.user
         if user.role == UserRole.STUDENT:
-            return student_disciplines_qs(user)
+            return student_disciplines_qs(user).select_related("department", "semester")
         if is_staff_user(user):
-            return staff_disciplines_qs(user)
-        return published_disciplines_qs()
+            return staff_disciplines_qs(user).select_related("department", "semester")
+        return published_disciplines_qs().select_related("department", "semester")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        disciplines = list(ctx["disciplines"])
+        user = self.request.user
+        if user.role == UserRole.STUDENT:
+            lab_works_qs = lambda discipline_id: student_lab_works_qs(user, discipline_id=discipline_id)
+        elif is_staff_user(user):
+            lab_works_qs = lambda discipline_id: staff_lab_works_qs(user, discipline_id=discipline_id)
+        else:
+            lab_works_qs = published_lab_works_qs
+
+        for discipline in disciplines:
+            discipline.catalog_lab_works = list(lab_works_qs(discipline.pk))
+
+        ctx["department_groups"] = department_discipline_groups(disciplines)
+        return ctx
 
 
 class LabWorkListWebView(LoginRequiredMixin, ListView):
