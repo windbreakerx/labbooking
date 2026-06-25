@@ -123,30 +123,24 @@ def merge_duplicate_lab_works(apps, schema_editor):
 
 
 def drop_labwork_discipline_number_unique(apps, schema_editor):
+    quote_name = schema_editor.connection.ops.quote_name
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             """
-            DO $$
-            DECLARE
-                constraint_name text;
-            BEGIN
-                FOR constraint_name IN
-                    SELECT c.conname
-                    FROM pg_constraint c
-                    JOIN pg_class t ON c.conrelid = t.oid
-                    WHERE t.relname = %s
-                      AND c.contype = 'u'
-                      AND pg_get_constraintdef(c.oid) LIKE '%%discipline_id%%'
-                LOOP
-                    EXECUTE format(
-                        'ALTER TABLE %I DROP CONSTRAINT IF EXISTS %I',
-                        %s,
-                        constraint_name
-                    );
-                END LOOP;
-            END $$;
+            SELECT c.conname
+            FROM pg_constraint c
+            JOIN pg_class t ON c.conrelid = t.oid
+            WHERE t.relname = %s
+              AND c.contype = 'u'
+              AND pg_get_constraintdef(c.oid) LIKE %s
             """,
-            [LABWORK_TABLE, LABWORK_TABLE],
+            [LABWORK_TABLE, "%discipline_id%"],
+        )
+        constraint_names = [row[0] for row in cursor.fetchall()]
+    for constraint_name in constraint_names:
+        schema_editor.execute(
+            f"ALTER TABLE {quote_name(LABWORK_TABLE)} "
+            f"DROP CONSTRAINT IF EXISTS {quote_name(constraint_name)}"
         )
 
 
