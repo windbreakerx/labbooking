@@ -80,11 +80,25 @@ fi
 echo "==> Сборка и запуск контейнеров..."
 $COMPOSE up -d --build
 
-echo "==> Ожидание готовности web..."
-sleep 5
+echo "==> Ожидание готовности БД..."
+for _ in $(seq 1 30); do
+  if $COMPOSE exec -T db pg_isready -U "${POSTGRES_USER:-labbooking}" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
 
 echo "==> Миграции..."
-$COMPOSE exec -T web python manage.py migrate --noinput
+if ! $COMPOSE run --rm --no-deps web python manage.py migrate --noinput; then
+  echo ""
+  echo "ERROR: миграции не прошли. Последние логи web:"
+  $COMPOSE logs web --tail 80 || true
+  exit 1
+fi
+
+echo "==> Перезапуск web после миграций..."
+$COMPOSE up -d web
+sleep 3
 
 XLS_DIR="data/import/xls"
 if [[ "$IMPORT_DATA" -eq 1 ]]; then
