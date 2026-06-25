@@ -134,11 +134,12 @@ class Command(BaseCommand):
         ScheduleEntry.objects.all().delete()
         LabStand.objects.all().delete()
         User.objects.filter(role=UserRole.STUDENT).delete()
+        User.objects.filter(role=UserRole.TEACHER, email__endswith="@spmi.ru").delete()
         StudentGroup.objects.all().delete()
         LabWork.objects.all().delete()
         Discipline.objects.all().delete()
         Semester.objects.all().delete()
-        self.stdout.write("Старые учебные данные удалены.")
+        self.stdout.write("Старые учебные данные удалены (завлаб и сотрудники сохранены).")
 
     def _ensure_training_center(self) -> TrainingCenter:
         training_center, _ = TrainingCenter.objects.update_or_create(

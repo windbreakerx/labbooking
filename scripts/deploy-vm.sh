@@ -4,7 +4,7 @@
 # Обычный деплой (код + миграции, БД не трогаем):
 #   bash scripts/deploy-vm.sh
 #
-# Полный импорт из Excel + слоты (data/import/xls/ЛР_учет*.xlsx):
+# Полный деплой с Excel (дисциплины, ЛР, студенты из data/import/xls/):
 #   bash scripts/deploy-vm.sh --import-data
 #
 # Только догенерировать слоты:
@@ -27,11 +27,12 @@ for arg in "$@"; do
 Использование: bash scripts/deploy-vm.sh [опции]
 
   (без опций)           Обновить код и миграции. Данные в БД не меняются.
-  --import-data         Импорт из data/import/xls + generate_sessions
+  --import-data         seed_demo (завлаб/сотрудники) + Excel + generate_sessions
   --generate-sessions   Только generate_sessions --weeks 2
   -h, --help            Эта справка
 
 Excel-файлы: data/import/xls/ЛР_учет*.xlsx
+Завлаб/сотрудники: zavlab.pilot@spmi.ru, operator1.pilot@spmi.ru / pilot123
 Студенты после импорта: s<номер_зачётки>@stud.spmi.ru / student123
 EOF
       exit 0
@@ -87,6 +88,9 @@ $COMPOSE exec -T web python manage.py migrate --noinput
 
 XLS_DIR="data/import/xls"
 if [[ "$IMPORT_DATA" -eq 1 ]]; then
+  echo "==> Завлаб и сотрудники (seed_demo)..."
+  $COMPOSE exec -T web python manage.py seed_demo
+
   shopt -s nullglob
   xlsx_files=("${XLS_DIR}"/ЛР_учет*.xlsx)
   shopt -u nullglob
@@ -153,4 +157,5 @@ else
   echo "HTTPS: bash scripts/setup-https-ycm.sh <DOMAIN> ...  затем USE_HTTPS=1 в .env"
 fi
 echo "Студенты: s<номер_зачётки>@stud.spmi.ru / student123"
+echo "Завлаб/сотрудники: zavlab.pilot@spmi.ru, operator1.pilot@spmi.ru / pilot123"
 echo "Импорт Excel: bash scripts/deploy-vm.sh --import-data"

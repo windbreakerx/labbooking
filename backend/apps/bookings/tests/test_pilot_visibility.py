@@ -29,7 +29,7 @@ def _api_result_ids(client, url: str) -> set[int]:
 @pytest.fixture(scope="module", autouse=True)
 def seed_pilot_data(django_db_setup, django_db_blocker):
     with django_db_blocker.unblock():
-        call_command("seed_demo", weeks=1)
+        call_command("seed_demo", weeks=1, full_pilot=True)
 
 
 @pytest.fixture

@@ -20,14 +20,22 @@ UNIVERSITY_PAIRS = [
 
 
 class Command(BaseCommand):
-    help = "Загрузка пилотных данных комплексной лаборатории нефтегазового факультета"
+    help = (
+        "Завлаб и сотрудники лаборатории (по умолчанию). "
+        "Полный пилотный набор — только с --full-pilot."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--weeks",
             type=int,
             default=2,
-            help="На сколько недель вперёд создать слоты (по умолчанию: 2)",
+            help="На сколько недель вперёд создать слоты (только с --full-pilot)",
+        )
+        parser.add_argument(
+            "--full-pilot",
+            action="store_true",
+            help="Полный пилотный набор: дисциплины, студенты, слоты (для тестов и локальной отладки)",
         )
 
     def _upsert_user(
@@ -45,7 +53,7 @@ class Command(BaseCommand):
         laboratory=None,
         student_group=None,
     ):
-        user, _ = User.objects.update_or_create(
+        user, created = User.objects.update_or_create(
             email=email,
             defaults={
                 "first_name": first_name,
@@ -54,8 +62,9 @@ class Command(BaseCommand):
                 "is_staff": is_staff,
             },
         )
-        user.set_password(password)
-        user.save(update_fields=["password"])
+        if created:
+            user.set_password(password)
+            user.save(update_fields=["password"])
 
         profile = user.profile
         profile.group_name = group_name
@@ -71,22 +80,10 @@ class Command(BaseCommand):
     def _code(prefix: str, index: int) -> str:
         return f"{prefix}-{index:03d}"
 
-    def handle(self, *args, **options):
-        weeks = max(1, options["weeks"])
-        today = timezone.localdate()
-        Semester.objects.update(is_active=False)
-        semester, _ = Semester.objects.update_or_create(
-            name="Пилот 2026/2027 (нефтегаз)",
-            defaults={
-                "start_date": today - timedelta(days=7),
-                "end_date": today + timedelta(days=140),
-                "is_active": True,
-            },
-        )
-
+    def _ensure_infrastructure(self):
         training_center, _ = TrainingCenter.objects.update_or_create(
             number=1,
-            defaults={"name": "Нефтегазовый факультет"},
+            defaults={"name": "Комплексная учебная лаборатория нефтегазового факультета"},
         )
         laboratory, _ = Laboratory.objects.update_or_create(
             training_center=training_center,
@@ -118,7 +115,9 @@ class Command(BaseCommand):
                 defaults={"capacity": capacity},
             )
             rooms[room_number] = room
+        return training_center, laboratory, rooms
 
+    def _seed_staff(self, training_center, laboratory):
         staff_payload = [
             ("zavlab.pilot@spmi.ru", "Павел", "Логинов", UserRole.LAB_HEAD),
             ("operator1.pilot@spmi.ru", "Ольга", "Егорова", UserRole.LAB_ADMIN),
@@ -135,6 +134,31 @@ class Command(BaseCommand):
                 training_center=training_center,
                 laboratory=laboratory,
             )
+
+    def handle(self, *args, **options):
+        weeks = max(1, options["weeks"])
+        training_center, laboratory, rooms = self._ensure_infrastructure()
+        self._seed_staff(training_center, laboratory)
+
+        if not options["full_pilot"]:
+            self.stdout.write(self.style.SUCCESS("Учётные записи завлаба и сотрудников обновлены."))
+            self.stdout.write("Завлаб: zavlab.pilot@spmi.ru / pilot123")
+            self.stdout.write("Сотрудники: operator1.pilot@spmi.ru, operator2.pilot@spmi.ru / pilot123")
+            self.stdout.write(
+                "Дисциплины, ЛР и студенты — через import_lr_accounting_xlsx (Excel) или --full-pilot."
+            )
+            return
+
+        today = timezone.localdate()
+        Semester.objects.update(is_active=False)
+        semester, _ = Semester.objects.update_or_create(
+            name="Пилот 2026/2027 (нефтегаз)",
+            defaults={
+                "start_date": today - timedelta(days=7),
+                "end_date": today + timedelta(days=140),
+                "is_active": True,
+            },
+        )
 
         teachers = []
         teachers_payload = [

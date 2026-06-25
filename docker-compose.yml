@@ -37,7 +37,7 @@ services:
       - .env
     environment:
       RUNNING_IN_DOCKER: "1"
-      DATABASE_URL: postgres://labbooking:labbooking@db:5432/labbooking
+      DATABASE_URL: ${DATABASE_URL}
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
     volumes:
