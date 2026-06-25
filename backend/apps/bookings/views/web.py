@@ -1,9 +1,10 @@
 import calendar
 from datetime import datetime
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponseForbidden
+from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
@@ -20,6 +21,7 @@ from apps.academics.querysets import (
     student_support_training_centers_qs,
 )
 from apps.bookings.models import Booking, BookingStatus, SupportTicket
+from apps.bookings.patch_notes import PATCH_NOTES
 from apps.bookings.services import (
     BookingError,
     BookingService,
@@ -207,6 +209,20 @@ def _render_manual_filter_partial(request, lab_work_id: int, date, time_str, tc_
 
 class HomeView(LoginRequiredMixin, TemplateView):
     template_name = "bookings/home.html"
+
+
+class PatchNotesWebView(LoginRequiredMixin, TemplateView):
+    template_name = "bookings/patch_notes.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not getattr(settings, "PATCH_NOTES_ENABLED", False):
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["releases"] = PATCH_NOTES
+        return context
 
 
 class DisciplineListWebView(LoginRequiredMixin, ListView):

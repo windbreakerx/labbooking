@@ -69,6 +69,15 @@
                         </div>
                     </div>
                     {% endif %}
+                    {% if patch_notes_enabled %}
+                    <a
+                        class="nav__patch-notes{% if request.resolver_match.url_name == 'patch-notes' %} nav__patch-notes--active{% endif %}"
+                        href="{% url 'patch-notes' %}"
+                    >
+                        <span class="nav__patch-notes-badge" aria-hidden="true">NEW</span>
+                        Что нового
+                    </a>
+                    {% endif %}
                 </nav>
                 <div class="header__account">
                     <span class="header__account-name">{% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}</span>

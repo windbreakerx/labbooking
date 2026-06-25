@@ -60,6 +60,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.bookings.context_processors.patch_notes",
             ],
         },
     },
@@ -131,6 +132,8 @@ SPECTACULAR_SETTINGS = {
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 CORS_ALLOW_CREDENTIALS = True
+
+PATCH_NOTES_ENABLED = env.bool("PATCH_NOTES_ENABLED", default=True)
 
 SSO_ENABLED = env("SSO_ENABLED")
 BOOKING_HORIZON_DAYS = env("BOOKING_HORIZON_DAYS")
