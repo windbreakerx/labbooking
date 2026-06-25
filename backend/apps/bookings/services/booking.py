@@ -1,9 +1,11 @@
 import logging
+import time
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 from django.db import transaction
+from django.db.utils import OperationalError
 from django.utils import timezone
 
 from apps.bookings.models import (
@@ -26,6 +28,9 @@ from apps.users.models import User, UserRole
 
 logger = logging.getLogger(__name__)
 
+DEADLOCK_MAX_ATTEMPTS = 3
+DEADLOCK_RETRY_BASE_SECONDS = 0.05
+
 
 class BookingError(Exception):
     pass
@@ -33,6 +38,18 @@ class BookingError(Exception):
 
 ACTIVE_STATUSES = {BookingStatus.BOOKED}
 BLOCKING_VISITED_LAB = {BookingStatus.VISITED}
+
+
+def _is_deadlock_error(exc: OperationalError) -> bool:
+    sqlstate = getattr(exc, "sqlstate", None)
+    if sqlstate == "40P01":
+        return True
+    cause = getattr(exc, "__cause__", None)
+    if getattr(cause, "pgcode", None) == "40P01":
+        return True
+    if getattr(cause, "sqlstate", None) == "40P01":
+        return True
+    return "deadlock detected" in str(exc).lower()
 
 
 class BookingService:
@@ -93,42 +110,50 @@ class BookingService:
             lab_session__ends_at__gt=session.starts_at,
         ).exists()
 
-    def _lock_session_rows(self, session_ids: list[int]):
-        if not session_ids:
+    def _lock_session_rows(self, session_ids: list[int] | set[int]):
+        unique_sorted = sorted(set(session_ids))
+        if not unique_sorted:
             return
         list(
             LabSession.objects.select_for_update(of=("self",))
-            .filter(pk__in=session_ids)
+            .filter(pk__in=unique_sorted)
+            .order_by("pk")
             .values_list("pk", flat=True)
         )
 
-    def _lock_overlapping_room_sessions(self, session: LabSession):
-        """
-        Блокирует все пересекающиеся слоты аудитории в рамках транзакции.
-        Это предотвращает гонку при одновременной записи на последние места
-        в параллельных ЛР одной аудитории.
-        """
-        overlapping_ids = list(
+    def _overlapping_room_session_ids(self, session: LabSession) -> list[int]:
+        return list(
             LabSession.objects.filter(
                 room_id=session.room_id,
                 starts_at__lt=session.ends_at,
                 ends_at__gt=session.starts_at,
             ).values_list("pk", flat=True)
         )
-        self._lock_session_rows(overlapping_ids)
 
-    def _lock_overlapping_stand_sessions(self, session: LabSession):
+    def _overlapping_stand_session_ids(self, session: LabSession) -> list[int]:
         stand_id = session.lab_work.primary_stand_id
         if not stand_id:
-            return
-        overlapping_ids = list(
+            return []
+        return list(
             LabSession.objects.filter(
                 lab_work__primary_stand_id=stand_id,
                 starts_at__lt=session.ends_at,
                 ends_at__gt=session.starts_at,
             ).values_list("pk", flat=True)
         )
-        self._lock_session_rows(overlapping_ids)
+
+    def _collect_booking_lock_ids(self, session: LabSession) -> list[int]:
+        lock_ids = {session.pk}
+        lock_ids.update(self._overlapping_room_session_ids(session))
+        lock_ids.update(self._overlapping_stand_session_ids(session))
+        return sorted(lock_ids)
+
+    def _lock_for_booking(self, session: LabSession):
+        """
+        Блокирует целевой слот и все пересекающиеся слоты аудитории/стенда
+        в фиксированном порядке, чтобы снизить риск deadlock.
+        """
+        self._lock_session_rows(self._collect_booking_lock_ids(session))
 
     def _validate_cancel_window(self, booking: Booking, by_staff: bool = False):
         if by_staff:
@@ -156,7 +181,6 @@ class BookingService:
         if visited_same_lab:
             raise BookingError("Вы уже посетили эту лабораторную работу.")
 
-    @transaction.atomic
     def create_booking(
         self,
         student: User,
@@ -164,13 +188,46 @@ class BookingService:
         manual: bool = False,
         skip_student_rules: bool = False,
     ) -> Booking:
+        last_deadlock: OperationalError | None = None
+        for attempt in range(DEADLOCK_MAX_ATTEMPTS):
+            try:
+                with transaction.atomic():
+                    return self._create_booking_in_transaction(
+                        student,
+                        session_id,
+                        manual=manual,
+                        skip_student_rules=skip_student_rules,
+                    )
+            except OperationalError as exc:
+                if not _is_deadlock_error(exc):
+                    raise
+                last_deadlock = exc
+                logger.warning(
+                    "Deadlock during create_booking, retry %s/%s",
+                    attempt + 1,
+                    DEADLOCK_MAX_ATTEMPTS,
+                    extra={"session_id": session_id, "student_id": student.pk},
+                )
+                if attempt + 1 >= DEADLOCK_MAX_ATTEMPTS:
+                    raise BookingError(
+                        "Система обрабатывает параллельные записи. Повторите попытку через несколько секунд."
+                    ) from last_deadlock
+                time.sleep(DEADLOCK_RETRY_BASE_SECONDS * (attempt + 1))
+        raise AssertionError("create_booking retry loop exited without result")
+
+    def _create_booking_in_transaction(
+        self,
+        student: User,
+        session_id: int,
+        *,
+        manual: bool = False,
+        skip_student_rules: bool = False,
+    ) -> Booking:
         session = (
-            LabSession.objects.select_for_update(of=("self",))
-            .select_related("lab_work", "lab_work__discipline", "room")
+            LabSession.objects.select_related("lab_work", "lab_work__discipline", "room")
             .get(pk=session_id)
         )
-        self._lock_overlapping_room_sessions(session)
-        self._lock_overlapping_stand_sessions(session)
+        self._lock_for_booking(session)
         skip_rules = skip_student_rules or manual
         self._validate_booking_window(session, skip_student_rules=skip_rules)
         if not skip_rules and student.role == UserRole.STUDENT:

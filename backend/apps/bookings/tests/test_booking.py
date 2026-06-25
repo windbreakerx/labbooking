@@ -1,6 +1,7 @@
 import pytest
 from datetime import date, datetime, timedelta
 from django.core import mail
+from django.db.utils import OperationalError
 from django.test import Client, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -166,20 +167,39 @@ class TestBookingService:
         assert booking.pk
         assert "Failed to send booking email" in caplog.text
 
-    def test_create_booking_calls_room_overlap_lock(self, student, session, monkeypatch):
-        called = {"count": 0, "session_id": None}
-        original_lock = BookingService._lock_overlapping_room_sessions
+    def test_create_booking_calls_booking_lock(self, student, session, monkeypatch):
+        called = {"count": 0, "session_id": None, "lock_ids": None}
+        original_lock = BookingService._lock_for_booking
 
         def lock_spy(self, locked_session):
             called["count"] += 1
             called["session_id"] = locked_session.pk
+            called["lock_ids"] = self._collect_booking_lock_ids(locked_session)
             return original_lock(self, locked_session)
 
-        monkeypatch.setattr(BookingService, "_lock_overlapping_room_sessions", lock_spy)
+        monkeypatch.setattr(BookingService, "_lock_for_booking", lock_spy)
 
         BookingService(actor=student).create_booking(student, session.pk)
         assert called["count"] == 1
         assert called["session_id"] == session.pk
+        assert called["lock_ids"] == [session.pk]
+
+    def test_create_booking_retries_on_deadlock(self, student, session, monkeypatch):
+        attempts = {"count": 0}
+        original_create = BookingService._create_booking_in_transaction
+
+        def flaky_create(self, *args, **kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                raise OperationalError("deadlock detected")
+            return original_create(self, *args, **kwargs)
+
+        monkeypatch.setattr(BookingService, "_create_booking_in_transaction", flaky_create)
+        monkeypatch.setattr("apps.bookings.services.booking.time.sleep", lambda *_args: None)
+
+        booking = BookingService(actor=student).create_booking(student, session.pk)
+        assert booking.pk
+        assert attempts["count"] == 2
 
     def test_shared_stand_blocks_parallel_booking(
         self,
