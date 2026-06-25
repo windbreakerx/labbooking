@@ -19,7 +19,7 @@ from apps.integrations.lr_accounting.students import (
     new_year_counters,
     student_email,
 )
-from apps.scheduling.models import LabSession, LabStand, ScheduleEntry, Room, TrainingCenter
+from apps.scheduling.models import LabSession, LabStand, Laboratory, ScheduleEntry, Room, TrainingCenter
 from apps.users.models import User, UserProfile, UserRole
 
 ROOMS_PAYLOAD = [
@@ -84,6 +84,12 @@ class Command(BaseCommand):
             default=None,
             help="Seed для перемешивания ФИО (для воспроизводимости)",
         )
+        parser.add_argument(
+            "--default-capacity",
+            type=int,
+            default=3,
+            help="Емкость ЛР по умолчанию при импорте (по умолчанию: 3)",
+        )
 
     def handle(self, *args, **options):
         labs_dir = Path(options["labs_dir"] or "").expanduser()
@@ -103,16 +109,19 @@ class Command(BaseCommand):
             if options["clear_existing"]:
                 self._clear_existing_data()
             training_center = self._ensure_training_center()
+            laboratory = self._ensure_laboratory(training_center)
             rooms = self._ensure_rooms(training_center)
             semester = self._ensure_semester(options["semester"])
             stats = self._import_workbooks(
                 workbooks,
                 semester=semester,
                 training_center=training_center,
+                laboratory=laboratory,
                 rooms=rooms,
                 default_password=options["default_password"],
                 shuffle_names=not options["no_shuffle_names"],
                 shuffle_seed=options["shuffle_seed"],
+                default_capacity=options["default_capacity"],
             )
 
         self.stdout.write(self.style.SUCCESS("Импорт завершён."))
@@ -148,6 +157,13 @@ class Command(BaseCommand):
         )
         return training_center
 
+    def _ensure_laboratory(self, training_center: TrainingCenter) -> Laboratory:
+        laboratory, _ = Laboratory.objects.update_or_create(
+            training_center=training_center,
+            name="Комплексная учебная лаборатория нефтегазового факультета",
+        )
+        return laboratory
+
     def _ensure_rooms(self, training_center: TrainingCenter) -> dict[str, Room]:
         rooms: dict[str, Room] = {}
         for room_number, capacity in ROOMS_PAYLOAD:
@@ -177,10 +193,12 @@ class Command(BaseCommand):
         *,
         semester: Semester,
         training_center: TrainingCenter,
+        laboratory: Laboratory,
         rooms: dict[str, Room],
         default_password: str,
         shuffle_names: bool = True,
         shuffle_seed: int | None = None,
+        default_capacity: int = 3,
     ) -> dict[str, int]:
         stats = {
             "disciplines": 0,
@@ -213,6 +231,7 @@ class Command(BaseCommand):
                 },
             )
             discipline.training_centers.add(training_center)
+            discipline.laboratories.add(laboratory)
             discipline_cache[title] = discipline
             if created:
                 stats["disciplines"] += 1
@@ -238,8 +257,12 @@ class Command(BaseCommand):
                 if normalized_duration and lab_work.duration_minutes != normalized_duration:
                     lab_work.duration_minutes = normalized_duration
                     changed = True
+                imported_capacity = min(default_capacity, room.capacity)
+                if lab_work.capacity != imported_capacity:
+                    lab_work.capacity = imported_capacity
+                    changed = True
                 if changed:
-                    lab_work.save(update_fields=["default_room", "duration_minutes"])
+                    lab_work.save(update_fields=["default_room", "duration_minutes", "capacity"])
                 return lab_work
 
             existing = LabWork.objects.filter(discipline=discipline, title=parsed_lab.title).first()
@@ -255,11 +278,13 @@ class Command(BaseCommand):
                     number=parsed_lab.catalog_number or next_number,
                     title=parsed_lab.title,
                     duration_minutes=self._normalize_duration(parsed_lab.duration_minutes) or 90,
+                    capacity=min(default_capacity, room.capacity),
                     default_room=room,
                     is_published=True,
                 )
                 stats["lab_works"] += 1
             lab_work.training_centers.add(training_center)
+            lab_work.laboratories.add(laboratory)
             if lab_work.default_room_id != room.id:
                 lab_work.default_room = room
                 lab_work.save(update_fields=["default_room"])

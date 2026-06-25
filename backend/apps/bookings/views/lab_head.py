@@ -285,7 +285,7 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
         number = request.POST.get("number", "").strip()
         title = request.POST.get("title", "").strip()
         duration = request.POST.get("duration_minutes", "").strip() or "90"
-        capacity = request.POST.get("capacity", "").strip() or "30"
+        capacity = request.POST.get("capacity", "").strip() or "3"
 
         discipline = lab_head_discipline_in_scope(request.user, int(discipline_id)) if discipline_id else None
         laboratory = lab_head_laboratory_in_scope(request.user, int(laboratory_id)) if laboratory_id else None
@@ -495,7 +495,7 @@ class LabHeadScheduleCreateView(LabHeadRequiredMixin, View):
         weekday = request.POST.get("weekday", "").strip()
         start_time_raw = request.POST.get("start_time", "").strip()
         week_parity = request.POST.get("week_parity", WeekParity.BOTH)
-        capacity = request.POST.get("capacity", "").strip() or "30"
+        capacity = request.POST.get("capacity", "").strip() or "3"
         duration = request.POST.get("duration_minutes", "").strip() or "90"
 
         if not lab_work or not room or not start_time_raw or weekday == "":
