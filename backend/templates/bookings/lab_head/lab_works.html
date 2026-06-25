@@ -5,6 +5,7 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Кабинет завлаба{% if laboratory %} · {{ laboratory.name }}{% endif %}{% if training_center %} · УЦ №{{ training_center.number }}{% endif %}</p>
         <h1 class="page-title">Лабораторные работы</h1>
+        <p class="page-description">Нажмите на работу, чтобы раскрыть детали. Редактирование — кнопкой внутри карточки.</p>
     </div>
     <div class="page-actions">
         <button type="button" class="button" id="lab-work-create-open">Добавить ЛР</button>
@@ -26,69 +27,94 @@
     </form>
 </section>
 
-<div class="table-wrap">
-    <table class="table table--compact table--sticky responsive-table lab-work-table">
-        <thead>
-            <tr><th>Название</th><th>№</th><th>Дисциплины</th><th>Лаборатория</th><th>УЦ</th><th>Аудитория</th><th>Длительность</th><th>Макс. мест</th><th>Опубликовано</th></tr>
-        </thead>
-        <tbody>
-            {% for lw in lab_works %}
-            {% with bound_lab=lw.laboratories.all|first %}
-            <tr
-                class="lab-work-row"
-                tabindex="0"
-                role="button"
-                data-lab-work-id="{{ lw.pk }}"
-                data-title="{{ lw.title|escapejs }}"
-                data-number="{{ lw.number }}"
-                data-discipline-ids="{% for d in lw.disciplines.all %}{{ d.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                data-laboratory-id="{% if bound_lab %}{{ bound_lab.pk }}{% elif laboratory %}{{ laboratory.pk }}{% endif %}"
-                data-tc-label="{% if bound_lab %}УЦ №{{ bound_lab.training_center.number }}{% if bound_lab.training_center.name %} — {{ bound_lab.training_center.name }}{% endif %}{% elif training_center %}УЦ №{{ training_center.number }}{% if training_center.name %} — {{ training_center.name }}{% endif %}{% endif %}"
-                data-room-id="{% if lw.default_room_id %}{{ lw.default_room_id }}{% endif %}"
-                data-stand-id="{% if lw.primary_stand_id %}{{ lw.primary_stand_id }}{% endif %}"
-                data-duration="{{ lw.duration_minutes }}"
-                data-capacity="{{ lw.capacity }}"
-                data-published="{{ lw.is_published|yesno:'1,0' }}"
-                aria-label="Редактировать {{ lw.title }}"
-            >
-                <td data-label="Название"><strong>{{ lw.title }}</strong></td>
-                <td data-label="№"><span class="badge badge--muted">№{{ lw.number }}</span></td>
-                <td data-label="Дисциплины">
-                    {% for d in lw.disciplines.all %}
-                    <span class="badge badge--muted">{{ d.title }}</span>{% if not forloop.last %} {% endif %}
-                    {% empty %}<span class="muted">—</span>{% endfor %}
-                </td>
-                <td data-label="Лаборатория">{% if bound_lab %}{{ bound_lab.name }}{% elif laboratory %}{{ laboratory.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
-                <td data-label="УЦ">{% if bound_lab %}№{{ bound_lab.training_center.number }}{% elif training_center %}№{{ training_center.number }}{% else %}<span class="muted">—</span>{% endif %}</td>
-                <td data-label="Аудитория">{% if lw.default_room %}{{ lw.default_room.number }}{% else %}<span class="muted">—</span>{% endif %}</td>
-                <td data-label="Длительность">{{ lw.duration_minutes }} мин</td>
-                <td data-label="Макс. мест">{{ lw.capacity }}</td>
-                <td data-label="Опубликовано">
-                    {% if lw.is_published %}
-                    <span class="status-badge status-badge--with-dot status-badge--visited">Да</span>
-                    {% else %}
-                    <span class="status-badge status-badge--with-dot status-badge--cancelled">Нет</span>
+{% if lab_works %}
+<ul class="lab-work-list">
+    {% for lw in lab_works %}
+    {% with bound_lab=lw.laboratories.all|first %}
+    <li>
+        <details
+            class="lab-work-item"
+            {% if edit_lab_work_id == lw.pk|stringformat:"s" %}open{% endif %}
+        >
+            <summary class="lab-work-item__summary">
+                <span class="lab-work-item__number">№{{ lw.number }}</span>
+                <span class="lab-work-item__title">{{ lw.title }}</span>
+                {% if lw.is_published %}
+                <span class="status-badge status-badge--with-dot status-badge--visited lab-work-item__status">Опубликовано</span>
+                {% else %}
+                <span class="status-badge status-badge--with-dot status-badge--cancelled lab-work-item__status">Снято</span>
+                {% endif %}
+            </summary>
+            <div class="lab-work-item__body">
+                <dl class="lab-work-item__meta">
+                    <div class="lab-work-item__meta-row">
+                        <dt>Дисциплины</dt>
+                        <dd>
+                            {% for d in lw.disciplines.all %}
+                            <span class="badge badge--muted">{{ d.title }}</span>{% if not forloop.last %} {% endif %}
+                            {% empty %}<span class="muted">—</span>{% endfor %}
+                        </dd>
+                    </div>
+                    <div class="lab-work-item__meta-row">
+                        <dt>Лаборатория</dt>
+                        <dd>{% if bound_lab %}{{ bound_lab.name }}{% elif laboratory %}{{ laboratory.name }}{% else %}<span class="muted">—</span>{% endif %}</dd>
+                    </div>
+                    <div class="lab-work-item__meta-row">
+                        <dt>Учебный центр</dt>
+                        <dd>{% if bound_lab %}№{{ bound_lab.training_center.number }}{% if bound_lab.training_center.name %} — {{ bound_lab.training_center.name }}{% endif %}{% elif training_center %}№{{ training_center.number }}{% if training_center.name %} — {{ training_center.name }}{% endif %}{% else %}<span class="muted">—</span>{% endif %}</dd>
+                    </div>
+                    <div class="lab-work-item__meta-row">
+                        <dt>Аудитория</dt>
+                        <dd>{% if lw.default_room %}{{ lw.default_room.number }}{% else %}<span class="muted">—</span>{% endif %}</dd>
+                    </div>
+                    {% if lw.primary_stand %}
+                    <div class="lab-work-item__meta-row">
+                        <dt>Стенд</dt>
+                        <dd>{{ lw.primary_stand.name }} ({{ lw.primary_stand.inventory_number }})</dd>
+                    </div>
                     {% endif %}
-                </td>
-            </tr>
-            {% endwith %}
-            {% empty %}
-            <tr><td colspan="9">
-                <div class="empty-state empty-state--icon">
-                    {% if search_query %}
-                    <p>По запросу «{{ search_query }}» ничего не найдено.</p>
-                    {% else %}
-                    <p>Нет лабораторных работ.</p>
-                    <p class="muted">Сначала привяжите дисциплины, затем добавьте ЛР.</p>
-                    {% endif %}
-                </div>
-            </td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                    <div class="lab-work-item__meta-row">
+                        <dt>Длительность</dt>
+                        <dd>{{ lw.duration_minutes }} мин</dd>
+                    </div>
+                    <div class="lab-work-item__meta-row">
+                        <dt>Макс. мест</dt>
+                        <dd>{{ lw.capacity }}</dd>
+                    </div>
+                </dl>
+                <button
+                    type="button"
+                    class="button button--secondary lab-work-edit-btn"
+                    data-lab-work-id="{{ lw.pk }}"
+                    data-title="{{ lw.title|escapejs }}"
+                    data-number="{{ lw.number }}"
+                    data-discipline-ids="{% for d in lw.disciplines.all %}{{ d.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                    data-laboratory-id="{% if bound_lab %}{{ bound_lab.pk }}{% elif laboratory %}{{ laboratory.pk }}{% endif %}"
+                    data-tc-label="{% if bound_lab %}УЦ №{{ bound_lab.training_center.number }}{% if bound_lab.training_center.name %} — {{ bound_lab.training_center.name }}{% endif %}{% elif training_center %}УЦ №{{ training_center.number }}{% if training_center.name %} — {{ training_center.name }}{% endif %}{% endif %}"
+                    data-room-id="{% if lw.default_room_id %}{{ lw.default_room_id }}{% endif %}"
+                    data-stand-id="{% if lw.primary_stand_id %}{{ lw.primary_stand_id }}{% endif %}"
+                    data-duration="{{ lw.duration_minutes }}"
+                    data-capacity="{{ lw.capacity }}"
+                    data-published="{{ lw.is_published|yesno:'1,0' }}"
+                >Редактировать</button>
+            </div>
+        </details>
+    </li>
+    {% endwith %}
+    {% endfor %}
+</ul>
+{% else %}
+<div class="empty-state empty-state--icon">
+    {% if search_query %}
+    <p>По запросу «{{ search_query }}» ничего не найдено.</p>
+    {% else %}
+    <p>Нет лабораторных работ.</p>
+    <p class="muted">Сначала привяжите дисциплины, затем добавьте ЛР.</p>
+    {% endif %}
 </div>
+{% endif %}
 
-<dialog id="lab-work-create-dialog" class="app-dialog app-dialog--wide" aria-labelledby="lab-work-create-title">
+<dialog id="lab-work-create-dialog" class="app-dialog app-dialog--wide app-dialog--scrollable" aria-labelledby="lab-work-create-title">
     <div class="app-dialog__header">
         <h2 class="card__title" id="lab-work-create-title">Добавить лабораторную работу</h2>
     </div>
@@ -155,7 +181,7 @@
     </form>
 </dialog>
 
-<dialog id="lab-work-edit-dialog" class="app-dialog app-dialog--wide" aria-labelledby="lab-work-edit-heading">
+<dialog id="lab-work-edit-dialog" class="app-dialog app-dialog--wide app-dialog--scrollable" aria-labelledby="lab-work-edit-heading">
     <div class="app-dialog__header">
         <h2 class="card__title" id="lab-work-edit-heading">Редактирование лабораторной работы</h2>
         <p class="muted" id="lab-work-edit-subtitle"></p>
@@ -262,30 +288,30 @@
         });
     }
 
-    function openEditDialog(row) {
-        if (!editDialog || !editForm || !row) {
+    function openEditDialog(source) {
+        if (!editDialog || !editForm || !source) {
             return;
         }
-        var labWorkId = row.getAttribute('data-lab-work-id');
+        var labWorkId = source.getAttribute('data-lab-work-id');
         editForm.action = '{% url "lab-head-lab-work-update" pk=0 %}'.replace('/0/', '/' + labWorkId + '/');
-        document.getElementById('lab-work-edit-title-input').value = row.getAttribute('data-title') || '';
-        document.getElementById('lab-work-edit-number').value = row.getAttribute('data-number') || '';
+        document.getElementById('lab-work-edit-title-input').value = source.getAttribute('data-title') || '';
+        document.getElementById('lab-work-edit-number').value = source.getAttribute('data-number') || '';
         var disciplineSelect = document.getElementById('lab-work-edit-disciplines');
-        var disciplineIds = (row.getAttribute('data-discipline-ids') || '').split(',').filter(Boolean);
+        var disciplineIds = (source.getAttribute('data-discipline-ids') || '').split(',').filter(Boolean);
         if (disciplineSelect) {
             Array.prototype.forEach.call(disciplineSelect.options, function (option) {
                 option.selected = disciplineIds.indexOf(option.value) !== -1;
             });
         }
-        document.getElementById('lab-work-edit-laboratory').value = row.getAttribute('data-laboratory-id') || '';
-        document.getElementById('lab-work-edit-room').value = row.getAttribute('data-room-id') || '';
-        document.getElementById('lab-work-edit-stand').value = row.getAttribute('data-stand-id') || '';
-        document.getElementById('lab-work-edit-duration').value = row.getAttribute('data-duration') || '';
-        document.getElementById('lab-work-edit-capacity').value = row.getAttribute('data-capacity') || '';
-        document.getElementById('lab-work-edit-published').checked = row.getAttribute('data-published') === '1';
-        document.getElementById('lab-work-edit-tc').value = row.getAttribute('data-tc-label') || '';
+        document.getElementById('lab-work-edit-laboratory').value = source.getAttribute('data-laboratory-id') || '';
+        document.getElementById('lab-work-edit-room').value = source.getAttribute('data-room-id') || '';
+        document.getElementById('lab-work-edit-stand').value = source.getAttribute('data-stand-id') || '';
+        document.getElementById('lab-work-edit-duration').value = source.getAttribute('data-duration') || '';
+        document.getElementById('lab-work-edit-capacity').value = source.getAttribute('data-capacity') || '';
+        document.getElementById('lab-work-edit-published').checked = source.getAttribute('data-published') === '1';
+        document.getElementById('lab-work-edit-tc').value = source.getAttribute('data-tc-label') || '';
         if (editSubtitle) {
-            editSubtitle.textContent = row.getAttribute('data-title') || '';
+            editSubtitle.textContent = source.getAttribute('data-title') || '';
         }
         editDialog.showModal();
     }
@@ -316,23 +342,24 @@
         });
     }
 
-    document.querySelectorAll('.lab-work-row').forEach(function (row) {
-        row.addEventListener('click', function () {
-            openEditDialog(row);
+    document.querySelectorAll('.lab-work-edit-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            openEditDialog(btn);
         });
-        row.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                openEditDialog(row);
-            }
+    });
+
+    document.querySelectorAll('.lab-work-item__body').forEach(function (body) {
+        body.addEventListener('click', function (e) {
+            e.stopPropagation();
         });
     });
 
     var editLabWorkId = '{{ edit_lab_work_id|escapejs }}';
     if (editLabWorkId) {
-        var targetRow = document.querySelector('.lab-work-row[data-lab-work-id="' + editLabWorkId + '"]');
-        if (targetRow) {
-            openEditDialog(targetRow);
+        var targetBtn = document.querySelector('.lab-work-edit-btn[data-lab-work-id="' + editLabWorkId + '"]');
+        if (targetBtn) {
+            openEditDialog(targetBtn);
         }
     }
 })();
