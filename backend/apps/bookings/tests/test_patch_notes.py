@@ -9,7 +9,7 @@ def test_patch_notes_page_for_student(client, student):
     response = client.get("/patch-notes/")
     assert response.status_code == 200
     assert "Что нового в системе" in response.content.decode()
-    assert "v0.9.0" in response.content.decode()
+    assert "v0.9.1" in response.content.decode()
 
 
 @pytest.mark.django_db
