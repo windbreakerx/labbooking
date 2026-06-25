@@ -141,6 +141,63 @@ class TestBookingService:
         with pytest.raises(BookingError, match="Аудитория"):
             BookingService().create_booking(third_student, parallel_session.pk)
 
+    def test_same_lab_parallel_capacity_limit(self, student, session, room, semester, student_group):
+        room.capacity = 10
+        room.save(update_fields=["capacity"])
+        session.capacity = 3
+        session.save(update_fields=["capacity"])
+        session.lab_work.capacity = 3
+        session.lab_work.save(update_fields=["capacity"])
+
+        second_student = _assign_student_group(
+            User.objects.create_user(
+                email="same-lab-2@stud.spmi.ru",
+                password="pass",
+                first_name="S2",
+                last_name="Student",
+                role=UserRole.STUDENT,
+            ),
+            student_group,
+        )
+        third_student = _assign_student_group(
+            User.objects.create_user(
+                email="same-lab-3@stud.spmi.ru",
+                password="pass",
+                first_name="S3",
+                last_name="Student",
+                role=UserRole.STUDENT,
+            ),
+            student_group,
+        )
+        fourth_student = _assign_student_group(
+            User.objects.create_user(
+                email="same-lab-4@stud.spmi.ru",
+                password="pass",
+                first_name="S4",
+                last_name="Student",
+                role=UserRole.STUDENT,
+            ),
+            student_group,
+        )
+
+        overlap = LabSession.objects.create(
+            lab_work=session.lab_work,
+            room=room,
+            semester=semester,
+            starts_at=session.starts_at + timezone.timedelta(minutes=30),
+            ends_at=session.starts_at + timezone.timedelta(minutes=75),
+            capacity=3,
+            status=LabSessionStatus.OPEN,
+        )
+
+        BookingService().create_booking(student, session.pk)
+        BookingService().create_booking(second_student, session.pk)
+        BookingService().create_booking(third_student, session.pk)
+
+        assert overlap.available_seats == 0
+        with pytest.raises(BookingError, match="Лимит мест для этой лабораторной работы"):
+            BookingService().create_booking(fourth_student, overlap.pk)
+
     def test_staff_status_change(self, student, session, staff):
         booking = BookingService(actor=student).create_booking(student, session.pk)
         updated = BookingService(actor=staff).change_status(

@@ -21,6 +21,7 @@ from apps.bookings.services.session_availability import (
     is_pair_time_for_booking,
     is_weekday_for_booking,
     booking_date_window,
+    lab_work_capacity_would_be_exceeded,
     room_capacity_would_be_exceeded,
 )
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
@@ -142,10 +143,20 @@ class BookingService:
             ).values_list("pk", flat=True)
         )
 
+    def _overlapping_same_lab_work_session_ids(self, session: LabSession) -> list[int]:
+        return list(
+            LabSession.objects.filter(
+                lab_work_id=session.lab_work_id,
+                starts_at__lt=session.ends_at,
+                ends_at__gt=session.starts_at,
+            ).values_list("pk", flat=True)
+        )
+
     def _collect_booking_lock_ids(self, session: LabSession) -> list[int]:
         lock_ids = {session.pk}
         lock_ids.update(self._overlapping_room_session_ids(session))
         lock_ids.update(self._overlapping_stand_session_ids(session))
+        lock_ids.update(self._overlapping_same_lab_work_session_ids(session))
         return sorted(lock_ids)
 
     def _lock_for_booking(self, session: LabSession):
@@ -248,6 +259,11 @@ class BookingService:
         if not skip_rules and booked_count >= session.capacity:
             raise BookingError("Нет свободных мест.")
         if not skip_rules:
+            if lab_work_capacity_would_be_exceeded(session):
+                raise BookingError(
+                    "Лимит мест для этой лабораторной работы исчерпан на выбранный интервал. "
+                    "Выберите другую пару."
+                )
             if room_capacity_would_be_exceeded(session):
                 raise BookingError(
                     f"Аудитория {session.room.number} заполнена на это время. Выберите другую пару."
