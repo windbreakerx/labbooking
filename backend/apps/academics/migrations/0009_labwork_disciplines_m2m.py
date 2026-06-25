@@ -89,7 +89,7 @@ def merge_duplicate_lab_works(apps, schema_editor):
     StudentGroup = apps.get_model("academics", "StudentGroup")
 
     groups: dict[tuple, list] = defaultdict(list)
-    for lab_work in LabWork.objects.prefetch_related("laboratories").iterator():
+    for lab_work in LabWork.objects.prefetch_related("laboratories").iterator(chunk_size=500):
         groups[_lab_signature(lab_work)].append(lab_work)
 
     for duplicates in groups.values():
