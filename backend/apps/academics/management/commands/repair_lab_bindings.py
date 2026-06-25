@@ -53,10 +53,11 @@ class Command(BaseCommand):
         linked_lab_works = 0
         lab_work_qs = (
             LabWork.objects.annotate(tc_count=Count("training_centers"))
-            .filter(tc_count=0, discipline__training_centers=tc)
-            .select_related("discipline")
+            .filter(tc_count=0, disciplines__training_centers=tc)
+            .prefetch_related("disciplines")
+            .distinct()
         )
-        for lab_work in lab_work_qs.order_by("discipline__title", "number"):
+        for lab_work in lab_work_qs.order_by("number", "title"):
             if options["dry_run"]:
                 self.stdout.write(f"[dry-run] ЛР: {lab_work}")
             else:

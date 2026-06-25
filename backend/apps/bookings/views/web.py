@@ -279,11 +279,23 @@ class BookLabWorkWebView(LoginRequiredMixin, View):
             return redirect("home")
         return super().dispatch(request, *args, **kwargs)
 
+    def _get_booking_discipline(self, request, lab_work):
+        discipline_id = request.GET.get("discipline") or request.POST.get("discipline_id")
+        if discipline_id:
+            discipline = lab_work.disciplines.filter(pk=discipline_id).first()
+            if discipline and student_disciplines_qs(request.user).filter(pk=discipline.pk).exists():
+                return discipline
+        return student_disciplines_qs(request.user).filter(lab_works=lab_work).order_by("title").first()
+
     def get(self, request, lab_work_id):
         lab_work = get_object_or_404(
             student_lab_works_qs(request.user),
             pk=lab_work_id,
         )
+        discipline = self._get_booking_discipline(request, lab_work)
+        if discipline is None:
+            messages.error(request, "Дисциплина недоступна для этой лабораторной работы.")
+            return redirect("disciplines")
         sessions_qs = bookable_sessions_qs(lab_work_id=lab_work_id, student=request.user)
         filter_data = get_student_pair_filter_options(lab_work_id, sessions_qs=sessions_qs)
         return render(
@@ -291,6 +303,7 @@ class BookLabWorkWebView(LoginRequiredMixin, View):
             self.template_name,
             {
                 "lab_work": lab_work,
+                "discipline": discipline,
                 "filter_level": filter_data["level"],
                 "filter_options": filter_data["options"],
                 "calendar_months": build_calendar_months(filter_data["options"]),
@@ -299,9 +312,14 @@ class BookLabWorkWebView(LoginRequiredMixin, View):
 
     def post(self, request, lab_work_id):
         session_id = request.POST.get("session_id")
+        discipline_id = request.POST.get("discipline_id")
         service = BookingService(actor=request.user)
         try:
-            service.create_booking(request.user, int(session_id))
+            service.create_booking(
+                request.user,
+                int(session_id),
+                discipline_id=int(discipline_id) if discipline_id else None,
+            )
             messages.success(request, "Вы успешно записались на лабораторную работу.")
         except (BookingError, ValueError, TypeError) as exc:
             messages.error(request, str(exc))
@@ -526,10 +544,15 @@ class StaffBookingsWebView(LoginRequiredMixin, ListView):
             semester__is_active=True,
         )
         ctx["status_choices"] = Booking._meta.get_field("current_status").choices
-        ctx["manual_lab_works"] = staff_managed_lab_works_qs(self.request.user).filter(
-            discipline__semester__is_active=True,
-            is_published=True,
-        )
+        ctx["manual_lab_works"] = []
+        for lab_work in (
+            staff_managed_lab_works_qs(self.request.user)
+            .filter(disciplines__semester__is_active=True, is_published=True)
+            .prefetch_related("disciplines")
+            .distinct()
+        ):
+            for discipline in lab_work.disciplines.all():
+                ctx["manual_lab_works"].append({"lab_work": lab_work, "discipline": discipline})
         return ctx
 
 
@@ -573,6 +596,7 @@ class StaffManualBookingWebView(LoginRequiredMixin, View):
             return redirect("home")
         student_id = request.POST.get("student_id")
         session_id = request.POST.get("session_id")
+        discipline_id = request.POST.get("discipline_id")
         if not student_id:
             messages.error(request, "Выберите студента из результатов поиска.")
             return redirect("staff-bookings")
@@ -596,7 +620,13 @@ class StaffManualBookingWebView(LoginRequiredMixin, View):
             return redirect("staff-bookings")
         service = BookingService(actor=request.user)
         try:
-            service.create_booking(student, int(session_id), manual=True, skip_student_rules=True)
+            service.create_booking(
+                student,
+                int(session_id),
+                discipline_id=int(discipline_id) if discipline_id else None,
+                manual=True,
+                skip_student_rules=True,
+            )
             messages.success(request, f"Студент {student.full_name} записан вручную.")
         except BookingError as exc:
             messages.error(request, str(exc))

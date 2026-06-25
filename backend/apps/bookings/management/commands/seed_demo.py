@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
+from apps.academics.models import Department, Discipline, LabWork, Semester, StudentGroup
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus, LabStand, Laboratory, Room, TrainingCenter
 from apps.users.models import User, UserRole
 
@@ -370,8 +370,17 @@ class Command(BaseCommand):
         discipline_counter = 1
         generic_room_numbers = list(rooms.keys())
         lab_session_plan = []
+        lab_work_cache: dict[tuple[str, str, str], LabWork] = {}
+        session_plan_keys: set[tuple[int, int]] = set()
         disciplines_by_department: dict[str, list[Discipline]] = {name: [] for name in departments}
+        department_objects: dict[str, Department] = {}
+        for index, department_name in enumerate(departments):
+            department_objects[department_name], _ = Department.objects.get_or_create(
+                title=department_name,
+                defaults={"ordering": index},
+            )
         for department_name, discipline_titles in departments.items():
+            department = department_objects[department_name]
             for discipline_title in discipline_titles:
                 code = self._code("NGF", discipline_counter)
                 discipline_counter += 1
@@ -382,6 +391,7 @@ class Command(BaseCommand):
                         "description": f"{department_name}. Пилотный набор 2026/2027.",
                         "semester": semester,
                         "is_published": True,
+                        "department": department,
                     },
                 )
                 discipline.training_centers.add(training_center)
@@ -403,17 +413,23 @@ class Command(BaseCommand):
                     ]
 
                 for number, spec in enumerate(lab_specs, start=1):
-                    lab_work, _ = LabWork.objects.update_or_create(
-                        discipline=discipline,
-                        number=number,
-                        defaults={
-                            "title": spec["title"],
-                            "description": f"Целевые группы: {spec['target_groups']}",
-                            "duration_minutes": spec["duration"],
-                            "capacity": spec["capacity"],
-                            "is_published": True,
-                        },
-                    )
+                    room = rooms[spec["room_number"]]
+                    cache_key = (spec["title"], spec["room_number"], spec.get("stand_name", ""))
+                    lab_work = lab_work_cache.get(cache_key)
+                    if lab_work is None:
+                        lab_work = LabWork.objects.filter(title=spec["title"], default_room=room).first()
+                        if lab_work is None:
+                            lab_work = LabWork.objects.create(
+                                number=number,
+                                title=spec["title"],
+                                description=f"Целевые группы: {spec['target_groups']}",
+                                duration_minutes=spec["duration"],
+                                capacity=spec["capacity"],
+                                is_published=True,
+                                default_room=room,
+                            )
+                        lab_work_cache[cache_key] = lab_work
+                    lab_work.disciplines.add(discipline)
                     lab_work.training_centers.add(training_center)
                     lab_work.laboratories.add(laboratory)
                     if spec["stand_name"]:
@@ -426,12 +442,15 @@ class Command(BaseCommand):
                                 "description": f"Стенд для дисциплины «{discipline_title}».",
                             },
                         )
-                    lab_session_plan.append(
-                        {
-                            "lab_work": lab_work,
-                            "room": rooms[spec["room_number"]],
-                        }
-                    )
+                    plan_key = (lab_work.pk, room.pk)
+                    if plan_key not in session_plan_keys:
+                        session_plan_keys.add(plan_key)
+                        lab_session_plan.append(
+                            {
+                                "lab_work": lab_work,
+                                "room": room,
+                            }
+                        )
 
         for group_name, department_name in group_department_map.items():
             student_group = student_groups[group_name]

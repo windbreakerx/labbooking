@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
-from apps.academics.models import ALLOWED_LAB_DURATIONS, LabWork
+from apps.academics.models import ALLOWED_LAB_DURATIONS, Department, LabWork
 from apps.academics.querysets import staff_managed_disciplines_qs, staff_managed_lab_works_qs
 from apps.bookings.services.lab_head import (
     is_lab_head_user,
@@ -31,11 +31,15 @@ from apps.bookings.services.lab_head import (
     lab_head_training_center,
     lab_head_training_center_in_scope,
     lab_head_training_centers_qs,
+    lab_head_create_lab_work,
+    lab_head_departments_for_disciplines,
+    lab_head_room_disciplines,
     lab_head_update_lab_work,
+    lab_head_update_room,
     sync_training_centers_for_laboratories,
     validate_lab_duration_minutes,
 )
-from apps.scheduling.models import LabStand, ScheduleEntry, WeekParity
+from apps.scheduling.models import LabStand, Room, ScheduleEntry, WeekParity
 from apps.users.models import User, UserRole
 
 WEEKDAY_LABELS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
@@ -146,12 +150,12 @@ class LabHeadBindingsView(LabHeadRequiredMixin, TemplateView):
         bindable_lab_works = list(lab_head_bindable_lab_works_qs(user))
         bindable_by_discipline: dict[int, list] = {}
         for lab_work in bindable_lab_works:
-            bindable_by_discipline.setdefault(lab_work.discipline_id, []).append(lab_work)
+            for discipline_id in lab_work.disciplines.values_list("pk", flat=True):
+                bindable_by_discipline.setdefault(discipline_id, []).append(lab_work)
 
+        disciplines_qs = staff_managed_disciplines_qs(user).select_related("semester", "department")
         lab_disciplines = list(
-            staff_managed_disciplines_qs(user)
-            .select_related("semester")
-            .prefetch_related(
+            disciplines_qs.prefetch_related(
                 Prefetch(
                     "lab_works",
                     queryset=managed_lab_works,
@@ -169,9 +173,22 @@ class LabHeadBindingsView(LabHeadRequiredMixin, TemplateView):
         else:
             bindable_disciplines = lab_head_bindable_disciplines_qs(user)
 
+        departments = list(lab_head_departments_for_disciplines(disciplines_qs))
+        department_groups = []
+        assigned_ids: set[int] = set()
+        for department in departments:
+            dept_disciplines = [d for d in lab_disciplines if d.department_id == department.pk]
+            assigned_ids.update(d.pk for d in dept_disciplines)
+            if dept_disciplines:
+                department_groups.append({"department": department, "disciplines": dept_disciplines})
+        unassigned = [d for d in lab_disciplines if d.pk not in assigned_ids]
+        if unassigned:
+            department_groups.append({"department": None, "disciplines": unassigned})
+
         ctx["training_center"] = self.get_training_center()
         ctx["laboratory"] = lab_head_laboratory(user)
         ctx["lab_disciplines"] = lab_disciplines
+        ctx["department_groups"] = department_groups
         ctx["bindable_disciplines"] = bindable_disciplines
         ctx["search_query"] = search_query
         return ctx
@@ -252,12 +269,17 @@ class LabHeadLabWorksView(LabHeadRequiredMixin, ListView):
         qs = (
             staff_managed_lab_works_qs(self.request.user)
             .select_related(
-                "discipline",
                 "default_room",
                 "default_room__training_center",
                 "primary_stand",
             )
-            .prefetch_related("training_centers", "laboratories", "laboratories__training_center")
+            .prefetch_related(
+                "training_centers",
+                "laboratories",
+                "laboratories__training_center",
+                "disciplines",
+                "disciplines__department",
+            )
         )
         return filter_lab_head_lab_works(qs, self.request.GET.get("q", ""))
 
@@ -266,6 +288,9 @@ class LabHeadLabWorksView(LabHeadRequiredMixin, ListView):
         ctx["training_center"] = self.get_training_center()
         ctx["laboratory"] = lab_head_laboratory(self.request.user)
         ctx["lab_disciplines"] = staff_managed_disciplines_qs(self.request.user)
+        ctx["departments"] = lab_head_departments_for_disciplines(
+            staff_managed_disciplines_qs(self.request.user)
+        )
         ctx["training_centers"] = lab_head_training_centers_qs(self.request.user)
         ctx["laboratories"] = lab_head_laboratories_qs(self.request.user)
         ctx["rooms"] = lab_head_rooms_qs(self.request.user)
@@ -278,7 +303,7 @@ class LabHeadLabWorksView(LabHeadRequiredMixin, ListView):
 
 class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
     def post(self, request):
-        discipline_id = request.POST.get("discipline")
+        discipline_ids = request.POST.getlist("disciplines")
         laboratory_id = request.POST.get("laboratory", "").strip()
         room_id = request.POST.get("default_room", "").strip()
         stand_id = request.POST.get("primary_stand", "").strip()
@@ -287,13 +312,15 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
         duration = request.POST.get("duration_minutes", "").strip() or "90"
         capacity = request.POST.get("capacity", "").strip() or "3"
 
-        discipline = lab_head_discipline_in_scope(request.user, int(discipline_id)) if discipline_id else None
+        disciplines = list(
+            staff_managed_disciplines_qs(request.user).filter(pk__in=discipline_ids)
+        )
         laboratory = lab_head_laboratory_in_scope(request.user, int(laboratory_id)) if laboratory_id else None
         default_room = lab_head_room_in_scope(request.user, int(room_id)) if room_id else None
         primary_stand = lab_head_stand_in_scope(request.user, int(stand_id)) if stand_id else None
 
-        if not discipline or not laboratory or not number or not title:
-            messages.error(request, "Заполните дисциплину, лабораторию, номер и название ЛР.")
+        if not disciplines or not laboratory or not number or not title:
+            messages.error(request, "Заполните дисциплины, лабораторию, номер и название ЛР.")
             return redirect("lab-head-lab-works")
         if room_id and not default_room:
             messages.error(request, "Выбранная аудитория недоступна.")
@@ -325,22 +352,25 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
             messages.error(request, str(exc))
             return redirect("lab-head-lab-works")
 
-        if LabWork.objects.filter(discipline=discipline, number=number_int).exists():
-            messages.error(request, f"ЛР №{number_int} для этой дисциплины уже существует.")
+        if LabWork.objects.filter(number=number_int, laboratories=laboratory).exists():
+            messages.error(request, f"ЛР №{number_int} уже существует в этой лаборатории.")
             return redirect("lab-head-lab-works")
 
-        lab_work = LabWork.objects.create(
-            discipline=discipline,
-            number=number_int,
-            title=title,
-            duration_minutes=duration_int,
-            capacity=capacity_int,
-            is_published=True,
-            default_room=default_room,
-            primary_stand=primary_stand,
-        )
-        lab_work.laboratories.set([laboratory.pk])
-        sync_training_centers_for_laboratories(lab_work)
+        try:
+            lab_work = lab_head_create_lab_work(
+                request.user,
+                title=title,
+                number=number_int,
+                disciplines=disciplines,
+                duration_minutes=duration_int,
+                capacity=capacity_int,
+                laboratory=laboratory,
+                default_room=default_room,
+                primary_stand=primary_stand,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-lab-works")
         messages.success(request, f"Лабораторная работа «{lab_work.title}» добавлена.")
         return redirect("lab-head-lab-works")
 
@@ -352,11 +382,13 @@ class LabHeadLabWorkUpdateView(LabHeadRequiredMixin, View):
             messages.error(request, "Лабораторная работа недоступна.")
             return redirect("lab-head-lab-works")
 
-        discipline_id = request.POST.get("discipline", "").strip()
+        discipline_ids = request.POST.getlist("disciplines")
         laboratory_id = request.POST.get("laboratory", "").strip()
         room_id = request.POST.get("default_room", "").strip()
         stand_id = request.POST.get("primary_stand", "").strip()
-        discipline = lab_head_discipline_in_scope(request.user, int(discipline_id)) if discipline_id else None
+        disciplines = list(
+            staff_managed_disciplines_qs(request.user).filter(pk__in=discipline_ids)
+        )
         laboratory = lab_head_laboratory_in_scope(request.user, int(laboratory_id)) if laboratory_id else None
         default_room = lab_head_room_in_scope(request.user, int(room_id)) if room_id else None
         primary_stand = lab_head_stand_in_scope(request.user, int(stand_id)) if stand_id else None
@@ -366,7 +398,7 @@ class LabHeadLabWorkUpdateView(LabHeadRequiredMixin, View):
         capacity = request.POST.get("capacity", "").strip()
         is_published = request.POST.get("is_published") == "on"
 
-        if not discipline or not laboratory or not title or not number or not duration or not capacity:
+        if not disciplines or not laboratory or not title or not number or not duration or not capacity:
             messages.error(request, "Заполните все обязательные поля лабораторной работы.")
             return redirect("lab-head-lab-works")
         if room_id and not default_room:
@@ -390,7 +422,7 @@ class LabHeadLabWorkUpdateView(LabHeadRequiredMixin, View):
                 lab_work,
                 title=title,
                 number=number_int,
-                discipline=discipline,
+                disciplines=disciplines,
                 duration_minutes=duration_int,
                 capacity=capacity_int,
                 is_published=is_published,
@@ -444,6 +476,59 @@ class LabHeadStandCreateView(LabHeadRequiredMixin, View):
         )
         messages.success(request, "Стенд добавлен.")
         return redirect("lab-head-stands")
+
+
+class LabHeadRoomsView(LabHeadRequiredMixin, ListView):
+    template_name = "bookings/lab_head/rooms.html"
+    context_object_name = "rooms"
+
+    def get_queryset(self):
+        rooms = list(lab_head_rooms_qs(self.request.user))
+        for room in rooms:
+            room.room_disciplines = list(lab_head_room_disciplines(room))
+        return rooms
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["training_center"] = self.get_training_center()
+        ctx["laboratory"] = lab_head_laboratory(self.request.user)
+        ctx["laboratories"] = lab_head_laboratories_qs(self.request.user)
+        ctx["edit_room_id"] = self.request.GET.get("edit", "").strip()
+        return ctx
+
+
+class LabHeadRoomUpdateView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        room = lab_head_room_in_scope(request.user, pk)
+        if not room:
+            messages.error(request, "Аудитория недоступна.")
+            return redirect("lab-head-rooms")
+
+        name = request.POST.get("name", "").strip()
+        laboratory_id = request.POST.get("laboratory", "").strip()
+        laboratory = (
+            lab_head_laboratory_in_scope(request.user, int(laboratory_id))
+            if laboratory_id
+            else None
+        )
+        photo = request.FILES.get("photo")
+        clear_photo = request.POST.get("clear_photo") == "on"
+
+        try:
+            lab_head_update_room(
+                request.user,
+                room,
+                name=name,
+                laboratory=laboratory,
+                photo=photo,
+                clear_photo=clear_photo,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-rooms")
+
+        messages.success(request, f"Аудитория {room.number} обновлена.")
+        return redirect("lab-head-rooms")
 
 
 class LabHeadScheduleView(LabHeadRequiredMixin, ListView):

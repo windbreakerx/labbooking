@@ -5,6 +5,7 @@ from rest_framework.test import APIClient
 from datetime import datetime, time
 
 from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
+from apps.bookings.tests.conftest import create_lab_work
 from apps.academics.querysets import (
     student_disciplines_qs,
     student_lab_works_qs,
@@ -53,8 +54,8 @@ def foreign_discipline(semester):
 
 @pytest.fixture
 def own_lab_work(own_discipline):
-    return LabWork.objects.create(
-        discipline=own_discipline,
+    return create_lab_work(
+        own_discipline,
         number=1,
         title="Своя ЛР",
         duration_minutes=90,
@@ -64,8 +65,8 @@ def own_lab_work(own_discipline):
 
 @pytest.fixture
 def foreign_lab_work(foreign_discipline):
-    return LabWork.objects.create(
-        discipline=foreign_discipline,
+    return create_lab_work(
+        foreign_discipline,
         number=1,
         title="Чужая ЛР",
         duration_minutes=90,
@@ -235,8 +236,8 @@ class TestStudentScopeWeb:
         other_student.profile.student_group = student_group
         other_student.profile.save(update_fields=["student_group"])
 
-        short_lab = LabWork.objects.create(
-            discipline=own_discipline,
+        short_lab = create_lab_work(
+            own_discipline,
             number=2,
             title="Короткая ЛР",
             duration_minutes=30,
@@ -244,8 +245,8 @@ class TestStudentScopeWeb:
         )
         student_group.lab_works.add(short_lab)
 
-        blocking_lab = LabWork.objects.create(
-            discipline=own_discipline,
+        blocking_lab = create_lab_work(
+            own_discipline,
             number=3,
             title="Блокирующая ЛР",
             duration_minutes=45,

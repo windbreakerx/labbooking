@@ -28,21 +28,20 @@
 
 <section class="card">
     <h2 class="card__title">Дисциплины лаборатории</h2>
-    {% if lab_disciplines %}
-    <div class="discipline-list">
-        {% for d in lab_disciplines %}
-        <details class="discipline-panel">
-            <summary class="discipline-panel__summary">
-                <span class="discipline-panel__title">
-                    <strong>{{ d.title }}</strong>
-                    <span class="muted discipline-panel__meta">{{ d.semester }}</span>
-                </span>
-                <span class="discipline-panel__badges">
-                    <span class="badge badge--muted">{{ d.managed_lab_works|length }} ЛР</span>
-                </span>
-                <details class="row-actions discipline-panel__menu" onclick="event.stopPropagation()">
-                    <summary class="row-actions__trigger" aria-label="Действия с дисциплиной">⋮</summary>
-                    <div class="row-actions__menu">
+    {% if department_groups %}
+    <div class="department-list">
+        {% for group in department_groups %}
+        <details class="department-panel" {% if forloop.first %}open{% endif %}>
+            <summary class="department-panel__summary">
+                <strong>{% if group.department %}{{ group.department.title }}{% else %}Без кафедры{% endif %}</strong>
+                <span class="badge badge--muted">{{ group.disciplines|length }} дисц.</span>
+            </summary>
+            <div class="department-panel__body">
+                {% for d in group.disciplines %}
+                <div class="discipline-row">
+                    <div class="discipline-row__header">
+                        <strong>{{ d.title }}</strong>
+                        <span class="muted">{{ d.semester }}</span>
                         <form
                             method="post"
                             action="{% url 'lab-head-discipline-unbind' d.pk %}"
@@ -50,58 +49,49 @@
                             data-discipline-title="{{ d.title|escapejs }}"
                         >
                             {% csrf_token %}
-                            <button type="submit" class="row-actions__item row-actions__item--button row-actions__item--danger">
-                                Отвязать от лаборатории
-                            </button>
+                            <button type="submit" class="button--sm button--secondary">Отвязать</button>
                         </form>
                     </div>
-                </details>
-            </summary>
-            <div class="discipline-panel__body">
-                {% if d.managed_lab_works %}
-                <ul class="discipline-panel__lab-works">
-                    {% for lw in d.managed_lab_works %}
-                    <li>
-                        <a class="discipline-panel__lab-work-link" href="{% url 'lab-head-lab-works' %}?edit={{ lw.pk }}">
-                            <strong>{{ lw.title }}</strong>
-                            <span class="muted">№{{ lw.number }}</span>
-                            {% if lw.is_published %}
-                            <span class="status-badge status-badge--with-dot status-badge--visited">Опубликовано</span>
-                            {% else %}
-                            <span class="status-badge status-badge--with-dot status-badge--cancelled">Снято с публикации</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="muted discipline-panel__empty">Нет привязанных лабораторных работ.</p>
-                {% endif %}
+                    {% if d.managed_lab_works %}
+                    <label class="discipline-row__lab-select">
+                        Лабораторные работы
+                        <select class="discipline-lab-work-select" data-discipline-id="{{ d.pk }}">
+                            <option value="">— выберите ЛР —</option>
+                            {% for lw in d.managed_lab_works %}
+                            <option value="{% url 'lab-head-lab-works' %}?edit={{ lw.pk }}">№{{ lw.number }} — {{ lw.title }}{% if not lw.is_published %} (снято){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    {% else %}
+                    <p class="muted discipline-panel__empty">Нет привязанных лабораторных работ.</p>
+                    {% endif %}
 
-                {% if d.bindable_lab_works %}
-                <div class="discipline-panel__bindable">
-                    <p class="discipline-panel__bindable-title">Доступны для привязки</p>
-                    <div class="table-wrap">
-                        <table class="table table--compact responsive-table">
-                            <thead><tr><th>Название</th><th>№</th><th></th></tr></thead>
-                            <tbody>
-                                {% for lw in d.bindable_lab_works %}
-                                <tr>
-                                    <td data-label="Название">{{ lw.title }}</td>
-                                    <td data-label="№">№{{ lw.number }}</td>
-                                    <td data-label="">
-                                        <form method="post" action="{% url 'lab-head-lab-work-bind' lw.pk %}">
-                                            {% csrf_token %}
-                                            <button type="submit" class="button--sm">Привязать</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    {% if d.bindable_lab_works %}
+                    <div class="discipline-panel__bindable">
+                        <p class="discipline-panel__bindable-title">Доступны для привязки</p>
+                        <div class="table-wrap">
+                            <table class="table table--compact responsive-table">
+                                <thead><tr><th>Название</th><th>№</th><th></th></tr></thead>
+                                <tbody>
+                                    {% for lw in d.bindable_lab_works %}
+                                    <tr>
+                                        <td data-label="Название">{{ lw.title }}</td>
+                                        <td data-label="№">№{{ lw.number }}</td>
+                                        <td data-label="">
+                                            <form method="post" action="{% url 'lab-head-lab-work-bind' lw.pk %}">
+                                                {% csrf_token %}
+                                                <button type="submit" class="button--sm">Привязать</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
+                    {% endif %}
                 </div>
-                {% endif %}
+                {% endfor %}
             </div>
         </details>
         {% endfor %}
@@ -208,31 +198,15 @@
         });
     });
 
-    bindDialogControls(bindDialog);
-
-    document.querySelectorAll('.discipline-panel__menu').forEach(function (menu) {
-        menu.addEventListener('toggle', function () {
-            if (!menu.open) {
-                return;
+    document.querySelectorAll('.discipline-lab-work-select').forEach(function (select) {
+        select.addEventListener('change', function () {
+            if (select.value) {
+                window.location.href = select.value;
             }
-            document.querySelectorAll('.discipline-panel__menu[open]').forEach(function (other) {
-                if (other !== menu) {
-                    other.removeAttribute('open');
-                }
-            });
-            var panel = menu.querySelector('.row-actions__menu');
-            if (!panel) {
-                return;
-            }
-            panel.classList.remove('row-actions__menu--flip');
-            requestAnimationFrame(function () {
-                var rect = panel.getBoundingClientRect();
-                if (rect.bottom > window.innerHeight - 8) {
-                    panel.classList.add('row-actions__menu--flip');
-                }
-            });
         });
     });
+
+    bindDialogControls(bindDialog);
 })();
 </script>
 {% endblock %}

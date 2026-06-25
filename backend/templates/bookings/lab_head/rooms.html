@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Аудитории — завлаб{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Кабинет завлаба{% if laboratory %} · {{ laboratory.name }}{% endif %}{% if training_center %} · УЦ №{{ training_center.number }}{% endif %}</p>
+        <h1 class="page-title">Аудитории</h1>
+        <p class="page-description">Аудитории учебного центра, фотографии и дисциплины, проводимые в них.</p>
+    </div>
+</header>
+
+<div class="table-wrap">
+    <table class="table table--compact responsive-table room-table">
+        <thead>
+            <tr>
+                <th>№</th>
+                <th>Название</th>
+                <th>Фото</th>
+                <th>Лаборатория</th>
+                <th>Дисциплины</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for room in rooms %}
+            <tr
+                class="room-row"
+                tabindex="0"
+                role="button"
+                data-room-id="{{ room.pk }}"
+                data-number="{{ room.number|escapejs }}"
+                data-name="{{ room.name|escapejs }}"
+                data-laboratory-id="{% if room.laboratory_id %}{{ room.laboratory_id }}{% endif %}"
+                data-photo-url="{% if room.photo %}{{ room.photo.url }}{% endif %}"
+            >
+                <td data-label="№"><strong>{{ room.number }}</strong></td>
+                <td data-label="Название">{% if room.name %}{{ room.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td data-label="Фото">
+                    {% if room.photo %}
+                    <img src="{{ room.photo.url }}" alt="Аудитория {{ room.number }}" class="room-thumb">
+                    {% else %}
+                    <span class="muted">Нет фото</span>
+                    {% endif %}
+                </td>
+                <td data-label="Лаборатория">{% if room.laboratory %}{{ room.laboratory.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td data-label="Дисциплины">
+                    {% for d in room.room_disciplines %}
+                    <span class="badge badge--muted">{{ d.title }}</span>
+                    {% empty %}
+                    <span class="muted">—</span>
+                    {% endfor %}
+                </td>
+                <td data-label=""><button type="button" class="button--sm room-edit-btn">Изменить</button></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6"><p class="muted">Нет аудиторий в вашем учебном центре.</p></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<dialog id="room-edit-dialog" class="app-dialog app-dialog--wide" aria-labelledby="room-edit-title">
+    <div class="app-dialog__header">
+        <h2 class="card__title" id="room-edit-title">Редактирование аудитории</h2>
+        <p class="muted" id="room-edit-subtitle"></p>
+    </div>
+    <form method="post" action="" class="form-grid" id="room-edit-form" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label>Номер <input type="text" id="room-edit-number" readonly></label>
+        <label>Название <input type="text" name="name" id="room-edit-name" maxlength="256"></label>
+        <label>Лаборатория
+            <select name="laboratory" id="room-edit-laboratory">
+                <option value="">— не выбрана —</option>
+                {% for lab in laboratories %}
+                <option value="{{ lab.pk }}">{{ lab.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="form-grid__full">Фотография
+            <input type="file" name="photo" accept="image/*">
+        </label>
+        <div class="form-grid__full">
+            <img src="" alt="" id="room-edit-photo-preview" class="room-preview" hidden>
+            <label class="checkbox-inline">
+                <input type="checkbox" name="clear_photo" id="room-edit-clear-photo">
+                <span>Удалить текущее фото</span>
+            </label>
+        </div>
+        <div class="app-dialog__actions form-grid__full">
+            <button type="submit">Сохранить</button>
+            <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+(function () {
+    var dialog = document.getElementById('room-edit-dialog');
+    var form = document.getElementById('room-edit-form');
+    var preview = document.getElementById('room-edit-photo-preview');
+
+    function openRoomDialog(row) {
+        if (!dialog || !form || !row) {
+            return;
+        }
+        var roomId = row.getAttribute('data-room-id');
+        form.action = '{% url "lab-head-room-update" pk=0 %}'.replace('/0/', '/' + roomId + '/');
+        document.getElementById('room-edit-number').value = row.getAttribute('data-number') || '';
+        document.getElementById('room-edit-name').value = row.getAttribute('data-name') || '';
+        document.getElementById('room-edit-laboratory').value = row.getAttribute('data-laboratory-id') || '';
+        document.getElementById('room-edit-subtitle').textContent = 'Аудитория ' + (row.getAttribute('data-number') || '');
+        var photoUrl = row.getAttribute('data-photo-url') || '';
+        if (preview) {
+            if (photoUrl) {
+                preview.src = photoUrl;
+                preview.hidden = false;
+            } else {
+                preview.hidden = true;
+                preview.removeAttribute('src');
+            }
+        }
+        document.getElementById('room-edit-clear-photo').checked = false;
+        dialog.showModal();
+    }
+
+    if (dialog) {
+        dialog.addEventListener('click', function (e) {
+            if (e.target === dialog) {
+                dialog.close();
+            }
+        });
+        dialog.querySelectorAll('[data-dialog-close]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dialog.close();
+            });
+        });
+    }
+
+    document.querySelectorAll('.room-row, .room-edit-btn').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            if (el.classList.contains('room-edit-btn')) {
+                e.stopPropagation();
+            }
+            var row = el.classList.contains('room-row') ? el : el.closest('.room-row');
+            openRoomDialog(row);
+        });
+    });
+
+    var editRoomId = '{{ edit_room_id|escapejs }}';
+    if (editRoomId) {
+        var targetRow = document.querySelector('.room-row[data-room-id="' + editRoomId + '"]');
+        if (targetRow) {
+            openRoomDialog(targetRow);
+        }
+    }
+})();
+</script>
+{% endblock %}

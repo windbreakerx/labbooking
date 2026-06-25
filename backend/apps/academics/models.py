@@ -46,12 +46,33 @@ class StudentGroup(models.Model):
         return self.name
 
 
+class Department(models.Model):
+    title = models.CharField("Название", max_length=256, unique=True)
+    ordering = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Кафедра"
+        verbose_name_plural = "Кафедры"
+        ordering = ["ordering", "title"]
+
+    def __str__(self):
+        return self.title
+
+
 class Discipline(models.Model):
     code = models.CharField("Код", max_length=32, blank=True)
     title = models.CharField("Название", max_length=256)
     description = models.TextField("Описание", blank=True)
     is_published = models.BooleanField("Опубликовано", default=True)
     dekanat_id = models.CharField("ID в Деканате", max_length=64, blank=True)
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="disciplines",
+        verbose_name="Кафедра",
+    )
     semester = models.ForeignKey(
         Semester,
         on_delete=models.CASCADE,
@@ -82,10 +103,10 @@ class Discipline(models.Model):
 
 
 class LabWork(models.Model):
-    discipline = models.ForeignKey(
+    disciplines = models.ManyToManyField(
         Discipline,
-        on_delete=models.CASCADE,
         related_name="lab_works",
+        verbose_name="Дисциплины",
     )
     number = models.PositiveIntegerField("Номер", default=1)
     title = models.CharField("Название", max_length=256)
@@ -135,8 +156,7 @@ class LabWork(models.Model):
     class Meta:
         verbose_name = "Лабораторная работа"
         verbose_name_plural = "Лабораторные работы"
-        ordering = ["discipline", "number"]
-        unique_together = [("discipline", "number")]
+        ordering = ["number", "title"]
         constraints = [
             models.CheckConstraint(
                 check=models.Q(duration_minutes__in=ALLOWED_LAB_DURATIONS),
@@ -145,4 +165,7 @@ class LabWork(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.discipline.title} — ЛР {self.number}: {self.title}"
+        discipline_titles = ", ".join(self.disciplines.values_list("title", flat=True)[:3])
+        if discipline_titles:
+            return f"ЛР {self.number}: {self.title} ({discipline_titles})"
+        return f"ЛР {self.number}: {self.title}"

@@ -10,6 +10,13 @@ from apps.scheduling.models import LabSession, LabSessionStatus, Room, TrainingC
 from apps.users.models import User, UserRole
 
 
+def create_lab_work(*disciplines, **kwargs) -> LabWork:
+    lab_work = LabWork.objects.create(**kwargs)
+    if disciplines:
+        lab_work.disciplines.set(disciplines)
+    return lab_work
+
+
 @pytest.fixture(autouse=True)
 def _disable_day_open_gate(monkeypatch):
     monkeypatch.setattr(
@@ -72,8 +79,8 @@ def inactive_discipline(db):
 
 @pytest.fixture
 def lab_work(discipline):
-    return LabWork.objects.create(
-        discipline=discipline,
+    return create_lab_work(
+        discipline,
         number=1,
         title="ЛР 1",
         duration_minutes=90,

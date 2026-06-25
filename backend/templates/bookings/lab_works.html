@@ -31,7 +31,7 @@
         <p class="lab-card__desc muted">{{ lw.description|truncatewords:22 }}</p>
         {% endif %}
         <div class="lab-card__footer">
-            <a class="button" href="{% url 'book-lab-work' lw.pk %}">Записаться</a>
+            <a class="button" href="{% url 'book-lab-work' lw.pk %}?discipline={{ discipline.pk }}">Записаться</a>
         </div>
     </article>
     {% endfor %}

@@ -29,7 +29,7 @@
 <div class="table-wrap">
     <table class="table table--compact table--sticky responsive-table lab-work-table">
         <thead>
-            <tr><th>Название</th><th>№</th><th>Дисциплина</th><th>Лаборатория</th><th>УЦ</th><th>Аудитория</th><th>Длительность</th><th>Макс. мест</th><th>Опубликовано</th></tr>
+            <tr><th>Название</th><th>№</th><th>Дисциплины</th><th>Лаборатория</th><th>УЦ</th><th>Аудитория</th><th>Длительность</th><th>Макс. мест</th><th>Опубликовано</th></tr>
         </thead>
         <tbody>
             {% for lw in lab_works %}
@@ -41,7 +41,7 @@
                 data-lab-work-id="{{ lw.pk }}"
                 data-title="{{ lw.title|escapejs }}"
                 data-number="{{ lw.number }}"
-                data-discipline-id="{{ lw.discipline_id }}"
+                data-discipline-ids="{% for d in lw.disciplines.all %}{{ d.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
                 data-laboratory-id="{% if bound_lab %}{{ bound_lab.pk }}{% elif laboratory %}{{ laboratory.pk }}{% endif %}"
                 data-tc-label="{% if bound_lab %}УЦ №{{ bound_lab.training_center.number }}{% if bound_lab.training_center.name %} — {{ bound_lab.training_center.name }}{% endif %}{% elif training_center %}УЦ №{{ training_center.number }}{% if training_center.name %} — {{ training_center.name }}{% endif %}{% endif %}"
                 data-room-id="{% if lw.default_room_id %}{{ lw.default_room_id }}{% endif %}"
@@ -53,7 +53,11 @@
             >
                 <td data-label="Название"><strong>{{ lw.title }}</strong></td>
                 <td data-label="№"><span class="badge badge--muted">№{{ lw.number }}</span></td>
-                <td data-label="Дисциплина">{{ lw.discipline.title }}</td>
+                <td data-label="Дисциплины">
+                    {% for d in lw.disciplines.all %}
+                    <span class="badge badge--muted">{{ d.title }}</span>{% if not forloop.last %} {% endif %}
+                    {% empty %}<span class="muted">—</span>{% endfor %}
+                </td>
                 <td data-label="Лаборатория">{% if bound_lab %}{{ bound_lab.name }}{% elif laboratory %}{{ laboratory.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
                 <td data-label="УЦ">{% if bound_lab %}№{{ bound_lab.training_center.number }}{% elif training_center %}№{{ training_center.number }}{% else %}<span class="muted">—</span>{% endif %}</td>
                 <td data-label="Аудитория">{% if lw.default_room %}{{ lw.default_room.number }}{% else %}<span class="muted">—</span>{% endif %}</td>
@@ -92,11 +96,21 @@
         {% csrf_token %}
         <label>Название <input type="text" name="title" required maxlength="256"></label>
         <label>№ ЛР <input type="number" name="number" min="1" required></label>
-        <label>Дисциплина
-            <select name="discipline" required>
-                <option value="">— выберите —</option>
+        <label class="form-grid__full">Дисциплины
+            <select name="disciplines" multiple required size="8">
+                {% for department in departments %}
+                <optgroup label="{{ department.title }}">
+                    {% for d in lab_disciplines %}
+                    {% if d.department_id == department.pk %}
+                    <option value="{{ d.pk }}">{{ d.title }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </optgroup>
+                {% endfor %}
                 {% for d in lab_disciplines %}
+                {% if not d.department_id %}
                 <option value="{{ d.pk }}">{{ d.title }}</option>
+                {% endif %}
                 {% endfor %}
             </select>
         </label>
@@ -150,10 +164,21 @@
         {% csrf_token %}
         <label>Название <input type="text" name="title" id="lab-work-edit-title-input" required maxlength="256"></label>
         <label>№ ЛР <input type="number" name="number" id="lab-work-edit-number" min="1" required></label>
-        <label>Дисциплина
-            <select name="discipline" id="lab-work-edit-discipline" required>
+        <label class="form-grid__full">Дисциплины
+            <select name="disciplines" id="lab-work-edit-disciplines" multiple required size="8">
+                {% for department in departments %}
+                <optgroup label="{{ department.title }}">
+                    {% for d in lab_disciplines %}
+                    {% if d.department_id == department.pk %}
+                    <option value="{{ d.pk }}">{{ d.title }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </optgroup>
+                {% endfor %}
                 {% for d in lab_disciplines %}
+                {% if not d.department_id %}
                 <option value="{{ d.pk }}">{{ d.title }}</option>
+                {% endif %}
                 {% endfor %}
             </select>
         </label>
@@ -245,7 +270,13 @@
         editForm.action = '{% url "lab-head-lab-work-update" pk=0 %}'.replace('/0/', '/' + labWorkId + '/');
         document.getElementById('lab-work-edit-title-input').value = row.getAttribute('data-title') || '';
         document.getElementById('lab-work-edit-number').value = row.getAttribute('data-number') || '';
-        document.getElementById('lab-work-edit-discipline').value = row.getAttribute('data-discipline-id') || '';
+        var disciplineSelect = document.getElementById('lab-work-edit-disciplines');
+        var disciplineIds = (row.getAttribute('data-discipline-ids') || '').split(',').filter(Boolean);
+        if (disciplineSelect) {
+            Array.prototype.forEach.call(disciplineSelect.options, function (option) {
+                option.selected = disciplineIds.indexOf(option.value) !== -1;
+            });
+        }
         document.getElementById('lab-work-edit-laboratory').value = row.getAttribute('data-laboratory-id') || '';
         document.getElementById('lab-work-edit-room').value = row.getAttribute('data-room-id') || '';
         document.getElementById('lab-work-edit-stand').value = row.getAttribute('data-stand-id') || '';

@@ -1,6 +1,6 @@
 from django.db.models import Q, QuerySet
 
-from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, Semester
+from apps.academics.models import ALLOWED_LAB_DURATIONS, Department, Discipline, LabWork, Semester
 from apps.academics.querysets import (
     resolve_staff_laboratory,
     resolve_staff_training_center,
@@ -67,7 +67,7 @@ def lab_head_lab_work_search_q(query: str) -> Q:
     search_q = (
         Q(title__icontains=query)
         | Q(description__icontains=query)
-        | Q(discipline__title__icontains=query)
+        | Q(disciplines__title__icontains=query)
         | Q(laboratories__name__icontains=query)
         | Q(training_centers__name__icontains=query)
         | Q(default_room__number__icontains=query)
@@ -129,10 +129,11 @@ def lab_head_bindable_lab_works_qs(user: User) -> QuerySet[LabWork]:
         return LabWork.objects.none()
     discipline_ids = staff_managed_disciplines_qs(user).values_list("pk", flat=True)
     return (
-        LabWork.objects.filter(discipline_id__in=discipline_ids)
+        LabWork.objects.filter(disciplines__in=discipline_ids)
         .exclude(laboratories=laboratory)
-        .select_related("discipline")
-        .order_by("discipline__title", "number")
+        .prefetch_related("disciplines")
+        .distinct()
+        .order_by("title", "number")
     )
 
 
@@ -153,7 +154,28 @@ def lab_head_rooms_qs(user: User) -> QuerySet[Room]:
     tc = lab_head_training_center(user)
     if not tc:
         return Room.objects.none()
-    return Room.objects.filter(training_center=tc).select_related("training_center").order_by("number")
+    return (
+        Room.objects.filter(training_center=tc)
+        .select_related("training_center", "laboratory")
+        .prefetch_related("default_lab_works__disciplines")
+        .order_by("number")
+    )
+
+
+def lab_head_room_disciplines(room: Room) -> QuerySet[Discipline]:
+    return (
+        Discipline.objects.filter(lab_works__default_room=room)
+        .distinct()
+        .order_by("title")
+    )
+
+
+def lab_head_departments_for_disciplines(disciplines_qs: QuerySet[Discipline]) -> QuerySet[Department]:
+    return (
+        Department.objects.filter(disciplines__in=disciplines_qs)
+        .distinct()
+        .order_by("ordering", "title")
+    )
 
 
 def lab_head_training_centers_qs(user: User) -> QuerySet[TrainingCenter]:
@@ -205,12 +227,11 @@ def lab_head_schedule_qs(user: User) -> QuerySet[ScheduleEntry]:
 
     qs = ScheduleEntry.objects.select_related(
         "lab_work",
-        "lab_work__discipline",
         "room",
         "room__training_center",
         "semester",
         "teacher",
-    )
+    ).prefetch_related("lab_work__disciplines")
     return staff_lab_filter(qs, user)
 
 
@@ -260,7 +281,7 @@ def lab_head_update_lab_work(
     *,
     title: str,
     number: int,
-    discipline: Discipline,
+    disciplines: list[Discipline],
     duration_minutes: int,
     capacity: int,
     is_published: bool,
@@ -271,13 +292,16 @@ def lab_head_update_lab_work(
     title = title.strip()
     if not title:
         raise ValueError("Укажите название лабораторной работы.")
+    if not disciplines:
+        raise ValueError("Выберите хотя бы одну дисциплину.")
     if number < 1:
         raise ValueError("Номер ЛР должен быть не меньше 1.")
     validate_lab_duration_minutes(duration_minutes)
     if capacity < 1:
         raise ValueError("Количество мест должно быть не меньше 1.")
-    if not lab_head_discipline_in_scope(user, discipline.pk):
-        raise ValueError("Дисциплина недоступна.")
+    for discipline in disciplines:
+        if not lab_head_discipline_in_scope(user, discipline.pk):
+            raise ValueError("Дисциплина недоступна.")
     if not lab_head_laboratory_in_scope(user, laboratory.pk):
         raise ValueError("Лаборатория недоступна.")
     if default_room and default_room.training_center_id != laboratory.training_center_id:
@@ -285,14 +309,17 @@ def lab_head_update_lab_work(
     if primary_stand and primary_stand.training_center_id != laboratory.training_center_id:
         raise ValueError("Стенд должен относиться к учебному центру лаборатории.")
 
-    duplicate = LabWork.objects.filter(discipline=discipline, number=number).exclude(pk=lab_work.pk).exists()
+    duplicate = (
+        LabWork.objects.filter(number=number, laboratories=laboratory)
+        .exclude(pk=lab_work.pk)
+        .exists()
+    )
     if duplicate:
-        raise ValueError(f"ЛР №{number} для этой дисциплины уже существует.")
+        raise ValueError(f"ЛР №{number} уже существует в этой лаборатории.")
 
-    capacity_changed = lab_work.capacity != capacity
+    capacity_changed = lab_work.pk is not None and lab_work.capacity != capacity
     lab_work.title = title
     lab_work.number = number
-    lab_work.discipline = discipline
     lab_work.duration_minutes = duration_minutes
     lab_work.capacity = capacity
     lab_work.is_published = is_published
@@ -302,7 +329,6 @@ def lab_head_update_lab_work(
         update_fields=[
             "title",
             "number",
-            "discipline",
             "duration_minutes",
             "capacity",
             "is_published",
@@ -310,6 +336,7 @@ def lab_head_update_lab_work(
             "primary_stand",
         ]
     )
+    lab_work.disciplines.set(disciplines)
     lab_work.laboratories.set([laboratory.pk])
     sync_training_centers_for_laboratories(lab_work)
     if capacity_changed:
@@ -317,3 +344,57 @@ def lab_head_update_lab_work(
 
         sync_open_session_capacities(lab_work)
     return lab_work
+
+
+def lab_head_create_lab_work(
+    user: User,
+    *,
+    title: str,
+    number: int,
+    disciplines: list[Discipline],
+    duration_minutes: int,
+    capacity: int,
+    laboratory: Laboratory,
+    default_room: Room | None = None,
+    primary_stand: LabStand | None = None,
+) -> LabWork:
+    lab_work = LabWork()
+    return lab_head_update_lab_work(
+        user,
+        lab_work,
+        title=title,
+        number=number,
+        disciplines=disciplines,
+        duration_minutes=duration_minutes,
+        capacity=capacity,
+        is_published=True,
+        laboratory=laboratory,
+        default_room=default_room,
+        primary_stand=primary_stand,
+    )
+
+
+def lab_head_update_room(
+    user: User,
+    room: Room,
+    *,
+    name: str,
+    laboratory: Laboratory | None,
+    photo=None,
+    clear_photo: bool = False,
+) -> Room:
+    if not lab_head_room_in_scope(user, room.pk):
+        raise ValueError("Аудитория недоступна.")
+    if laboratory and not lab_head_laboratory_in_scope(user, laboratory.pk):
+        raise ValueError("Лаборатория недоступна.")
+    room.name = name.strip()
+    room.laboratory = laboratory
+    update_fields = ["name", "laboratory"]
+    if photo is not None:
+        room.photo = photo
+        update_fields.append("photo")
+    elif clear_photo:
+        room.photo = None
+        update_fields.append("photo")
+    room.save(update_fields=update_fields)
+    return room

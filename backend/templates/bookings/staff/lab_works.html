@@ -13,7 +13,7 @@
     <table class="table table--compact table--sticky responsive-table lab-works-table">
         <thead>
             <tr>
-                <th>Дисциплина</th>
+                <th>Дисциплины</th>
                 <th>№</th>
                 <th>Название</th>
                 <th>Методичка</th>
@@ -23,7 +23,11 @@
         <tbody>
             {% for lw in lab_works %}
             <tr>
-                <td data-label="Дисциплина">{{ lw.discipline.title }}</td>
+                <td data-label="Дисциплины">
+                    {% for d in lw.disciplines.all %}
+                    {{ d.title }}{% if not forloop.last %}, {% endif %}
+                    {% empty %}<span class="muted">—</span>{% endfor %}
+                </td>
                 <td data-label="№"><span class="badge badge--muted">ЛР {{ lw.number }}</span></td>
                 <td data-label="Название"><strong>{{ lw.title }}</strong></td>
                 <td data-label="Методичка">

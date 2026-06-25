@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.test import Client
 from django.utils import timezone
 
+from apps.bookings.tests.conftest import create_lab_work
 from apps.academics.models import LabWork
 from apps.bookings.services import BookingService, search_students_for_staff
 from apps.bookings.services.session_availability import (
@@ -83,14 +84,15 @@ class TestStaffManualBookingWeb:
         staff,
         session,
         lab_work,
+        discipline,
         semester,
     ):
         staff.profile.training_center = session.room.training_center
         staff.profile.save(update_fields=["training_center"])
         _link_lab_to_tc(lab_work, session.room)
         other_tc = TrainingCenter.objects.create(number=99)
-        foreign_lab = LabWork.objects.create(
-            discipline=lab_work.discipline,
+        foreign_lab = create_lab_work(
+            discipline,
             number=2,
             title="Чужая ЛР",
             duration_minutes=90,
@@ -144,6 +146,7 @@ class TestStaffManualBookingWeb:
         student,
         session,
         lab_work,
+        discipline,
         room,
         semester,
         student_group,
@@ -164,8 +167,8 @@ class TestStaffManualBookingWeb:
         other.profile.student_group = student_group
         other.profile.save(update_fields=["student_group"])
 
-        second_lab = LabWork.objects.create(
-            discipline=lab_work.discipline,
+        second_lab = create_lab_work(
+            discipline,
             number=2,
             title="ЛР 2",
             duration_minutes=90,

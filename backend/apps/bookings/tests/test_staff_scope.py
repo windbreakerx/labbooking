@@ -6,6 +6,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
+from apps.bookings.tests.conftest import create_lab_work
 from apps.academics.querysets import (
     staff_disciplines_qs,
     staff_lab_works_qs,
@@ -60,8 +61,8 @@ def foreign_discipline(semester, foreign_tc):
 
 @pytest.fixture
 def own_lab_work(own_discipline, own_tc):
-    lw = LabWork.objects.create(
-        discipline=own_discipline,
+    lw = create_lab_work(
+        own_discipline,
         number=1,
         title="Своя ЛР",
         duration_minutes=90,
@@ -73,8 +74,8 @@ def own_lab_work(own_discipline, own_tc):
 
 @pytest.fixture
 def foreign_lab_work(foreign_discipline, foreign_tc):
-    lw = LabWork.objects.create(
-        discipline=foreign_discipline,
+    lw = create_lab_work(
+        foreign_discipline,
         number=1,
         title="Чужая ЛР",
         duration_minutes=90,

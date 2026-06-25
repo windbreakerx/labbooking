@@ -2,6 +2,7 @@ import pytest
 from django.urls import reverse
 
 from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, Semester
+from apps.bookings.tests.conftest import create_lab_work
 from apps.scheduling.models import LabStand, Laboratory, Room, ScheduleEntry, TrainingCenter
 from apps.users.models import User, UserRole
 
@@ -170,7 +171,7 @@ class TestLabHeadBindings:
         response = client_logged_in.post(
             reverse("lab-head-lab-work-create"),
             {
-                "discipline": own_discipline.pk,
+                "disciplines": [own_discipline.pk],
                 "laboratory": own_laboratory.pk,
                 "default_room": own_room.pk,
                 "number": 2,
@@ -181,7 +182,7 @@ class TestLabHeadBindings:
             },
         )
         assert response.status_code == 302
-        lab_work = LabWork.objects.get(discipline=own_discipline, number=2)
+        lab_work = LabWork.objects.get(disciplines=own_discipline, number=2)
         assert lab_work.capacity == 3
         assert lab_work.default_room_id == own_room.pk
         assert lab_work.primary_stand_id == own_stand.pk
@@ -207,8 +208,8 @@ class TestLabHeadBindings:
         assert foreign_discipline.title not in content
 
     def test_update_lab_work(self, client_logged_in, own_laboratory, own_discipline, own_room, own_stand):
-        lab_work = LabWork.objects.create(
-            discipline=own_discipline,
+        lab_work = create_lab_work(
+            own_discipline,
             number=3,
             title="ЛР для редактирования",
             duration_minutes=90,
@@ -222,7 +223,7 @@ class TestLabHeadBindings:
             {
                 "title": "ЛР обновлённая",
                 "number": 3,
-                "discipline": own_discipline.pk,
+                "disciplines": [own_discipline.pk],
                 "laboratory": own_laboratory.pk,
                 "default_room": own_room.pk,
                 "duration_minutes": 60,
@@ -241,8 +242,8 @@ class TestLabHeadBindings:
         assert lab_work.is_published is True
 
     def test_unpublish_lab_work(self, client_logged_in, own_laboratory, own_discipline):
-        lab_work = LabWork.objects.create(
-            discipline=own_discipline,
+        lab_work = create_lab_work(
+            own_discipline,
             number=4,
             title="ЛР для снятия",
             duration_minutes=90,
@@ -255,7 +256,7 @@ class TestLabHeadBindings:
             {
                 "title": lab_work.title,
                 "number": lab_work.number,
-                "discipline": own_discipline.pk,
+                "disciplines": [own_discipline.pk],
                 "laboratory": own_laboratory.pk,
                 "duration_minutes": lab_work.duration_minutes,
                 "capacity": lab_work.capacity,
@@ -270,8 +271,8 @@ class TestLabHeadBindings:
 class TestLabHeadLabWorksSearch:
     @pytest.fixture
     def own_lab_work(self, own_discipline, own_laboratory, own_room):
-        lab_work = LabWork.objects.create(
-            discipline=own_discipline,
+        lab_work = create_lab_work(
+            own_discipline,
             number=7,
             title="Измерение сопротивления",
             duration_minutes=90,
@@ -376,8 +377,8 @@ class TestLabHeadStandsAndSchedule:
         own_laboratory,
         own_room,
     ):
-        lab_work = LabWork.objects.create(
-            discipline=own_discipline,
+        lab_work = create_lab_work(
+            own_discipline,
             number=1,
             title="ЛР 1",
             duration_minutes=90,
@@ -404,7 +405,7 @@ class TestLabHeadStandsAndSchedule:
         response = client_logged_in.post(
             reverse("lab-head-lab-work-create"),
             {
-                "discipline": own_discipline.pk,
+                "disciplines": [own_discipline.pk],
                 "laboratory": own_laboratory.pk,
                 "number": 5,
                 "title": "ЛР с неверной длительностью",
@@ -416,8 +417,8 @@ class TestLabHeadStandsAndSchedule:
         assert not LabWork.objects.filter(title="ЛР с неверной длительностью").exists()
 
     def test_update_lab_work_rejects_invalid_duration(self, client_logged_in, own_laboratory, own_discipline):
-        lab_work = LabWork.objects.create(
-            discipline=own_discipline,
+        lab_work = create_lab_work(
+            own_discipline,
             number=10,
             title="ЛР для проверки длительности",
             duration_minutes=90,
@@ -430,7 +431,7 @@ class TestLabHeadStandsAndSchedule:
             {
                 "title": lab_work.title,
                 "number": lab_work.number,
-                "discipline": own_discipline.pk,
+                "disciplines": [own_discipline.pk],
                 "laboratory": own_laboratory.pk,
                 "duration_minutes": 35,
                 "capacity": 5,
@@ -448,8 +449,8 @@ class TestLabHeadStandsAndSchedule:
         own_laboratory,
         own_room,
     ):
-        lab_work = LabWork.objects.create(
-            discipline=own_discipline,
+        lab_work = create_lab_work(
+            own_discipline,
             number=11,
             title="ЛР для расписания",
             duration_minutes=90,

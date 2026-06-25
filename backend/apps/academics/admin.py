@@ -1,12 +1,18 @@
 from django.contrib import admin
 
-from .models import Discipline, LabWork, Semester, StudentGroup
+from .models import Department, Discipline, LabWork, Semester, StudentGroup
 
 
 @admin.register(Semester)
 class SemesterAdmin(admin.ModelAdmin):
     list_display = ("name", "start_date", "end_date", "is_active")
     list_filter = ("is_active",)
+
+
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+    list_display = ("title", "ordering")
+    ordering = ("ordering", "title")
 
 
 @admin.register(StudentGroup)
@@ -19,15 +25,15 @@ class StudentGroupAdmin(admin.ModelAdmin):
 
 @admin.register(Discipline)
 class DisciplineAdmin(admin.ModelAdmin):
-    list_display = ("title", "code", "semester", "is_published")
-    list_filter = ("semester", "is_published", "training_centers")
+    list_display = ("title", "code", "department", "semester", "is_published")
+    list_filter = ("semester", "department", "is_published", "training_centers")
     search_fields = ("title", "code")
-    filter_horizontal = ("training_centers",)
+    filter_horizontal = ("training_centers", "laboratories")
 
 
 @admin.register(LabWork)
 class LabWorkAdmin(admin.ModelAdmin):
-    list_display = ("title", "discipline", "number", "duration_minutes", "capacity", "primary_stand", "is_published")
-    list_filter = ("discipline", "is_published", "training_centers")
+    list_display = ("title", "number", "duration_minutes", "capacity", "primary_stand", "is_published")
+    list_filter = ("is_published", "training_centers", "disciplines")
     search_fields = ("title",)
-    filter_horizontal = ("training_centers",)
+    filter_horizontal = ("disciplines", "training_centers", "laboratories")

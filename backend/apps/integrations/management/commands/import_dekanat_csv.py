@@ -319,7 +319,7 @@ class Command(BaseCommand):
 
         if lab_work_number.isdigit():
             lab_work = LabWork.objects.filter(
-                discipline=discipline,
+                disciplines=discipline,
                 number=int(lab_work_number),
             ).first()
             if not lab_work:
@@ -328,7 +328,7 @@ class Command(BaseCommand):
             return 0, 1
 
         self._bind_training_center(discipline, training_center_number)
-        for lab_work in LabWork.objects.filter(discipline=discipline):
+        for lab_work in LabWork.objects.filter(disciplines=discipline):
             self._bind_training_center(lab_work, training_center_number)
         return 0, 1
 

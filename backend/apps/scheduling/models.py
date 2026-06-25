@@ -50,7 +50,17 @@ class Room(models.Model):
         related_name="rooms",
     )
     number = models.CharField("Аудитория №", max_length=32)
+    name = models.CharField("Название", max_length=256, blank=True)
+    photo = models.ImageField("Фотография", upload_to="rooms/", blank=True)
     capacity = models.PositiveIntegerField("Вместимость", default=30)
+    laboratory = models.ForeignKey(
+        Laboratory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rooms",
+        verbose_name="Лаборатория",
+    )
 
     class Meta:
         verbose_name = "Аудитория"
@@ -58,6 +68,8 @@ class Room(models.Model):
         unique_together = [("training_center", "number")]
 
     def __str__(self):
+        if self.name:
+            return f"ауд. {self.number} — {self.name}"
         return f"УЦ №{self.training_center.number}, ауд. {self.number}"
 
 

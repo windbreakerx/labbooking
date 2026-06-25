@@ -4,7 +4,7 @@
 <nav class="breadcrumbs" aria-label="Навигация">
     <a href="{% url 'disciplines' %}">Дисциплины</a>
     <span aria-hidden="true">/</span>
-    <a href="{% url 'lab-works' lab_work.discipline.pk %}">{{ lab_work.discipline.title }}</a>
+    <a href="{% url 'lab-works' discipline.pk %}">{{ discipline.title }}</a>
     <span aria-hidden="true">/</span>
     <span class="breadcrumbs__current">{{ lab_work.title }}</span>
 </nav>
@@ -14,7 +14,7 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Запись на лабораторную работу</p>
         <h1 class="page-title">{{ lab_work.title }}</h1>
-        <p class="page-description">{{ lab_work.discipline.title }}</p>
+        <p class="page-description">{{ discipline.title }}</p>
     </div>
 </header>
 
@@ -29,7 +29,7 @@
         </div>
         <dl class="detail-list">
             <dt>Дисциплина</dt>
-            <dd>{{ lab_work.discipline.title }}</dd>
+            <dd>{{ discipline.title }}</dd>
             <dt>Порядок</dt>
             <dd>Дата → пара → подтверждение</dd>
         </dl>
@@ -53,6 +53,7 @@
         </div>
         <form method="post" id="booking-form">
             {% csrf_token %}
+            <input type="hidden" name="discipline_id" value="{{ discipline.pk }}">
             <div id="filter-chain">
                 {% include "bookings/partials/filter_date_calendar.html" with lab_work_id=lab_work.pk options=filter_options calendar_months=calendar_months %}
             </div>

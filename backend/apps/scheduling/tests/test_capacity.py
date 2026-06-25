@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from apps.academics.models import LabWork
+from apps.bookings.tests.conftest import create_lab_work
 from apps.scheduling.models import LabSession, LabSessionStatus, Room, TrainingCenter
 from apps.scheduling.services.capacity import lab_session_capacity, sync_open_session_capacities
 from apps.scheduling.services.slot_generation import generate_lab_sessions
@@ -14,8 +14,8 @@ class TestLabSessionCapacity:
     def test_lab_session_capacity_uses_minimum(self, discipline, semester):
         tc = TrainingCenter.objects.create(number=7)
         room = Room.objects.create(training_center=tc, number="701", capacity=10)
-        lab_work = LabWork.objects.create(
-            discipline=discipline,
+        lab_work = create_lab_work(
+            discipline,
             number=1,
             title="ЛР с лимитом",
             duration_minutes=90,
@@ -28,8 +28,8 @@ class TestLabSessionCapacity:
     def test_generate_sessions_uses_lab_work_capacity(self, discipline, semester):
         tc = TrainingCenter.objects.create(number=8)
         room = Room.objects.create(training_center=tc, number="801", capacity=10)
-        lab_work = LabWork.objects.create(
-            discipline=discipline,
+        lab_work = create_lab_work(
+            discipline,
             number=1,
             title="ЛР для генерации",
             duration_minutes=90,
@@ -45,8 +45,8 @@ class TestLabSessionCapacity:
     def test_generate_sessions_creates_interval_starts(self, discipline, semester):
         tc = TrainingCenter.objects.create(number=18)
         room = Room.objects.create(training_center=tc, number="1801", capacity=10)
-        lab_work = LabWork.objects.create(
-            discipline=discipline,
+        lab_work = create_lab_work(
+            discipline,
             number=3,
             title="ЛР 60 минут",
             duration_minutes=60,
@@ -65,8 +65,8 @@ class TestLabSessionCapacity:
     def test_sync_open_session_capacities(self, discipline, semester):
         tc = TrainingCenter.objects.create(number=9)
         room = Room.objects.create(training_center=tc, number="901", capacity=10)
-        lab_work = LabWork.objects.create(
-            discipline=discipline,
+        lab_work = create_lab_work(
+            discipline,
             number=1,
             title="ЛР для синхронизации",
             duration_minutes=90,

@@ -246,9 +246,10 @@ class Command(BaseCommand):
             discipline = get_discipline(discipline_title)
             if discipline is None:
                 return None
-            cache_key = (discipline.title, parsed_lab.title)
+            cache_key = (parsed_lab.title.strip().lower(), str(room.id))
             if cache_key in lab_cache:
                 lab_work = lab_cache[cache_key]
+                lab_work.disciplines.add(discipline)
                 changed = False
                 if lab_work.default_room_id != room.id:
                     lab_work.default_room = room
@@ -265,16 +266,23 @@ class Command(BaseCommand):
                     lab_work.save(update_fields=["default_room", "duration_minutes", "capacity"])
                 return lab_work
 
-            existing = LabWork.objects.filter(discipline=discipline, title=parsed_lab.title).first()
+            existing = (
+                LabWork.objects.filter(title=parsed_lab.title, default_room=room)
+                .prefetch_related("disciplines")
+                .first()
+            )
             if existing:
                 lab_work = existing
+                lab_work.disciplines.add(discipline)
             else:
                 next_number = (
-                    LabWork.objects.filter(discipline=discipline).order_by("-number").values_list("number", flat=True).first()
+                    LabWork.objects.filter(laboratories=laboratory)
+                    .order_by("-number")
+                    .values_list("number", flat=True)
+                    .first()
                     or 0
                 ) + 1
                 lab_work = LabWork.objects.create(
-                    discipline=discipline,
                     number=parsed_lab.catalog_number or next_number,
                     title=parsed_lab.title,
                     duration_minutes=self._normalize_duration(parsed_lab.duration_minutes) or 90,
@@ -282,6 +290,7 @@ class Command(BaseCommand):
                     default_room=room,
                     is_published=True,
                 )
+                lab_work.disciplines.add(discipline)
                 stats["lab_works"] += 1
             lab_work.training_centers.add(training_center)
             lab_work.laboratories.add(laboratory)
@@ -316,7 +325,9 @@ class Command(BaseCommand):
                         room=room,
                     )
                     if lab_work:
-                        student_group.disciplines.add(lab_work.discipline)
+                        discipline = get_discipline(parsed_lab.discipline)
+                        if discipline:
+                            student_group.disciplines.add(discipline)
                         student_group.lab_works.add(lab_work)
 
                 for student in group_sheet.students:
@@ -348,7 +359,7 @@ class Command(BaseCommand):
                 if not discipline_title:
                     existing = LabWork.objects.filter(title=parsed_lab.title, default_room=room).first()
                     if existing:
-                        discipline_title = existing.discipline.title
+                        discipline_title = existing.disciplines.order_by("title").values_list("title", flat=True).first()
                     else:
                         continue
                 lab_work = upsert_lab(discipline_title=discipline_title, parsed_lab=parsed_lab, room=room)

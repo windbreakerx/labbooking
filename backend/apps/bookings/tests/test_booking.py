@@ -15,7 +15,7 @@ from apps.bookings.services.session_availability import (
     is_day_open_for_booking,
     is_pair_time_for_booking,
 )
-from apps.bookings.tests.conftest import next_open_weekday_pair
+from apps.bookings.tests.conftest import create_lab_work, next_open_weekday_pair
 from apps.scheduling.models import LabSession, LabSessionStatus, LabStand, Room, TrainingCenter
 from apps.users.models import User, UserRole
 
@@ -99,7 +99,7 @@ class TestBookingService:
         with pytest.raises(BookingError, match="200"):
             service.cancel_booking(booking)
 
-    def test_room_parallel_capacity_limit(self, student, session, lab_work, room, semester, student_group):
+    def test_room_parallel_capacity_limit(self, student, session, lab_work, discipline, room, semester, student_group):
         other_student = _assign_student_group(
             User.objects.create_user(
                 email="s2@stud.spmi.ru",
@@ -120,8 +120,8 @@ class TestBookingService:
             ),
             student_group,
         )
-        second_lab_work = LabWork.objects.create(
-            discipline=lab_work.discipline,
+        second_lab_work = create_lab_work(
+            discipline,
             number=2,
             title="ЛР 2",
             duration_minutes=90,
@@ -277,12 +277,12 @@ class TestBookingService:
 
         discipline_two = Discipline.objects.create(
             title="Вторая дисциплина",
-            semester=session.lab_work.discipline.semester,
+            semester=semester,
             is_published=True,
         )
         student_group.disciplines.add(discipline_two)
-        second_lab = LabWork.objects.create(
-            discipline=discipline_two,
+        second_lab = create_lab_work(
+            discipline_two,
             number=1,
             title="ЛР на том же стенде",
             duration_minutes=90,
@@ -386,12 +386,12 @@ class TestBookingService:
         other_room = Room.objects.create(training_center=other_tc, number="777", capacity=10)
         discipline_two = Discipline.objects.create(
             title="Термодинамика",
-            semester=session.lab_work.discipline.semester,
+            semester=semester,
             is_published=True,
         )
         student_group.disciplines.add(discipline_two)
-        second_lab = LabWork.objects.create(
-            discipline=discipline_two,
+        second_lab = create_lab_work(
+            discipline_two,
             number=1,
             title="ЛР 2",
             duration_minutes=60,
@@ -489,12 +489,12 @@ class TestSessionAvailability:
         BookingService().create_booking(student, session.pk)
         discipline_two = Discipline.objects.create(
             title="Гидравлика",
-            semester=session.lab_work.discipline.semester,
+            semester=semester,
             is_published=True,
         )
         student_group.disciplines.add(discipline_two)
-        second_lab = LabWork.objects.create(
-            discipline=discipline_two,
+        second_lab = create_lab_work(
+            discipline_two,
             number=1,
             title="ЛР 2",
             duration_minutes=60,

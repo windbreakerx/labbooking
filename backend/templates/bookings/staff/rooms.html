@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Аудитории — сотрудник{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Кабинет сотрудника</p>
+        <h1 class="page-title">Аудитории</h1>
+        <p class="page-description">Справочник аудиторий вашего учебного центра.</p>
+    </div>
+</header>
+
+<div class="table-wrap">
+    <table class="table table--compact responsive-table">
+        <thead>
+            <tr>
+                <th>№</th>
+                <th>Название</th>
+                <th>Фото</th>
+                <th>Лаборатория</th>
+                <th>Дисциплины</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for room in rooms %}
+            <tr>
+                <td data-label="№"><strong>{{ room.number }}</strong></td>
+                <td data-label="Название">{% if room.name %}{{ room.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td data-label="Фото">
+                    {% if room.photo %}
+                    <img src="{{ room.photo.url }}" alt="Аудитория {{ room.number }}" class="room-thumb">
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
+                <td data-label="Лаборатория">{% if room.laboratory %}{{ room.laboratory.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td data-label="Дисциплины">
+                    {% for d in room.room_disciplines %}
+                    {{ d.title }}{% if not forloop.last %}, {% endif %}
+                    {% empty %}
+                    <span class="muted">—</span>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5"><p class="muted">Нет аудиторий.</p></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

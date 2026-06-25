@@ -31,6 +31,7 @@
     <form method="post" action="{% url 'staff-booking-manual' %}" class="form-grid manual-booking__form" id="manual-booking-form">
         {% csrf_token %}
         <input type="hidden" name="student_id" id="manual-student-id" value="">
+        <input type="hidden" name="discipline_id" id="manual-discipline-id" value="">
 
         <div class="manual-booking__section">
             <label for="manual-student-query">Студент</label>
@@ -58,8 +59,8 @@
             <label for="manual-lab-work">Лабораторная работа</label>
             <select id="manual-lab-work" disabled>
                 <option value="">— сначала выберите студента —</option>
-                {% for lw in manual_lab_works %}
-                <option value="{{ lw.pk }}">{{ lw.discipline.title }} — {{ lw.title }}</option>
+                {% for item in manual_lab_works %}
+                <option value="{{ item.lab_work.pk }}" data-discipline-id="{{ item.discipline.pk }}">{{ item.discipline.title }} — {{ item.lab_work.title }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -232,6 +233,7 @@
     var selectedStudentMeta = document.getElementById('manual-selected-student-meta');
     var studentClearBtn = document.getElementById('manual-student-clear');
     var labWorkSelect = document.getElementById('manual-lab-work');
+    var disciplineIdInput = document.getElementById('manual-discipline-id');
     var filterChain = document.getElementById('manual-filter-chain');
     var sessionSlot = document.getElementById('manual-session-slot');
     var bookBtn = document.getElementById('manual-book-btn');
@@ -308,6 +310,10 @@
             }
             if (labWorkSelect.options.length === 2) {
                 labWorkSelect.selectedIndex = 1;
+                var option = labWorkSelect.options[1];
+                if (disciplineIdInput && option) {
+                    disciplineIdInput.value = option.getAttribute('data-discipline-id') || '';
+                }
                 loadManualCalendar(labWorkSelect.value);
             } else {
                 labWorkSelect.selectedIndex = 0;
@@ -365,6 +371,10 @@
 
     if (labWorkSelect) {
         labWorkSelect.addEventListener('change', function () {
+            var option = labWorkSelect.options[labWorkSelect.selectedIndex];
+            if (disciplineIdInput && option) {
+                disciplineIdInput.value = option.getAttribute('data-discipline-id') || '';
+            }
             loadManualCalendar(this.value);
         });
     }

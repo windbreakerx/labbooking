@@ -22,10 +22,17 @@ def published_disciplines_qs():
 
 def published_lab_works_qs(discipline_id: int):
     return LabWork.objects.filter(
-        discipline_id=discipline_id,
+        disciplines=discipline_id,
         is_published=True,
-        discipline__semester__is_active=True,
-    )
+        disciplines__semester__is_active=True,
+    ).distinct()
+
+
+def lab_works_for_discipline_qs(discipline_id: int | None = None) -> QuerySet[LabWork]:
+    qs = LabWork.objects.filter(disciplines__semester__is_active=True)
+    if discipline_id is not None:
+        qs = qs.filter(disciplines=discipline_id)
+    return qs.distinct()
 
 
 def resolve_student_group(user: User) -> StudentGroup | None:
@@ -54,14 +61,14 @@ def student_lab_works_qs(user: User, discipline_id: int | None = None) -> QueryS
 
     qs = LabWork.objects.filter(
         is_published=True,
-        discipline__semester__is_active=True,
-    )
+        disciplines__semester__is_active=True,
+    ).distinct()
     if discipline_id is not None:
-        qs = qs.filter(discipline_id=discipline_id)
+        qs = qs.filter(disciplines=discipline_id)
 
     if group.lab_works.exists():
         return qs.filter(student_groups=group)
-    return qs.filter(discipline__student_groups=group)
+    return qs.filter(disciplines__student_groups=group).distinct()
 
 
 def student_can_access_discipline(user: User, discipline_id: int) -> bool:
@@ -125,7 +132,7 @@ def staff_disciplines_qs(user: User) -> QuerySet[Discipline]:
 
 def staff_managed_disciplines_qs(user: User) -> QuerySet[Discipline]:
     """Все дисциплины лаборатории для панели сотрудника."""
-    qs = Discipline.objects.select_related("semester")
+    qs = Discipline.objects.select_related("semester", "department")
     if user.role == UserRole.SYS_ADMIN:
         return qs.order_by("title")
     laboratory = resolve_staff_laboratory(user)
@@ -140,10 +147,10 @@ def staff_managed_disciplines_qs(user: User) -> QuerySet[Discipline]:
 def staff_lab_works_qs(user: User, discipline_id: int | None = None) -> QuerySet[LabWork]:
     qs = LabWork.objects.filter(
         is_published=True,
-        discipline__semester__is_active=True,
-    )
+        disciplines__semester__is_active=True,
+    ).distinct()
     if discipline_id is not None:
-        qs = qs.filter(discipline_id=discipline_id)
+        qs = qs.filter(disciplines=discipline_id)
     if user.role == UserRole.SYS_ADMIN:
         return qs
     laboratory = resolve_staff_laboratory(user)
@@ -156,16 +163,16 @@ def staff_lab_works_qs(user: User, discipline_id: int | None = None) -> QuerySet
 
 
 def staff_managed_lab_works_qs(user: User) -> QuerySet[LabWork]:
-    qs = LabWork.objects.select_related("discipline")
+    qs = LabWork.objects.prefetch_related("disciplines", "disciplines__department")
     if user.role == UserRole.SYS_ADMIN:
-        return qs.order_by("discipline", "number")
+        return qs.order_by("number", "title")
     laboratory = resolve_staff_laboratory(user)
     if laboratory:
-        return qs.filter(laboratories=laboratory).order_by("discipline", "number")
+        return qs.filter(laboratories=laboratory).order_by("number", "title")
     tc = resolve_staff_training_center(user)
     if not tc:
         return LabWork.objects.none()
-    return qs.filter(training_centers=tc).order_by("discipline", "number")
+    return qs.filter(training_centers=tc).order_by("number", "title")
 
 
 def staff_can_access_discipline(user: User, discipline_id: int) -> bool:
@@ -188,5 +195,5 @@ def staff_can_access_lab_work(user: User, lab_work_id: int) -> bool:
     return LabWork.objects.filter(
         pk=lab_work_id,
         is_published=True,
-        discipline__semester__is_active=True,
+        disciplines__semester__is_active=True,
     ).exists()

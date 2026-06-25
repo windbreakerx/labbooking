@@ -24,6 +24,7 @@ from apps.bookings.services.session_availability import (
     lab_work_capacity_would_be_exceeded,
     room_capacity_would_be_exceeded,
 )
+from apps.academics.models import Discipline
 from apps.scheduling.models import Holiday, LabSession, LabSessionStatus
 from apps.users.models import User, UserRole
 
@@ -196,6 +197,8 @@ class BookingService:
         self,
         student: User,
         session_id: int,
+        *,
+        discipline_id: int | None = None,
         manual: bool = False,
         skip_student_rules: bool = False,
     ) -> Booking:
@@ -206,6 +209,7 @@ class BookingService:
                     return self._create_booking_in_transaction(
                         student,
                         session_id,
+                        discipline_id=discipline_id,
                         manual=manual,
                         skip_student_rules=skip_student_rules,
                     )
@@ -226,17 +230,58 @@ class BookingService:
                 time.sleep(DEADLOCK_RETRY_BASE_SECONDS * (attempt + 1))
         raise AssertionError("create_booking retry loop exited without result")
 
+    def _resolve_booking_discipline(
+        self,
+        student: User,
+        lab_work_id: int,
+        discipline_id: int | None,
+        *,
+        skip_student_rules: bool,
+    ) -> Discipline:
+        discipline_qs = Discipline.objects.filter(lab_works=lab_work_id)
+        if discipline_id is not None:
+            discipline = discipline_qs.filter(pk=discipline_id).first()
+            if discipline is None:
+                raise BookingError("Дисциплина недоступна для этой лабораторной работы.")
+            return discipline
+
+        if skip_student_rules:
+            discipline = discipline_qs.order_by("title").first()
+            if discipline is None:
+                raise BookingError("У лабораторной работы нет привязанных дисциплин.")
+            return discipline
+
+        from apps.academics.querysets import student_disciplines_qs
+
+        discipline = (
+            student_disciplines_qs(student)
+            .filter(lab_works=lab_work_id)
+            .order_by("title")
+            .first()
+        )
+        if discipline is None:
+            raise BookingError("Дисциплина недоступна для этой лабораторной работы.")
+        return discipline
+
     def _create_booking_in_transaction(
         self,
         student: User,
         session_id: int,
         *,
+        discipline_id: int | None = None,
         manual: bool = False,
         skip_student_rules: bool = False,
     ) -> Booking:
         session = (
-            LabSession.objects.select_related("lab_work", "lab_work__discipline", "room")
+            LabSession.objects.select_related("lab_work", "room")
+            .prefetch_related("lab_work__disciplines")
             .get(pk=session_id)
+        )
+        booking_discipline = self._resolve_booking_discipline(
+            student,
+            session.lab_work_id,
+            discipline_id,
+            skip_student_rules=skip_student_rules or manual,
         )
         self._lock_for_booking(session)
         skip_rules = skip_student_rules or manual
@@ -249,7 +294,7 @@ class BookingService:
         if not skip_rules:
             self._check_discipline_limit(
                 student,
-                session.lab_work.discipline_id,
+                booking_discipline.pk,
                 session.lab_work_id,
             )
             if self._student_overlap_booked(student, session):
@@ -275,7 +320,7 @@ class BookingService:
             student=student,
             lab_session=session,
             lab_work=session.lab_work,
-            discipline=session.lab_work.discipline,
+            discipline=booking_discipline,
             room=session.room,
             scheduled_at=session.starts_at,
             current_status=BookingStatus.BOOKED,

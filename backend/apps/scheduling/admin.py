@@ -18,8 +18,8 @@ class LaboratoryAdmin(admin.ModelAdmin):
 
 @admin.register(Room)
 class RoomAdmin(admin.ModelAdmin):
-    list_display = ("number", "training_center", "capacity")
-    list_filter = ("training_center",)
+    list_display = ("number", "name", "training_center", "laboratory", "capacity")
+    list_filter = ("training_center", "laboratory")
 
 
 @admin.register(LabSession)

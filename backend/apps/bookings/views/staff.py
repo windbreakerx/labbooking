@@ -37,7 +37,7 @@ class StaffLabWorksView(StaffRequiredMixin, ListView):
     context_object_name = "lab_works"
 
     def get_queryset(self):
-        return staff_managed_lab_works_qs(self.request.user)
+        return staff_managed_lab_works_qs(self.request.user).prefetch_related("disciplines")
 
 
 class StaffLabWorkUploadView(StaffRequiredMixin, View):
@@ -51,6 +51,24 @@ class StaffLabWorkUploadView(StaffRequiredMixin, View):
                 lab_work.save(update_fields=["methodics_file"])
                 messages.success(request, "Методичка загружена.")
         return redirect("staff-lab-works")
+
+
+class StaffRoomsView(StaffRequiredMixin, ListView):
+    template_name = "bookings/staff/rooms.html"
+    context_object_name = "rooms"
+
+    def get_queryset(self):
+        from apps.academics.models import Discipline
+        from apps.scheduling.models import Room
+
+        qs = Room.objects.select_related("training_center", "laboratory")
+        qs = staff_lab_filter(qs, self.request.user, training_center_lookup="training_center")
+        rooms = list(qs.order_by("number"))
+        for room in rooms:
+            room.room_disciplines = list(
+                Discipline.objects.filter(lab_works__default_room=room).distinct().order_by("title")
+            )
+        return rooms
 
 
 class StaffStandsView(StaffRequiredMixin, ListView):
@@ -96,7 +114,7 @@ class StaffScheduleView(StaffRequiredMixin, ListView):
             "room",
             "semester",
             "teacher",
-        )
+        ).prefetch_related("lab_work__disciplines")
         return staff_lab_filter(qs, self.request.user)
 
 
