@@ -38,6 +38,7 @@
         >
             <summary class="lab-work-item__summary">
                 <span class="lab-work-item__number">№{{ lw.number }}</span>
+                {% if lw.code %}<span class="badge badge--muted">{{ lw.code }}</span>{% endif %}
                 <span class="lab-work-item__title">{{ lw.title }}</span>
                 {% if lw.is_published %}
                 <span class="status-badge status-badge--with-dot status-badge--visited lab-work-item__status">Опубликовано</span>
@@ -88,6 +89,7 @@
                     data-lab-work-id="{{ lw.pk }}"
                     data-title="{{ lw.title|escapejs }}"
                     data-number="{{ lw.number }}"
+                    data-code="{{ lw.code|default_if_none:''|escapejs }}"
                     data-discipline-ids="{% for d in lw.disciplines.all %}{{ d.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
                     data-laboratory-id="{% if bound_lab %}{{ bound_lab.pk }}{% elif laboratory %}{{ laboratory.pk }}{% endif %}"
                     data-tc-label="{% if bound_lab %}УЦ №{{ bound_lab.training_center.number }}{% if bound_lab.training_center.name %} — {{ bound_lab.training_center.name }}{% endif %}{% elif training_center %}УЦ №{{ training_center.number }}{% if training_center.name %} — {{ training_center.name }}{% endif %}{% endif %}"
@@ -190,6 +192,7 @@
         {% csrf_token %}
         <label>Название <input type="text" name="title" id="lab-work-edit-title-input" required maxlength="256"></label>
         <label>№ ЛР <input type="number" name="number" id="lab-work-edit-number" min="1" required></label>
+        <label>Код ЛР <input type="text" id="lab-work-edit-code" readonly></label>
         <label class="form-grid__full">Дисциплины
             <select name="disciplines" id="lab-work-edit-disciplines" multiple required size="8">
                 {% for department in departments %}
@@ -249,6 +252,7 @@
             </label>
         </div>
         <p class="muted form-grid__full">Снимите публикацию, чтобы скрыть ЛР из записи, не удаляя её из базы.</p>
+        <p class="muted form-grid__full">Изменение длительности применяется только к будущим открытым слотам без записей.</p>
         <div class="app-dialog__actions form-grid__full">
             <button type="submit">Сохранить</button>
             <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
@@ -296,6 +300,7 @@
         editForm.action = '{% url "lab-head-lab-work-update" pk=0 %}'.replace('/0/', '/' + labWorkId + '/');
         document.getElementById('lab-work-edit-title-input').value = source.getAttribute('data-title') || '';
         document.getElementById('lab-work-edit-number').value = source.getAttribute('data-number') || '';
+        document.getElementById('lab-work-edit-code').value = source.getAttribute('data-code') || '';
         var disciplineSelect = document.getElementById('lab-work-edit-disciplines');
         var disciplineIds = (source.getAttribute('data-discipline-ids') || '').split(',').filter(Boolean);
         if (disciplineSelect) {

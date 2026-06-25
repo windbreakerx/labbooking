@@ -48,6 +48,7 @@ class StudentGroup(models.Model):
 
 class Department(models.Model):
     title = models.CharField("Название", max_length=256, unique=True)
+    short_code = models.CharField("Короткий код", max_length=16, blank=True)
     ordering = models.PositiveIntegerField("Порядок", default=0)
 
     class Meta:
@@ -61,6 +62,7 @@ class Department(models.Model):
 
 class Discipline(models.Model):
     code = models.CharField("Код", max_length=32, blank=True)
+    short_code = models.CharField("Короткий код", max_length=16, blank=True)
     title = models.CharField("Название", max_length=256)
     description = models.TextField("Описание", blank=True)
     is_published = models.BooleanField("Опубликовано", default=True)
@@ -109,6 +111,7 @@ class LabWork(models.Model):
         verbose_name="Дисциплины",
     )
     number = models.PositiveIntegerField("Номер", default=1)
+    code = models.CharField("Код ЛР", max_length=64, blank=True, null=True)
     title = models.CharField("Название", max_length=256)
     description = models.TextField("Описание", blank=True)
     duration_minutes = models.PositiveIntegerField(
@@ -161,7 +164,12 @@ class LabWork(models.Model):
             models.CheckConstraint(
                 check=models.Q(duration_minutes__in=ALLOWED_LAB_DURATIONS),
                 name="academics_labwork_allowed_duration",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["code"],
+                condition=models.Q(code__isnull=False),
+                name="academics_labwork_code_unique_not_null",
+            ),
         ]
 
     def __str__(self):

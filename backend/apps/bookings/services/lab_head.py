@@ -1,3 +1,6 @@
+import re
+
+from django.db import IntegrityError
 from django.db.models import Q, QuerySet
 
 from apps.academics.models import ALLOWED_LAB_DURATIONS, Department, Discipline, LabWork, Semester
@@ -73,6 +76,7 @@ def lab_head_lab_work_search_q(query: str) -> Q:
         | Q(default_room__number__icontains=query)
         | Q(primary_stand__name__icontains=query)
         | Q(primary_stand__inventory_number__icontains=query)
+        | Q(code__icontains=query)
         | _published_search_q(query)
     )
     if query.isdigit():
@@ -275,6 +279,50 @@ def lab_head_lab_work_in_scope(user: User, lab_work_id: int) -> LabWork | None:
     return staff_managed_lab_works_qs(user).filter(pk=lab_work_id).first()
 
 
+def _normalize_short_code(raw: str) -> str:
+    code = re.sub(r"[^0-9A-Za-zА-Яа-яЁё]+", "", (raw or "").upper())
+    return code[:16]
+
+
+def _initials_from_title(title: str, *, limit: int = 2) -> str:
+    words = re.findall(r"[0-9A-Za-zА-Яа-яЁё]+", title or "")
+    if not words:
+        return ""
+    if len(words) == 1:
+        return words[0][:limit].upper()
+    return "".join(word[0].upper() for word in words[:limit])
+
+
+def generate_lab_work_code(
+    *,
+    number: int,
+    discipline: Discipline | None,
+    exclude_pk: int | None = None,
+) -> str:
+    faculty_code = "НГФ"
+    department_code = "БК"
+    discipline_code = "ДИС"
+    if discipline is not None:
+        department = discipline.department
+        if department is not None:
+            department_code = _normalize_short_code(department.short_code) or _initials_from_title(
+                department.title
+            )
+        discipline_code = _normalize_short_code(discipline.short_code) or _initials_from_title(
+            discipline.title
+        )
+    department_code = department_code or "БК"
+    discipline_code = discipline_code or "ДИС"
+
+    base_code = f"{faculty_code}-{department_code}-{discipline_code}-{number}"
+    candidate = base_code
+    suffix = 2
+    while LabWork.objects.filter(code=candidate).exclude(pk=exclude_pk).exists():
+        candidate = f"{base_code}-{suffix}"
+        suffix += 1
+    return candidate
+
+
 def lab_head_update_lab_work(
     user: User,
     lab_work: LabWork,
@@ -309,15 +357,14 @@ def lab_head_update_lab_work(
     if primary_stand and primary_stand.training_center_id != laboratory.training_center_id:
         raise ValueError("Стенд должен относиться к учебному центру лаборатории.")
 
-    duplicate = (
-        LabWork.objects.filter(number=number, laboratories=laboratory)
-        .exclude(pk=lab_work.pk)
-        .exists()
-    )
-    if duplicate:
-        raise ValueError(f"ЛР №{number} уже существует в этой лаборатории.")
-
     capacity_changed = lab_work.pk is not None and lab_work.capacity != capacity
+    duration_changed = lab_work.pk is not None and lab_work.duration_minutes != duration_minutes
+    primary_discipline = sorted(disciplines, key=lambda item: item.pk)[0]
+    lab_work.code = generate_lab_work_code(
+        number=number,
+        discipline=primary_discipline,
+        exclude_pk=lab_work.pk,
+    )
     lab_work.title = title
     lab_work.number = number
     lab_work.duration_minutes = duration_minutes
@@ -325,17 +372,24 @@ def lab_head_update_lab_work(
     lab_work.is_published = is_published
     lab_work.default_room = default_room
     lab_work.primary_stand = primary_stand
-    lab_work.save(
-        update_fields=[
-            "title",
-            "number",
-            "duration_minutes",
-            "capacity",
-            "is_published",
-            "default_room",
-            "primary_stand",
-        ]
-    )
+    try:
+        if lab_work.pk is None:
+            lab_work.save()
+        else:
+            lab_work.save(
+                update_fields=[
+                    "title",
+                    "code",
+                    "number",
+                    "duration_minutes",
+                    "capacity",
+                    "is_published",
+                    "default_room",
+                    "primary_stand",
+                ]
+            )
+    except IntegrityError as exc:
+        raise ValueError("Не удалось сгенерировать уникальный код лабораторной работы.") from exc
     lab_work.disciplines.set(disciplines)
     lab_work.laboratories.set([laboratory.pk])
     sync_training_centers_for_laboratories(lab_work)
@@ -343,6 +397,10 @@ def lab_head_update_lab_work(
         from apps.scheduling.services.capacity import sync_open_session_capacities
 
         sync_open_session_capacities(lab_work)
+    if duration_changed:
+        from apps.scheduling.services.capacity import sync_open_session_durations
+
+        sync_open_session_durations(lab_work)
     return lab_work
 
 

@@ -2068,6 +2068,9 @@ button.calendar-day--available {
 .app-dialog--scrollable {
     max-height: calc(100vh - var(--space-6));
     overflow: hidden;
+}
+
+dialog[open].app-dialog--scrollable {
     display: flex;
     flex-direction: column;
 }

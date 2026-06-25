@@ -71,6 +71,7 @@
                                     href="{% url 'lab-head-lab-works' %}?edit={{ lw.pk }}"
                                 >
                                     <span class="catalog-lab-work__number">№{{ lw.number }}</span>
+                                    {% if lw.code %}<span class="badge badge--muted">{{ lw.code }}</span>{% endif %}
                                     <span class="catalog-lab-work__title">{{ lw.title }}</span>
                                     {% if not lw.is_published %}
                                     <span class="catalog-lab-work__status badge badge--muted">снято</span>
@@ -89,7 +90,7 @@
                             <ul class="catalog-bindable-list">
                                 {% for lw in d.bindable_lab_works %}
                                 <li class="catalog-bindable-item">
-                                    <span class="catalog-bindable-item__title">№{{ lw.number }} — {{ lw.title }}</span>
+                                    <span class="catalog-bindable-item__title">№{{ lw.number }}{% if lw.code %} · {{ lw.code }}{% endif %} — {{ lw.title }}</span>
                                     <form method="post" action="{% url 'lab-head-lab-work-bind' lw.pk %}">
                                         {% csrf_token %}
                                         <button type="submit" class="button--sm">Привязать</button>

@@ -37,6 +37,7 @@
                                 href="{% url 'book-lab-work' lw.pk %}?discipline={{ d.pk }}"
                             >
                                 <span class="catalog-lab-work__number">№{{ lw.number }}</span>
+                                {% if lw.code %}<span class="badge badge--muted">{{ lw.code }}</span>{% endif %}
                                 <span class="catalog-lab-work__title">{{ lw.title }}</span>
                                 {% if lw.duration_minutes %}
                                 <span class="catalog-lab-work__meta">{{ lw.duration_minutes }} мин</span>

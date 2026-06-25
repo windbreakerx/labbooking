@@ -1,9 +1,11 @@
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, Semester
+from apps.bookings.models import Booking
 from apps.bookings.tests.conftest import create_lab_work
-from apps.scheduling.models import LabStand, Laboratory, Room, ScheduleEntry, TrainingCenter
+from apps.scheduling.models import LabSession, LabSessionStatus, LabStand, Laboratory, Room, ScheduleEntry, TrainingCenter
 from apps.users.models import User, UserRole
 
 
@@ -72,6 +74,14 @@ def staff_admin(db, own_tc, own_laboratory):
 @pytest.fixture
 def own_discipline(semester, own_laboratory, own_tc):
     d = Discipline.objects.create(title="Дисциплина завлаба", semester=semester, is_published=True)
+    d.laboratories.add(own_laboratory)
+    d.training_centers.add(own_tc)
+    return d
+
+
+@pytest.fixture
+def own_discipline_secondary(semester, own_laboratory, own_tc):
+    d = Discipline.objects.create(title="Заканчивание скважин", semester=semester, is_published=True)
     d.laboratories.add(own_laboratory)
     d.training_centers.add(own_tc)
     return d
@@ -187,6 +197,8 @@ class TestLabHeadBindings:
         assert lab_work.default_room_id == own_room.pk
         assert lab_work.primary_stand_id == own_stand.pk
         assert lab_work.laboratories.filter(pk=own_laboratory.pk).exists()
+        assert lab_work.code is not None
+        assert lab_work.code.startswith("НГФ-")
 
     def test_create_discipline_disabled_for_lab_head(self, client_logged_in, own_tc, semester):
         response = client_logged_in.post(
@@ -265,6 +277,109 @@ class TestLabHeadBindings:
         assert response.status_code == 302
         lab_work.refresh_from_db()
         assert lab_work.is_published is False
+
+    def test_unpublish_lab_work_with_same_number_in_another_discipline(
+        self,
+        client_logged_in,
+        own_laboratory,
+        own_discipline,
+        own_discipline_secondary,
+    ):
+        first_lab_work = create_lab_work(
+            own_discipline,
+            number=1,
+            title="ЛР для снятия публикации",
+            duration_minutes=90,
+            capacity=10,
+            is_published=True,
+        )
+        first_lab_work.laboratories.add(own_laboratory)
+        second_lab_work = create_lab_work(
+            own_discipline_secondary,
+            number=1,
+            title="Другая ЛР №1",
+            duration_minutes=90,
+            capacity=10,
+            is_published=True,
+        )
+        second_lab_work.laboratories.add(own_laboratory)
+        response = client_logged_in.post(
+            reverse("lab-head-lab-work-update", kwargs={"pk": first_lab_work.pk}),
+            {
+                "title": first_lab_work.title,
+                "number": first_lab_work.number,
+                "disciplines": [own_discipline.pk],
+                "laboratory": own_laboratory.pk,
+                "duration_minutes": first_lab_work.duration_minutes,
+                "capacity": first_lab_work.capacity,
+            },
+        )
+        assert response.status_code == 302
+        first_lab_work.refresh_from_db()
+        assert first_lab_work.is_published is False
+
+    def test_update_duration_updates_only_free_open_sessions(
+        self,
+        client_logged_in,
+        own_discipline,
+        own_laboratory,
+        own_room,
+        lab_head,
+    ):
+        lab_work = create_lab_work(
+            own_discipline,
+            number=12,
+            title="ЛР для синка длительности",
+            duration_minutes=90,
+            capacity=8,
+            is_published=True,
+        )
+        lab_work.laboratories.add(own_laboratory)
+        starts = timezone.now() + timezone.timedelta(days=4)
+        free_session = LabSession.objects.create(
+            lab_work=lab_work,
+            room=own_room,
+            semester=own_discipline.semester,
+            starts_at=starts,
+            ends_at=starts + timezone.timedelta(minutes=90),
+            capacity=8,
+            status=LabSessionStatus.OPEN,
+        )
+        booked_session = LabSession.objects.create(
+            lab_work=lab_work,
+            room=own_room,
+            semester=own_discipline.semester,
+            starts_at=starts + timezone.timedelta(days=1),
+            ends_at=starts + timezone.timedelta(days=1, minutes=90),
+            capacity=8,
+            status=LabSessionStatus.OPEN,
+        )
+        Booking.objects.create(
+            student=lab_head,
+            lab_session=booked_session,
+            lab_work=lab_work,
+            discipline=own_discipline,
+            room=own_room,
+            scheduled_at=booked_session.starts_at,
+        )
+
+        response = client_logged_in.post(
+            reverse("lab-head-lab-work-update", kwargs={"pk": lab_work.pk}),
+            {
+                "title": lab_work.title,
+                "number": lab_work.number,
+                "disciplines": [own_discipline.pk],
+                "laboratory": own_laboratory.pk,
+                "duration_minutes": 60,
+                "capacity": lab_work.capacity,
+                "is_published": "on",
+            },
+        )
+        assert response.status_code == 302
+        free_session.refresh_from_db()
+        booked_session.refresh_from_db()
+        assert free_session.ends_at == free_session.starts_at + timezone.timedelta(minutes=60)
+        assert booked_session.ends_at == booked_session.starts_at + timezone.timedelta(minutes=90)
 
 
 @pytest.mark.django_db

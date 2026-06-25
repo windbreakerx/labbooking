@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
-from apps.academics.models import ALLOWED_LAB_DURATIONS, Department, LabWork
+from apps.academics.models import ALLOWED_LAB_DURATIONS, Department
 from apps.academics.querysets import (
     department_discipline_groups,
     staff_managed_disciplines_qs,
@@ -345,10 +345,6 @@ class LabHeadLabWorkCreateView(LabHeadRequiredMixin, View):
             validate_lab_duration_minutes(duration_int)
         except ValueError as exc:
             messages.error(request, str(exc))
-            return redirect("lab-head-lab-works")
-
-        if LabWork.objects.filter(number=number_int, laboratories=laboratory).exists():
-            messages.error(request, f"ЛР №{number_int} уже существует в этой лаборатории.")
             return redirect("lab-head-lab-works")
 
         try:

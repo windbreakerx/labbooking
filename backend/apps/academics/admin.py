@@ -11,7 +11,7 @@ class SemesterAdmin(admin.ModelAdmin):
 
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ("title", "ordering")
+    list_display = ("title", "short_code", "ordering")
     ordering = ("ordering", "title")
 
 
@@ -25,15 +25,15 @@ class StudentGroupAdmin(admin.ModelAdmin):
 
 @admin.register(Discipline)
 class DisciplineAdmin(admin.ModelAdmin):
-    list_display = ("title", "code", "department", "semester", "is_published")
+    list_display = ("title", "code", "short_code", "department", "semester", "is_published")
     list_filter = ("semester", "department", "is_published", "training_centers")
-    search_fields = ("title", "code")
+    search_fields = ("title", "code", "short_code")
     filter_horizontal = ("training_centers", "laboratories")
 
 
 @admin.register(LabWork)
 class LabWorkAdmin(admin.ModelAdmin):
-    list_display = ("title", "number", "duration_minutes", "capacity", "primary_stand", "is_published")
+    list_display = ("title", "code", "number", "duration_minutes", "capacity", "primary_stand", "is_published")
     list_filter = ("is_published", "training_centers", "disciplines")
-    search_fields = ("title",)
+    search_fields = ("title", "code")
     filter_horizontal = ("disciplines", "training_centers", "laboratories")
