@@ -70,13 +70,15 @@
                     </div>
                     {% endif %}
                     {% if patch_notes_enabled %}
-                    <a
-                        class="nav__patch-notes{% if request.resolver_match.url_name == 'patch-notes' %} nav__patch-notes--active{% endif %}"
-                        href="{% url 'patch-notes' %}"
-                    >
-                        <span class="nav__patch-notes-badge" aria-hidden="true">NEW</span>
-                        Что нового
-                    </a>
+                    <div class="nav__section nav__section--updates">
+                        <a
+                            class="nav__link nav__link--updates{% if request.resolver_match.url_name == 'patch-notes' %} nav__link--current{% endif %}"
+                            href="{% url 'patch-notes' %}"
+                        >
+                            Что нового
+                            <span class="badge badge--warning">Новое</span>
+                        </a>
+                    </div>
                     {% endif %}
                 </nav>
                 <div class="header__account">

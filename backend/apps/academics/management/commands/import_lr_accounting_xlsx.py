@@ -12,7 +12,8 @@ from django.utils.text import slugify
 
 from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, Semester, StudentGroup
 from apps.bookings.models import Booking
-from apps.integrations.lr_accounting.parser import ParsedLabWork, ParsedWorkbook, parse_workbook
+from apps.integrations.lr_accounting.names import DisplayName, shuffle_student_display_names
+from apps.integrations.lr_accounting.parser import ParsedLabWork, ParsedStudent, ParsedWorkbook, parse_workbook
 from apps.integrations.lr_accounting.students import (
     allocate_student_id,
     new_year_counters,
@@ -20,27 +21,6 @@ from apps.integrations.lr_accounting.students import (
 )
 from apps.scheduling.models import LabSession, LabStand, ScheduleEntry, Room, TrainingCenter
 from apps.users.models import User, UserProfile, UserRole
-
-MALE_PATRONYMICS = [
-    "Петрович",
-    "Сергеевич",
-    "Андреевич",
-    "Алексеевич",
-    "Дмитриевич",
-    "Иванович",
-    "Николаевич",
-    "Михайлович",
-]
-FEMALE_PATRONYMICS = [
-    "Петровна",
-    "Сергеевна",
-    "Андреевна",
-    "Алексеевна",
-    "Дмитриевна",
-    "Ивановна",
-    "Николаевна",
-    "Михайловна",
-]
 
 ROOMS_PAYLOAD = [
     ("1123", 10),
@@ -93,6 +73,17 @@ class Command(BaseCommand):
             action="store_true",
             help="Только показать, что будет импортировано",
         )
+        parser.add_argument(
+            "--no-shuffle-names",
+            action="store_true",
+            help="Не перемешивать ФИО студентов (только подставить синтетические отчества)",
+        )
+        parser.add_argument(
+            "--shuffle-seed",
+            type=int,
+            default=None,
+            help="Seed для перемешивания ФИО (для воспроизводимости)",
+        )
 
     def handle(self, *args, **options):
         labs_dir = Path(options["labs_dir"] or "").expanduser()
@@ -120,6 +111,8 @@ class Command(BaseCommand):
                 training_center=training_center,
                 rooms=rooms,
                 default_password=options["default_password"],
+                shuffle_names=not options["no_shuffle_names"],
+                shuffle_seed=options["shuffle_seed"],
             )
 
         self.stdout.write(self.style.SUCCESS("Импорт завершён."))
@@ -185,6 +178,8 @@ class Command(BaseCommand):
         training_center: TrainingCenter,
         rooms: dict[str, Room],
         default_password: str,
+        shuffle_names: bool = True,
+        shuffle_seed: int | None = None,
     ) -> dict[str, int]:
         stats = {
             "disciplines": 0,
@@ -197,19 +192,11 @@ class Command(BaseCommand):
         lab_cache: dict[tuple[str, str], LabWork] = {}
         group_cache: dict[str, StudentGroup] = {}
         year_counters = new_year_counters()
-        patronymic_index = 0
-
-        def fake_patronymic(first_name_with_patronymic: str) -> str:
-            nonlocal patronymic_index
-            parts = first_name_with_patronymic.split()
-            first = parts[0]
-            source_patronymic = parts[1] if len(parts) > 1 else ""
-            is_female = source_patronymic.endswith(("на", "вна", "ична"))
-            pool = FEMALE_PATRONYMICS if is_female else MALE_PATRONYMICS
-            patronymic = pool[patronymic_index % len(pool)]
-            patronymic_index += 1
-            return f"{first} {patronymic}"
-
+        display_name_map = self._build_display_name_map(
+            workbooks,
+            shuffle_names=shuffle_names,
+            shuffle_seed=shuffle_seed,
+        )
         def get_discipline(title: str) -> Discipline | None:
             title = title.strip()
             if not title:
@@ -309,12 +296,12 @@ class Command(BaseCommand):
                 for student in group_sheet.students:
                     record_id = allocate_student_id(group_sheet.name, year_counters)
                     email = student_email(record_id)
-                    first_name = fake_patronymic(student.first_name)
+                    display_name = display_name_map[(group_sheet.name, student.number)]
                     user, created = User.objects.update_or_create(
                         email=email,
                         defaults={
-                            "first_name": first_name,
-                            "last_name": student.last_name,
+                            "first_name": display_name.first_name,
+                            "last_name": display_name.last_name,
                             "role": UserRole.STUDENT,
                             "is_staff": False,
                         },
@@ -356,6 +343,52 @@ class Command(BaseCommand):
                         lab_work.save(update_fields=["primary_stand"])
 
         return stats
+
+    def _build_display_name_map(
+        self,
+        workbooks: list[ParsedWorkbook],
+        *,
+        shuffle_names: bool,
+        shuffle_seed: int | None,
+    ) -> dict[tuple[str, int], DisplayName]:
+        entries: list[tuple[str, ParsedStudent]] = []
+        for workbook in workbooks:
+            for group_sheet in workbook.group_sheets:
+                for student in group_sheet.students:
+                    entries.append((group_sheet.name, student))
+
+        if shuffle_names:
+            shuffled = shuffle_student_display_names(
+                [student for _, student in entries],
+                seed=shuffle_seed,
+            )
+            return {
+                (group_name, student.number): display_name
+                for (group_name, student), display_name in zip(entries, shuffled, strict=True)
+            }
+
+        from apps.integrations.lr_accounting.names import (
+            FALLBACK_FEMALE_PATRONYMICS,
+            FALLBACK_MALE_PATRONYMICS,
+            infer_gender,
+            split_name_parts,
+        )
+
+        display_name_map: dict[tuple[str, int], DisplayName] = {}
+        patronymic_index = 0
+        for group_name, student in entries:
+            last_name, first, patronymic = split_name_parts(student)
+            gender = infer_gender(first=first, patronymic=patronymic, last_name=last_name)
+            if not patronymic:
+                pool = FALLBACK_FEMALE_PATRONYMICS if gender == "female" else FALLBACK_MALE_PATRONYMICS
+                patronymic = pool[patronymic_index % len(pool)]
+                patronymic_index += 1
+            first_name = f"{first} {patronymic}".strip()
+            display_name_map[(group_name, student.number)] = DisplayName(
+                first_name=first_name,
+                last_name=last_name,
+            )
+        return display_name_map
 
     @staticmethod
     def _discipline_code(title: str) -> str:

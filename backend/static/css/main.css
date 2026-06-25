@@ -410,55 +410,26 @@ summary:focus-visible {
     opacity: 1;
 }
 
-.nav__patch-notes {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
+.nav__section--updates {
     align-self: center;
-    flex-shrink: 0;
-    min-height: 2.5rem;
-    padding: var(--space-2) var(--space-4);
-    border: 2px solid var(--color-accent);
-    border-radius: var(--radius-pill);
-    background: linear-gradient(135deg, var(--color-accent-soft) 0%, #fff8e8 100%);
-    box-shadow: 0 0 0 1px rgba(184, 134, 11, 0.12), var(--shadow-sm);
-    color: #7a5200;
-    font-size: var(--text-sm);
+    padding: var(--space-2) var(--space-3);
+}
+
+.nav__link--updates {
+    gap: var(--space-2);
+}
+
+.nav__link--updates .badge {
+    padding: 0.1rem 0.45rem;
+    font-size: 0.65rem;
     font-weight: var(--font-weight-semibold);
-    text-decoration: none;
-    transition:
-        background var(--transition-fast),
-        border-color var(--transition-fast),
-        box-shadow var(--transition-fast),
-        transform var(--transition-fast);
+    letter-spacing: 0.03em;
+    line-height: 1.2;
 }
 
-.nav__patch-notes:hover {
-    background: linear-gradient(135deg, #fff0c8 0%, var(--color-accent-soft) 100%);
-    border-color: #9a6f00;
-    color: #5c3d00;
-    box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.18), var(--shadow-md);
-    transform: translateY(-1px);
-}
-
-.nav__patch-notes--active {
-    background: linear-gradient(135deg, #f5d98a 0%, var(--color-accent-soft) 100%);
-    border-color: #9a6f00;
-    color: #4a3200;
-}
-
-.nav__patch-notes-badge {
-    display: inline-flex;
-    align-items: center;
-    min-height: 1.25rem;
-    padding: 0 0.45rem;
-    border-radius: var(--radius-pill);
-    background: var(--color-accent);
-    color: #fff;
-    font-size: 0.62rem;
-    font-weight: var(--font-weight-bold);
-    letter-spacing: 0.06em;
-    line-height: 1;
+.nav__link--current {
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
 }
 
 .patch-notes {
@@ -2789,11 +2760,6 @@ a.report-card--link:focus-visible {
     .nav__section,
     .nav__group {
         width: 100%;
-    }
-
-    .nav__patch-notes {
-        width: 100%;
-        justify-content: center;
     }
 
     .nav__group--staff .nav__section,
