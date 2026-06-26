@@ -678,3 +678,100 @@ def test_staff_lab_scope_hides_foreign_booking(staff, student, session, room):
     response = client.get("/staff/bookings/")
     assert response.status_code == 200
     assert other_room.number.encode() not in response.content
+
+
+@pytest.mark.django_db
+def test_staff_bookings_sort_by_student(staff, student, session, student_group, db):
+    staff.profile.training_center = session.room.training_center
+    staff.profile.save(update_fields=["training_center"])
+    session.lab_work.training_centers.add(session.room.training_center)
+
+    student.last_name = "Иванов"
+    student.first_name = "Иван"
+    student.save(update_fields=["last_name", "first_name"])
+    student.profile.group_name = "ГР-1"
+    student.profile.save(update_fields=["group_name"])
+
+    other = User.objects.create_user(
+        email="zzz@stud.spmi.ru",
+        password="pass",
+        first_name="Пётр",
+        last_name="Петров",
+        role=UserRole.STUDENT,
+    )
+    other.profile.group_name = "ГР-2"
+    other.profile.training_center = session.room.training_center
+    other.profile.save(update_fields=["group_name", "training_center"])
+
+    BookingService(actor=staff).create_booking(student, session.pk, manual=True, skip_student_rules=True)
+
+    starts2 = session.starts_at + timezone.timedelta(days=1)
+    session2 = LabSession.objects.create(
+        lab_work=session.lab_work,
+        room=session.room,
+        semester=session.semester,
+        starts_at=starts2,
+        ends_at=starts2 + timezone.timedelta(minutes=90),
+        capacity=5,
+        status=LabSessionStatus.OPEN,
+    )
+    BookingService(actor=staff).create_booking(other, session2.pk, manual=True, skip_student_rules=True)
+
+    client = Client()
+    client.force_login(staff)
+    response = client.get("/staff/bookings/", {"sort": "student", "dir": "asc"})
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert content.index("Иванов") < content.index("Петров")
+
+    response = client.get("/staff/bookings/", {"sort": "student", "dir": "desc"})
+    content = response.content.decode()
+    assert content.index("Петров") < content.index("Иванов")
+
+
+@pytest.mark.django_db
+def test_staff_bookings_sort_links_preserve_filters(staff, student, session):
+    staff.profile.training_center = session.room.training_center
+    staff.profile.save(update_fields=["training_center"])
+    session.lab_work.training_centers.add(session.room.training_center)
+    BookingService(actor=staff).create_booking(student, session.pk, manual=True, skip_student_rules=True)
+
+    client = Client()
+    client.force_login(staff)
+    response = client.get(
+        "/staff/bookings/",
+        {"student": student.email, "sort": "date", "dir": "asc"},
+    )
+    assert response.status_code == 200
+    assert b"sort=date" in response.content
+    assert student.email.encode() in response.content
+
+
+@pytest.mark.django_db
+def test_my_bookings_sort_by_date(student, session, discipline, room, semester, student_group):
+    discipline2 = Discipline.objects.create(title="Химия", semester=semester, is_published=True)
+    student_group.disciplines.add(discipline2)
+    lab_work2 = create_lab_work(discipline2, number=2, title="ЛР 2", duration_minutes=90, is_published=True)
+
+    BookingService(actor=student).create_booking(student, session.pk)
+
+    starts2 = session.starts_at + timezone.timedelta(days=2)
+    session2 = LabSession.objects.create(
+        lab_work=lab_work2,
+        room=room,
+        semester=semester,
+        starts_at=starts2,
+        ends_at=starts2 + timezone.timedelta(minutes=90),
+        capacity=5,
+        status=LabSessionStatus.OPEN,
+    )
+    BookingService(actor=student).create_booking(student, session2.pk)
+
+    client = Client()
+    client.force_login(student)
+    response = client.get("/my-bookings/", {"sort": "date", "dir": "asc"})
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert content.index(session.starts_at.strftime("%d.%m.%Y")) < content.index(
+        session2.starts_at.strftime("%d.%m.%Y")
+    )

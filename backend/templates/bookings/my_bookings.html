@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load table_sort %}
 {% block title %}Мои записи{% endblock %}
 {% block content %}
 <header class="page-header">
@@ -54,13 +55,13 @@
     <table class="table responsive-table">
         <thead>
             <tr>
-                <th>УЦ</th>
-                <th>Аудитория</th>
-                <th>Дата и время</th>
-                <th>Дисциплина</th>
-                <th>ЛР</th>
-                <th>Статус</th>
-                <th><span class="sr-only">Действия</span></th>
+                {% sortable_th "training_center" "УЦ" %}
+                {% sortable_th "room" "Аудитория" %}
+                {% sortable_th "date" "Дата и время" %}
+                {% sortable_th "discipline" "Дисциплина" %}
+                {% sortable_th "lab_work" "ЛР" %}
+                {% sortable_th "status" "Статус" %}
+                {% sortable_th "actions" "Действия" sortable=False %}
             </tr>
         </thead>
         <tbody>

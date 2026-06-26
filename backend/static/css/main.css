@@ -1204,6 +1204,41 @@ label:has(.field-error) textarea {
     z-index: 2;
 }
 
+.table-sortable {
+    padding: 0;
+}
+
+.table-sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.table--compact .table-sort-link {
+    padding: 0.6rem 0.75rem;
+}
+
+.table-sort-link:hover {
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+}
+
+.table-sortable--active .table-sort-link {
+    color: var(--color-primary);
+    font-weight: var(--font-weight-semibold);
+}
+
+.table-sort-indicator {
+    font-size: 0.75em;
+    line-height: 1;
+    opacity: 0.85;
+}
+
 .responsive-table td[data-label]::before {
     display: none;
 }

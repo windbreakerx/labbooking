@@ -1,0 +1,12 @@
+{% if sortable %}
+<th scope="col" class="table-sortable{% if is_active %} table-sortable--active{% endif %}">
+    <a class="table-sort-link" href="{{ url }}" aria-sort="{% if is_active %}{% if direction == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">
+        <span>{{ label }}</span>
+        {% if is_active %}
+        <span class="table-sort-indicator" aria-hidden="true">{% if direction == 'asc' %}↑{% else %}↓{% endif %}</span>
+        {% endif %}
+    </a>
+</th>
+{% else %}
+<th scope="col">{{ label }}</th>
+{% endif %}

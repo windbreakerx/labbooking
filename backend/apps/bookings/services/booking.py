@@ -551,6 +551,42 @@ def staff_can_access_scoped_object(user: User, qs, *, training_center_lookup: st
     return staff_lab_filter(qs, user, training_center_lookup=training_center_lookup).exists()
 
 
+BOOKING_SORT_FIELDS: dict[str, tuple[list[str], str]] = {
+    "student": (["student__last_name", "student__first_name", "pk"], "asc"),
+    "group": (
+        ["student__profile__group_name", "student__profile__student_group__name", "pk"],
+        "asc",
+    ),
+    "discipline": (["discipline__title", "pk"], "asc"),
+    "lab_work": (["lab_work__number", "lab_work__title", "pk"], "asc"),
+    "date": (["scheduled_at", "pk"], "desc"),
+    "registration": (
+        ["registration_type", "registered_by__last_name", "registered_by__first_name", "pk"],
+        "asc",
+    ),
+    "status": (["current_status", "pk"], "asc"),
+    "training_center": (["room__training_center__number", "pk"], "asc"),
+    "room": (["room__number", "pk"], "asc"),
+}
+
+
+def order_bookings_queryset(qs, params):
+    sort_key = params.get("sort")
+    if not sort_key or sort_key not in BOOKING_SORT_FIELDS:
+        return qs.order_by("-scheduled_at")
+
+    fields, default_dir = BOOKING_SORT_FIELDS[sort_key]
+    direction = params.get("dir", default_dir)
+    if direction not in {"asc", "desc"}:
+        direction = default_dir
+
+    if direction == "desc":
+        order_fields = [f"-{field}" for field in fields]
+    else:
+        order_fields = list(fields)
+    return qs.order_by(*order_fields)
+
+
 def filter_staff_bookings(qs, params):
     from django.db.models import Q
 

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load table_sort %}
 {% block title %}Записавшиеся студенты{% endblock %}
 {% block content %}
 <header class="page-header">
@@ -115,6 +116,8 @@
             <input type="date" name="date_to" value="{{ filters.date_to|default:'' }}">
         </label>
         <div class="filter-panel__actions">
+            {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+            {% if request.GET.dir %}<input type="hidden" name="dir" value="{{ request.GET.dir }}">{% endif %}
             <button type="submit">Применить</button>
             <a class="button button--secondary" href="{% url 'staff-bookings' %}">Сбросить</a>
         </div>
@@ -169,14 +172,14 @@
         <table class="table table--compact table--staff table--sticky">
             <thead>
                 <tr>
-                    <th>Студент</th>
-                    <th>Группа</th>
-                    <th>Дисциплина</th>
-                    <th>ЛР</th>
-                    <th>Дата</th>
-                    <th>Регистрация</th>
-                    <th>Статус</th>
-                    <th>Действия</th>
+                    {% sortable_th "student" "Студент" %}
+                    {% sortable_th "group" "Группа" %}
+                    {% sortable_th "discipline" "Дисциплина" %}
+                    {% sortable_th "lab_work" "ЛР" %}
+                    {% sortable_th "date" "Дата" %}
+                    {% sortable_th "registration" "Регистрация" %}
+                    {% sortable_th "status" "Статус" %}
+                    {% sortable_th "actions" "Действия" sortable=False %}
                 </tr>
             </thead>
             <tbody>

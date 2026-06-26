@@ -28,6 +28,7 @@ from apps.bookings.services import (
     BookingService,
     filter_staff_bookings,
     is_staff_user,
+    order_bookings_queryset,
     search_students_for_staff,
     staff_can_access_scoped_object,
     staff_lab_filter,
@@ -429,11 +430,14 @@ class MyBookingsWebView(LoginRequiredMixin, ListView):
     context_object_name = "bookings"
 
     def get_queryset(self):
-        return Booking.objects.filter(student=self.request.user).select_related(
-            "lab_work",
-            "discipline",
-            "room",
-            "room__training_center",
+        return order_bookings_queryset(
+            Booking.objects.filter(student=self.request.user).select_related(
+                "lab_work",
+                "discipline",
+                "room",
+                "room__training_center",
+            ),
+            self.request.GET,
         )
 
 
@@ -555,7 +559,7 @@ class StaffBookingsWebView(LoginRequiredMixin, ListView):
         )
         qs = staff_lab_filter(qs, self.request.user)
         qs = filter_staff_bookings(qs, self.request.GET)
-        return qs.order_by("-scheduled_at")
+        return order_bookings_queryset(qs, self.request.GET)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
