@@ -58,6 +58,29 @@ def test_is_support_ticket_overdue_skips_weekend(student, room):
 
 
 @pytest.mark.django_db
+def test_student_follow_up_reopens_ticket(student, room):
+    from django.test import Client
+
+    ticket = SupportTicket.objects.create(
+        student=student,
+        subject="Вопрос",
+        body="Текст",
+        training_center=room.training_center,
+        status=SupportTicket.Status.ANSWERED,
+    )
+    client = Client()
+    client.force_login(student)
+    response = client.post(
+        f"/support/{ticket.pk}/",
+        {"body": "Нужно уточнение"},
+    )
+    assert response.status_code == 302
+    ticket.refresh_from_db()
+    assert ticket.status == SupportTicket.Status.OPEN
+    assert ticket.messages.count() == 1
+
+
+@pytest.mark.django_db
 def test_is_support_ticket_overdue_not_for_answered(student, room):
     ticket = SupportTicket.objects.create(
         student=student,

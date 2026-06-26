@@ -527,6 +527,8 @@ class SupportDetailWebView(LoginRequiredMixin, View):
                 author=request.user,
                 body=body,
             )
+            ticket.status = SupportTicket.Status.OPEN
+            ticket.save(update_fields=["status", "updated_at"])
             messages.success(request, "Сообщение отправлено.")
         return redirect("support-detail", pk=pk)
 

@@ -1066,18 +1066,14 @@ label:has(.field-error) textarea {
 }
 
 .status-badge--open {
-    background: var(--color-warning-soft);
-    color: var(--color-warning);
+    background: #fff7e6;
+    color: #a15c00;
 }
 
-.status-badge--answered {
-    background: var(--color-success-soft);
-    color: var(--color-success);
-}
-
+.status-badge--answered,
 .status-badge--closed {
-    background: var(--color-success-soft);
-    color: var(--color-success);
+    background: #e8f7ee;
+    color: #16794c;
 }
 
 .status-badge--lg {

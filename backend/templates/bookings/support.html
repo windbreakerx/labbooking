@@ -45,8 +45,7 @@
                     <a class="ticket-card__subject" href="{% url 'support-detail' t.pk %}">{{ t.subject }}</a>
                     <span class="status-badge status-badge--with-dot
                         {% if t.status == 'OPEN' %}status-badge--open
-                        {% elif t.status == 'ANSWERED' %}status-badge--answered
-                        {% elif t.status == 'CLOSED' %}status-badge--closed
+                        {% else %}status-badge--closed
                         {% endif %}">
                         {{ t.get_status_display }}
                     </span>

@@ -15,8 +15,7 @@
         <p class="page-description">
             <span class="status-badge status-badge--with-dot
                 {% if ticket.status == 'OPEN' %}status-badge--open
-                {% elif ticket.status == 'ANSWERED' %}status-badge--answered
-                {% elif ticket.status == 'CLOSED' %}status-badge--closed
+                {% else %}status-badge--closed
                 {% endif %}">
                 {{ ticket.get_status_display }}
             </span>
@@ -34,7 +33,7 @@
         <p>{{ ticket.body }}</p>
     </div>
     {% for msg in ticket.messages.all %}
-    <div class="thread__message">
+    <div class="thread__message{% if msg.author_id == request.user.pk %} thread__message--own{% endif %}">
         <div class="thread__message-header">
             <strong>{{ msg.author.full_name }}</strong>
             <time class="muted" datetime="{{ msg.created_at|date:'c' }}">{{ msg.created_at|date:"d.m.Y H:i" }}</time>

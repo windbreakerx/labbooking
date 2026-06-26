@@ -313,6 +313,9 @@ class SupportMessageView(APIView):
         if is_staff:
             ticket.status = SupportTicket.Status.ANSWERED
             ticket.save(update_fields=["status", "updated_at"])
+        elif ticket.student_id == request.user.id:
+            ticket.status = SupportTicket.Status.OPEN
+            ticket.save(update_fields=["status", "updated_at"])
         return Response(SupportMessageSerializer(msg).data, status=status.HTTP_201_CREATED)
 
 

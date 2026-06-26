@@ -26,8 +26,7 @@
             </div>
             <span class="status-badge status-badge--with-dot status-badge--lg
                 {% if t.status == 'OPEN' %}status-badge--open
-                {% elif t.status == 'ANSWERED' %}status-badge--answered
-                {% elif t.status == 'CLOSED' %}status-badge--closed
+                {% else %}status-badge--closed
                 {% endif %}">
                 {{ t.get_status_display }}
             </span>
@@ -42,7 +41,7 @@
                 <p>{{ t.body }}</p>
             </div>
             {% for msg in t.messages.all %}
-            <div class="thread__message thread__message--own">
+            <div class="thread__message{% if msg.author_id == request.user.pk %} thread__message--own{% endif %}">
                 <div class="thread__message-header">
                     <strong>{{ msg.author.full_name }}</strong>
                     <time class="muted" datetime="{{ msg.created_at|date:'c' }}">{{ msg.created_at|date:"d.m.Y H:i" }}</time>
