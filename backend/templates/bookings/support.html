@@ -36,7 +36,11 @@
         <h2 class="card__title">Мои обращения</h2>
         <div class="ticket-list">
             {% for t in tickets %}
-            <article class="card card--interactive ticket-card">
+            <article class="card card--interactive ticket-card
+                {% if t.status == 'ANSWERED' or t.status == 'CLOSED' %}ticket-card--closed
+                {% elif t.is_response_overdue %}ticket-card--overdue
+                {% elif t.status == 'OPEN' %}ticket-card--open
+                {% endif %}">
                 <div class="ticket-card__header">
                     <a class="ticket-card__subject" href="{% url 'support-detail' t.pk %}">{{ t.subject }}</a>
                     <span class="status-badge status-badge--with-dot

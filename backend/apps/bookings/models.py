@@ -137,7 +137,7 @@ class AuditLog(models.Model):
 class SupportTicket(models.Model):
     class Status(models.TextChoices):
         OPEN = "OPEN", "Открыт"
-        ANSWERED = "ANSWERED", "Отвечен"
+        ANSWERED = "ANSWERED", "Закрыт"
         CLOSED = "CLOSED", "Закрыт"
 
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="support_tickets")
@@ -158,6 +158,12 @@ class SupportTicket(models.Model):
         verbose_name = "Обращение"
         verbose_name_plural = "Обращения"
         ordering = ["-created_at"]
+
+    @property
+    def is_response_overdue(self) -> bool:
+        from apps.bookings.services.support import is_support_ticket_overdue
+
+        return is_support_ticket_overdue(self)
 
 
 class SupportMessage(models.Model):

@@ -1066,18 +1066,18 @@ label:has(.field-error) textarea {
 }
 
 .status-badge--open {
-    background: var(--color-info-soft);
-    color: var(--color-info);
-}
-
-.status-badge--answered {
     background: var(--color-warning-soft);
     color: var(--color-warning);
 }
 
+.status-badge--answered {
+    background: var(--color-success-soft);
+    color: var(--color-success);
+}
+
 .status-badge--closed {
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--color-success-soft);
+    color: var(--color-success);
 }
 
 .status-badge--lg {
@@ -1887,6 +1887,33 @@ button.calendar-day--available {
 .ticket-list {
     display: grid;
     gap: var(--space-3);
+}
+
+.ticket-card--open {
+    border-color: var(--color-warning);
+    border-width: 2px;
+}
+
+.ticket-card--overdue {
+    border-color: var(--color-danger);
+    border-width: 2px;
+}
+
+.ticket-card--closed {
+    border-color: var(--color-success);
+    border-width: 2px;
+}
+
+.card--interactive.ticket-card--open:hover {
+    border-color: var(--color-warning);
+}
+
+.card--interactive.ticket-card--overdue:hover {
+    border-color: var(--color-danger);
+}
+
+.card--interactive.ticket-card--closed:hover {
+    border-color: var(--color-success);
 }
 
 .ticket-card__header {

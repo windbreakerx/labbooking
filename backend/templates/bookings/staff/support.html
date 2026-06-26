@@ -11,7 +11,11 @@
 
 <div class="ticket-list">
     {% for t in tickets %}
-    <article class="card ticket-card staff-ticket">
+    <article class="card ticket-card staff-ticket
+        {% if t.status == 'ANSWERED' or t.status == 'CLOSED' %}ticket-card--closed
+        {% elif t.is_response_overdue %}ticket-card--overdue
+        {% elif t.status == 'OPEN' %}ticket-card--open
+        {% endif %}">
         <div class="ticket-card__header">
             <div>
                 <h2 class="card__title">{{ t.subject }}</h2>
