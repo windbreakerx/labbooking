@@ -4,8 +4,17 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.academics.models import Department, Discipline, LabWork, Semester, StudentGroup
-from apps.scheduling.models import Holiday, LabSession, LabSessionStatus, LabStand, Laboratory, Room, TrainingCenter
+from apps.academics.models import Department, Discipline, Faculty, LabWork, Semester, StudentGroup
+from apps.scheduling.models import (
+    Holiday,
+    LabSession,
+    LabSessionStatus,
+    LabStand,
+    Laboratory,
+    LaboratoryType,
+    Room,
+    TrainingCenter,
+)
 from apps.users.models import User, UserRole
 
 # Университетские пары (начало слота).
@@ -80,7 +89,17 @@ class Command(BaseCommand):
     def _code(prefix: str, index: int) -> str:
         return f"{prefix}-{index:03d}"
 
+    def _ensure_ngf_faculty(self):
+        return Faculty.objects.update_or_create(
+            code="НГФ",
+            defaults={
+                "title": "Нефтегазовый факультет",
+                "ordering": 0,
+            },
+        )[0]
+
     def _ensure_infrastructure(self):
+        ngf_faculty = self._ensure_ngf_faculty()
         training_center, _ = TrainingCenter.objects.update_or_create(
             number=1,
             defaults={"name": "Комплексная учебная лаборатория нефтегазового факультета"},
@@ -88,7 +107,15 @@ class Command(BaseCommand):
         laboratory, _ = Laboratory.objects.update_or_create(
             training_center=training_center,
             name="Комплексная учебная лаборатория нефтегазового факультета",
+            defaults={
+                "faculty": ngf_faculty,
+                "lab_type": LaboratoryType.COMPLEX,
+            },
         )
+        if laboratory.faculty_id != ngf_faculty.pk or laboratory.lab_type != LaboratoryType.COMPLEX:
+            laboratory.faculty = ngf_faculty
+            laboratory.lab_type = LaboratoryType.COMPLEX
+            laboratory.save(update_fields=["faculty", "lab_type"])
 
         rooms_payload = [
             ("1123", 10),
@@ -217,6 +244,23 @@ class Command(BaseCommand):
             "ЭХТ-24": "Кафедра разработки и эксплуатации нефтяных и газовых месторождений",
             "НГС-18-2": "Кафедра бурения скважин",
         }
+        ngf_department_names = [
+            "Кафедра транспорта и хранения нефти и газа",
+            "Кафедра бурения скважин",
+            "Кафедра разработки и эксплуатации нефтяных и газовых месторождений",
+        ]
+        ngf_faculty = self._ensure_ngf_faculty()
+        department_objects: dict[str, Department] = {}
+        for index, department_name in enumerate(ngf_department_names):
+            department, _ = Department.objects.get_or_create(
+                title=department_name,
+                defaults={"ordering": index, "faculty": ngf_faculty},
+            )
+            if department.faculty_id != ngf_faculty.pk:
+                department.faculty = ngf_faculty
+                department.save(update_fields=["faculty"])
+            department_objects[department_name] = department
+
         student_groups = {}
         for group_name, _group_size in groups_payload:
             student_group, _ = StudentGroup.objects.update_or_create(
@@ -224,6 +268,7 @@ class Command(BaseCommand):
                 defaults={
                     "faculty": "Нефтегазовый",
                     "dekanat_id": f"DEK-GR-{group_name}",
+                    "department": department_objects.get(group_department_map.get(group_name)),
                 },
             )
             student_groups[group_name] = student_group
@@ -373,12 +418,17 @@ class Command(BaseCommand):
         lab_work_cache: dict[tuple[str, str, str], LabWork] = {}
         session_plan_keys: set[tuple[int, int]] = set()
         disciplines_by_department: dict[str, list[Discipline]] = {name: [] for name in departments}
-        department_objects: dict[str, Department] = {}
         for index, department_name in enumerate(departments):
-            department_objects[department_name], _ = Department.objects.get_or_create(
-                title=department_name,
-                defaults={"ordering": index},
-            )
+            department = department_objects.get(department_name)
+            if department is None:
+                department, _ = Department.objects.get_or_create(
+                    title=department_name,
+                    defaults={"ordering": index, "faculty": ngf_faculty},
+                )
+                department_objects[department_name] = department
+            elif department.ordering != index:
+                department.ordering = index
+                department.save(update_fields=["ordering"])
         for department_name, discipline_titles in departments.items():
             department = department_objects[department_name]
             for discipline_title in discipline_titles:

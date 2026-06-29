@@ -295,6 +295,9 @@ def generate_lab_work_code(
             department_code = _normalize_short_code(department.short_code) or _initials_from_title(
                 department.title
             )
+            faculty = department.faculty
+            if faculty is not None:
+                faculty_code = _normalize_short_code(faculty.code) or faculty_code
         discipline_code = _normalize_short_code(discipline.short_code) or _initials_from_title(
             discipline.title
         )

@@ -20,9 +20,31 @@ class Semester(models.Model):
         return self.name
 
 
+class Faculty(models.Model):
+    code = models.CharField("Код", max_length=16, unique=True)
+    title = models.CharField("Название", max_length=256)
+    ordering = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Факультет"
+        verbose_name_plural = "Факультеты"
+        ordering = ["ordering", "title"]
+
+    def __str__(self):
+        return self.title
+
+
 class StudentGroup(models.Model):
     name = models.CharField("Группа", max_length=64, unique=True)
     faculty = models.CharField("Факультет", max_length=128, blank=True)
+    department = models.ForeignKey(
+        "Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="student_groups",
+        verbose_name="Кафедра",
+    )
     dekanat_id = models.CharField("ID в Деканате", max_length=64, blank=True)
     disciplines = models.ManyToManyField(
         "Discipline",
@@ -49,6 +71,14 @@ class StudentGroup(models.Model):
 class Department(models.Model):
     title = models.CharField("Название", max_length=256, unique=True)
     short_code = models.CharField("Короткий код", max_length=16, blank=True)
+    faculty = models.ForeignKey(
+        Faculty,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="departments",
+        verbose_name="Факультет",
+    )
     ordering = models.PositiveIntegerField("Порядок", default=0)
 
     class Meta:

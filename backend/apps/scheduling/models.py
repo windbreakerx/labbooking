@@ -23,6 +23,12 @@ class TrainingCenter(models.Model):
         return f"УЦ №{self.number}"
 
 
+class LaboratoryType(models.TextChoices):
+    REGULAR = "REGULAR", "Кафедральная"
+    INTERDEPT = "INTERDEPT", "Межкафедральная"
+    COMPLEX = "COMPLEX", "Комплексная"
+
+
 class Laboratory(models.Model):
     training_center = models.ForeignKey(
         TrainingCenter,
@@ -30,8 +36,22 @@ class Laboratory(models.Model):
         related_name="laboratories",
         verbose_name="Учебный центр",
     )
+    faculty = models.ForeignKey(
+        "academics.Faculty",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="laboratories",
+        verbose_name="Факультет",
+    )
     name = models.CharField("Название", max_length=256)
     short_name = models.CharField("Краткое название", max_length=64, blank=True)
+    lab_type = models.CharField(
+        "Тип лаборатории",
+        max_length=16,
+        choices=LaboratoryType.choices,
+        default=LaboratoryType.REGULAR,
+    )
 
     class Meta:
         verbose_name = "Лаборатория"

@@ -210,6 +210,7 @@ flowchart TD
 
 ## Связанные документы
 
+- [CHANGELOG_GAP_PHASE1_2026-06-29.md](CHANGELOG_GAP_PHASE1_2026-06-29.md) — реализованные изменения фазы 1
 - [ROADMAP.md](ROADMAP.md)
 - [PILOT_PLAN.md](PILOT_PLAN.md)
 - [POST_PILOT_ROADMAP.md](POST_PILOT_ROADMAP.md)

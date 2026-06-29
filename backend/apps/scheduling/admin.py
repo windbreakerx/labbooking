@@ -11,8 +11,8 @@ class TrainingCenterAdmin(admin.ModelAdmin):
 
 @admin.register(Laboratory)
 class LaboratoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "training_center", "short_name")
-    list_filter = ("training_center",)
+    list_display = ("name", "training_center", "faculty", "lab_type", "short_name")
+    list_filter = ("training_center", "faculty", "lab_type")
     search_fields = ("name", "short_name")
 
 
