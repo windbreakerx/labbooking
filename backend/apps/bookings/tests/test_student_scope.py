@@ -9,10 +9,11 @@ from apps.bookings.tests.conftest import create_lab_work
 from apps.academics.querysets import (
     student_disciplines_qs,
     student_lab_works_qs,
+    student_rooms_qs,
     student_support_training_centers_qs,
 )
 from apps.bookings.services import BookingError, BookingService
-from apps.scheduling.models import LabSession, LabSessionStatus, Room, TrainingCenter
+from apps.scheduling.models import LabSession, LabSessionStatus, LabStand, Room, TrainingCenter
 from apps.users.models import User, UserRole
 
 
@@ -159,6 +160,23 @@ class TestStudentScopeQuerysets:
         assert training_center.pk in ids
         assert foreign_training_center.pk not in ids
 
+    def test_rooms_limited_to_accessible_lab_works(
+        self,
+        scoped_student,
+        own_lab_work,
+        own_discipline,
+        training_center,
+        room,
+    ):
+        own_lab_work.default_room = room
+        own_lab_work.training_centers.add(training_center)
+        own_lab_work.save(update_fields=["default_room"])
+        own_discipline.training_centers.add(training_center)
+        room.disciplines.add(own_discipline)
+
+        ids = set(student_rooms_qs(scoped_student).values_list("pk", flat=True))
+        assert room.pk in ids
+
 
 @pytest.mark.django_db
 class TestStudentScopeWeb:
@@ -181,6 +199,68 @@ class TestStudentScopeWeb:
         client.force_login(scoped_student)
         response = client.get(f"/lab-works/{foreign_lab_work.pk}/book/")
         assert response.status_code == 404
+
+    def test_student_rooms_page(self, scoped_student, own_lab_work, own_discipline, training_center, room):
+        own_lab_work.default_room = room
+        own_lab_work.training_centers.add(training_center)
+        own_lab_work.save(update_fields=["default_room"])
+        own_discipline.training_centers.add(training_center)
+        room.disciplines.add(own_discipline)
+
+        client = Client()
+        client.force_login(scoped_student)
+        response = client.get("/rooms/")
+        assert response.status_code == 200
+        assert room.number.encode() in response.content
+        assert own_lab_work.title.encode() in response.content
+
+    def test_booking_detail_shows_methodics(
+        self,
+        scoped_student,
+        own_lab_work,
+        own_discipline,
+        training_center,
+        room,
+        semester,
+    ):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from apps.academics.models import LabWorkMethodics
+        from apps.bookings.models import Booking, BookingStatus
+
+        own_lab_work.default_room = room
+        own_lab_work.training_centers.add(training_center)
+        own_lab_work.save(update_fields=["default_room"])
+        LabWorkMethodics.objects.create(
+            lab_work=own_lab_work,
+            file=SimpleUploadedFile("guide.pdf", b"%PDF-1.4 test", content_type="application/pdf"),
+            title="Методичка к ЛР",
+        )
+        starts = _next_weekday_at(10, 35)
+        session = LabSession.objects.create(
+            lab_work=own_lab_work,
+            room=room,
+            semester=semester,
+            starts_at=starts,
+            ends_at=starts + timezone.timedelta(minutes=90),
+            capacity=5,
+            status=LabSessionStatus.OPEN,
+        )
+        booking = Booking.objects.create(
+            student=scoped_student,
+            lab_session=session,
+            lab_work=own_lab_work,
+            discipline=own_discipline,
+            room=room,
+            scheduled_at=starts,
+            current_status=BookingStatus.BOOKED,
+        )
+
+        client = Client()
+        client.force_login(scoped_student)
+        response = client.get(f"/my-bookings/{booking.pk}/")
+        assert response.status_code == 200
+        assert b"Методичка к ЛР" in response.content
 
     def test_book_filter_shows_pair_not_inner_offsets(self, scoped_student, own_lab_work, room, semester):
         starts = _next_weekday_at(14, 15)

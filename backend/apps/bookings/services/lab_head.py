@@ -220,6 +220,42 @@ def lab_head_departments_for_disciplines(disciplines_qs: QuerySet[Discipline]) -
     )
 
 
+def lab_head_department_folders_qs(user: User) -> QuerySet[Department]:
+    laboratory = lab_head_laboratory(user)
+    qs = Department.objects.order_by("ordering", "title")
+    if laboratory and laboratory.faculty_id:
+        return qs.filter(Q(faculty=laboratory.faculty) | Q(faculty__isnull=True))
+    return qs
+
+
+def lab_head_create_department_folder(user: User, *, title: str) -> Department:
+    title = title.strip()
+    if not title:
+        raise ValueError("Укажите название папки.")
+    laboratory = lab_head_laboratory(user)
+    faculty = laboratory.faculty if laboratory else None
+    department, created = Department.objects.get_or_create(
+        title=title,
+        defaults={"faculty": faculty},
+    )
+    if not created and faculty and not department.faculty_id:
+        department.faculty = faculty
+        department.save(update_fields=["faculty"])
+    return department
+
+
+def lab_head_assign_discipline_department(
+    user: User,
+    discipline: Discipline,
+    department: Department | None,
+) -> Discipline:
+    if not lab_head_discipline_in_scope(user, discipline.pk):
+        raise ValueError("Дисциплина недоступна.")
+    discipline.department = department
+    discipline.save(update_fields=["department"])
+    return discipline
+
+
 def lab_head_training_centers_qs(user: User) -> QuerySet[TrainingCenter]:
     tc = lab_head_training_center(user)
     if not tc:

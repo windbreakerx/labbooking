@@ -1,0 +1,26 @@
+<div class="methodics-panel">
+    {% if lw.methodics_files.all %}
+    <ul class="methodics-list">
+        {% for m in lw.methodics_files.all %}
+        <li class="methodics-list__item">
+            <a class="button button--secondary button--sm" href="{{ m.file.url }}" target="_blank" rel="noopener">{{ m.display_name }}</a>
+            <form method="post" action="{% url delete_url_name lw.pk m.pk %}" class="methodics-delete-form">
+                {% csrf_token %}
+                <button type="submit" class="button--sm button--danger" title="Удалить методичку">×</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted methodics-panel__empty">Методичек пока нет.</p>
+    {% endif %}
+    <form method="post" action="{% url upload_url_name lw.pk %}" enctype="multipart/form-data" class="methodics-upload-form">
+        {% csrf_token %}
+        <label class="methodics-upload-form__label">
+            <span class="sr-only">PDF для {{ lw.title }}</span>
+            <input type="file" name="methodics_files" accept=".pdf,application/pdf" class="methodics-upload-form__input" multiple>
+        </label>
+        <button type="submit" class="button--sm">Загрузить PDF</button>
+    </form>
+    <p class="muted methodics-panel__hint">Можно выбрать несколько PDF, каждый до 10 МБ.</p>
+</div>

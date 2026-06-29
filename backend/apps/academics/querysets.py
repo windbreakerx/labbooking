@@ -122,6 +122,32 @@ def student_support_training_centers_qs(user: User) -> QuerySet[TrainingCenter]:
     ).distinct()
 
 
+def student_rooms_qs(user: User):
+    from apps.scheduling.models import Room
+
+    if user.role != UserRole.STUDENT:
+        return Room.objects.none()
+
+    lab_work_ids = student_lab_works_qs(user).values_list("pk", flat=True)
+    discipline_ids = student_disciplines_qs(user).values_list("pk", flat=True)
+    tc_ids = student_support_training_centers_qs(user).values_list("pk", flat=True)
+    if not tc_ids:
+        return Room.objects.none()
+
+    return (
+        Room.objects.filter(training_center__in=tc_ids)
+        .filter(Q(default_lab_works__in=lab_work_ids) | Q(disciplines__in=discipline_ids))
+        .distinct()
+        .select_related("training_center")
+        .prefetch_related("disciplines", "stands")
+        .order_by("number")
+    )
+
+
+def student_room_in_scope(user: User, room_id: int):
+    return student_rooms_qs(user).filter(pk=room_id).first()
+
+
 def resolve_staff_training_center(user: User) -> TrainingCenter | None:
     profile = _safe_profile(user)
     if not profile:

@@ -49,7 +49,10 @@
                 </tr>
                 <tr>
                     <th scope="row">Аудитория</th>
-                    <td>{{ booking.room.number }}</td>
+                    <td>
+                        {{ booking.room.number }}
+                        <a class="button button--ghost button--sm" href="{% url 'student-rooms' %}">Все аудитории</a>
+                    </td>
                 </tr>
                 <tr>
                     <th scope="row">Дата и время</th>
@@ -72,6 +75,21 @@
             </tbody>
         </table>
     </div>
+
+    {% if booking.lab_work.methodics_files.all %}
+    <section class="booking-ticket__methodics">
+        <h2 class="catalog-section-title">Методички</h2>
+        <ul class="methodics-links">
+            {% for m in booking.lab_work.methodics_files.all %}
+            <li>
+                <a href="{{ m.file.url }}" target="_blank" rel="noopener" class="methodics-links__item button button--secondary button--sm">
+                    {{ m.display_name }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
 
     <div class="booking-ticket__actions page-actions">
         <a class="button button--secondary" href="{% url 'my-bookings' %}">К списку записей</a>

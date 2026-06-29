@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Department, Discipline, Faculty, LabWork, Semester, StudentGroup
+from .models import Department, Discipline, Faculty, LabWork, LabWorkMethodics, Semester, StudentGroup
 
 
 @admin.register(Faculty)
@@ -45,3 +45,10 @@ class LabWorkAdmin(admin.ModelAdmin):
     list_filter = ("is_published", "training_centers", "disciplines")
     search_fields = ("title", "code")
     filter_horizontal = ("disciplines", "training_centers", "laboratories")
+
+
+@admin.register(LabWorkMethodics)
+class LabWorkMethodicsAdmin(admin.ModelAdmin):
+    list_display = ("display_name", "lab_work", "uploaded_at")
+    list_filter = ("uploaded_at",)
+    search_fields = ("title", "lab_work__title")

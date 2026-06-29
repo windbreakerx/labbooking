@@ -7,6 +7,7 @@
         <h1 class="page-title">Дисциплины</h1>
     </div>
     <div class="page-actions">
+        <button type="button" class="button button--secondary" id="department-folder-open">Создать папку</button>
         <button type="button" class="button button--secondary" id="discipline-bind-open">Привязать дисциплину</button>
     </div>
 </header>
@@ -33,8 +34,8 @@
         {% for group in department_groups %}
         <details class="catalog-dept">
             <summary class="catalog-dept__summary">
-                <span class="catalog-dept__label">Кафедра</span>
-                <span class="catalog-dept__title">{% if group.department %}{{ group.department.title }}{% else %}Без кафедры{% endif %}</span>
+                <span class="catalog-dept__label">Папка</span>
+                <span class="catalog-dept__title">{% if group.department %}{{ group.department.title }}{% else %}Без папки{% endif %}</span>
                 <span class="catalog-dept__count">{{ group.disciplines|length }} дисц.</span>
             </summary>
             <div class="catalog-dept__body">
@@ -50,6 +51,23 @@
                     </summary>
                     <div class="catalog-discipline__body">
                         <div class="catalog-discipline__toolbar">
+                            <form
+                                method="post"
+                                action="{% url 'lab-head-discipline-department' d.pk %}"
+                                class="discipline-folder-form"
+                            >
+                                {% csrf_token %}
+                                <label class="discipline-folder-form__label">
+                                    Папка
+                                    <select name="department" class="discipline-folder-form__select">
+                                        <option value="" {% if not d.department_id %}selected{% endif %}>Без папки</option>
+                                        {% for folder in department_folders %}
+                                        <option value="{{ folder.pk }}" {% if d.department_id == folder.pk %}selected{% endif %}>{{ folder.title }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </label>
+                                <button type="submit" class="button--sm">Сохранить</button>
+                            </form>
                             <form
                                 method="post"
                                 action="{% url 'lab-head-discipline-unbind' d.pk %}"
@@ -154,10 +172,29 @@
     </div>
 </dialog>
 
+<dialog id="department-folder-dialog" class="app-dialog" aria-labelledby="department-folder-title">
+    <div class="app-dialog__header">
+        <h2 class="card__title" id="department-folder-title">Создать папку</h2>
+        <p class="muted">Папки группируют дисциплины в каталоге для завлаба и студентов.</p>
+    </div>
+    <form method="post" action="{% url 'lab-head-department-create' %}" class="form-grid">
+        {% csrf_token %}
+        <label class="form-grid__full">Название папки
+            <input type="text" name="title" required maxlength="256" placeholder="Например: Кафедра бурения">
+        </label>
+        <div class="app-dialog__actions form-grid__full">
+            <button type="submit">Создать</button>
+            <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
+        </div>
+    </form>
+</dialog>
+
 <script>
 (function () {
     var bindDialog = document.getElementById('discipline-bind-dialog');
     var bindOpenBtn = document.getElementById('discipline-bind-open');
+    var folderDialog = document.getElementById('department-folder-dialog');
+    var folderOpenBtn = document.getElementById('department-folder-open');
     var bindSearch = document.getElementById('discipline-bind-search');
 
     function bindDialogControls(dialog) {
@@ -183,6 +220,12 @@
                 filterBindRows('');
             }
             bindDialog.showModal();
+        });
+    }
+
+    if (folderOpenBtn && folderDialog) {
+        folderOpenBtn.addEventListener('click', function () {
+            folderDialog.showModal();
         });
     }
 
@@ -219,6 +262,7 @@
     });
 
     bindDialogControls(bindDialog);
+    bindDialogControls(folderDialog);
 })();
 </script>
 {% endblock %}

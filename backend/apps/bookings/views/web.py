@@ -19,6 +19,7 @@ from apps.academics.querysets import (
     staff_managed_lab_works_qs,
     student_disciplines_qs,
     student_lab_works_qs,
+    student_rooms_qs,
     student_support_training_centers_qs,
 )
 from apps.bookings.models import Booking, BookingStatus, SupportTicket
@@ -462,7 +463,42 @@ class BookingDetailWebView(LoginRequiredMixin, DetailView):
             "discipline",
             "room",
             "room__training_center",
-        )
+        ).prefetch_related("lab_work__methodics_files")
+
+
+class StudentRoomsWebView(LoginRequiredMixin, ListView):
+    template_name = "bookings/student_rooms.html"
+    context_object_name = "rooms"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.role != UserRole.STUDENT:
+            messages.error(request, "Раздел доступен только студентам.")
+            return redirect("home")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return student_rooms_qs(self.request.user)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        user = self.request.user
+        accessible_discipline_ids = set(student_disciplines_qs(user).values_list("pk", flat=True))
+        lab_works_by_room: dict[int, list[LabWork]] = {}
+        for lab_work in student_lab_works_qs(user).prefetch_related("methodics_files", "disciplines"):
+            if lab_work.default_room_id:
+                lab_works_by_room.setdefault(lab_work.default_room_id, []).append(lab_work)
+
+        rooms = list(ctx["rooms"])
+        for room in rooms:
+            room.visible_lab_works = lab_works_by_room.get(room.pk, [])
+            room.visible_disciplines = [
+                discipline
+                for discipline in room.disciplines.all()
+                if discipline.pk in accessible_discipline_ids
+            ]
+            room.published_stands = [stand for stand in room.stands.all() if stand.is_published]
+        ctx["rooms"] = rooms
+        return ctx
 
 
 class CancelBookingWebView(LoginRequiredMixin, View):

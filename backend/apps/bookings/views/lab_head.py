@@ -39,6 +39,9 @@ from apps.bookings.services.lab_head import (
     lab_head_training_centers_qs,
     lab_head_create_lab_work,
     lab_head_departments_for_disciplines,
+    lab_head_department_folders_qs,
+    lab_head_create_department_folder,
+    lab_head_assign_discipline_department,
     lab_head_room_disciplines,
     lab_head_update_lab_work,
     lab_head_update_room,
@@ -47,6 +50,7 @@ from apps.bookings.services.lab_head import (
     sync_training_centers_for_laboratories,
     validate_lab_duration_minutes,
 )
+from apps.bookings.services.methodics import delete_lab_work_methodics, upload_lab_work_methodics
 from apps.scheduling.models import LabStand, Room, ScheduleEntry, WeekParity
 
 WEEKDAY_LABELS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
@@ -168,13 +172,14 @@ class LabHeadBindingsView(LabHeadRequiredMixin, TemplateView):
         else:
             bindable_disciplines = lab_head_bindable_disciplines_qs(user)
 
-        departments = list(lab_head_departments_for_disciplines(disciplines_qs))
+        departments = list(lab_head_department_folders_qs(user))
         department_groups = department_discipline_groups(lab_disciplines, departments=departments)
 
         ctx["training_center"] = self.get_training_center()
         ctx["laboratory"] = lab_head_laboratory(user)
         ctx["lab_disciplines"] = lab_disciplines
         ctx["department_groups"] = department_groups
+        ctx["department_folders"] = departments
         ctx["bindable_disciplines"] = bindable_disciplines
         ctx["search_query"] = search_query
         return ctx
@@ -215,6 +220,46 @@ class LabHeadDisciplineUnbindView(LabHeadRequiredMixin, View):
         discipline.laboratories.remove(laboratory)
         sync_training_centers_for_laboratories(discipline)
         messages.success(request, f"Дисциплина «{discipline.title}» отвязана от лаборатории.")
+        return redirect("lab-head-bindings")
+
+
+class LabHeadDisciplineDepartmentView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        discipline = lab_head_discipline_in_scope(request.user, pk)
+        if not discipline:
+            messages.error(request, "Дисциплина недоступна.")
+            return redirect("lab-head-bindings")
+
+        department_id = request.POST.get("department", "").strip()
+        department = None
+        if department_id:
+            department = lab_head_department_folders_qs(request.user).filter(pk=department_id).first()
+            if not department:
+                messages.error(request, "Папка недоступна.")
+                return redirect("lab-head-bindings")
+
+        try:
+            lab_head_assign_discipline_department(request.user, discipline, department)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-bindings")
+
+        if department:
+            messages.success(request, f"Дисциплина «{discipline.title}» перемещена в «{department.title}».")
+        else:
+            messages.success(request, f"Дисциплина «{discipline.title}» убрана из папок.")
+        return redirect("lab-head-bindings")
+
+
+class LabHeadDepartmentCreateView(LabHeadRequiredMixin, View):
+    def post(self, request):
+        title = request.POST.get("title", "").strip()
+        try:
+            department = lab_head_create_department_folder(request.user, title=title)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-bindings")
+        messages.success(request, f"Папка «{department.title}» создана.")
         return redirect("lab-head-bindings")
 
 
@@ -265,6 +310,7 @@ class LabHeadLabWorksView(LabHeadRequiredMixin, ListView):
                 "laboratories__training_center",
                 "disciplines",
                 "disciplines__department",
+                "methodics_files",
             )
         )
         return filter_lab_head_lab_works(qs, self.request.GET.get("q", ""))
@@ -417,6 +463,43 @@ class LabHeadLabWorkUpdateView(LabHeadRequiredMixin, View):
             return redirect("lab-head-lab-works")
 
         messages.success(request, f"Лабораторная работа «{lab_work.title}» обновлена.")
+        return redirect("lab-head-lab-works")
+
+
+class LabHeadLabWorkMethodicsUploadView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        lab_work = lab_head_lab_work_in_scope(request.user, pk)
+        if not lab_work:
+            messages.error(request, "Лабораторная работа недоступна.")
+            return redirect("lab-head-lab-works")
+        files = request.FILES.getlist("methodics_files")
+        if not files:
+            messages.error(request, "Выберите один или несколько PDF-файлов.")
+            return redirect("lab-head-lab-works")
+        try:
+            uploaded, errors = upload_lab_work_methodics(request.user, lab_work, files)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-lab-works")
+        for error in errors:
+            messages.error(request, error)
+        if uploaded:
+            messages.success(request, f"Загружено методичек: {uploaded}.")
+        return redirect("lab-head-lab-works")
+
+
+class LabHeadLabWorkMethodicsDeleteView(LabHeadRequiredMixin, View):
+    def post(self, request, pk, methodics_id):
+        lab_work = lab_head_lab_work_in_scope(request.user, pk)
+        if not lab_work:
+            messages.error(request, "Лабораторная работа недоступна.")
+            return redirect("lab-head-lab-works")
+        try:
+            display_name = delete_lab_work_methodics(request.user, lab_work, methodics_id)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-lab-works")
+        messages.success(request, f"Методичка «{display_name}» удалена.")
         return redirect("lab-head-lab-works")
 
 

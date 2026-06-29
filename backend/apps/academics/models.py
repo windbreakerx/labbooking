@@ -151,12 +151,6 @@ class LabWork(models.Model):
     )
     capacity = models.PositiveIntegerField("Макс. мест", default=30)
     is_published = models.BooleanField("Опубликовано", default=True)
-    methodics_file = models.FileField(
-        "Методичка (PDF)",
-        upload_to="methodics/",
-        blank=True,
-        validators=[FileExtensionValidator(allowed_extensions=["pdf"])],
-    )
     training_centers = models.ManyToManyField(
         "scheduling.TrainingCenter",
         blank=True,
@@ -207,3 +201,33 @@ class LabWork(models.Model):
         if discipline_titles:
             return f"ЛР {self.number}: {self.title} ({discipline_titles})"
         return f"ЛР {self.number}: {self.title}"
+
+
+class LabWorkMethodics(models.Model):
+    lab_work = models.ForeignKey(
+        LabWork,
+        on_delete=models.CASCADE,
+        related_name="methodics_files",
+        verbose_name="Лабораторная работа",
+    )
+    file = models.FileField(
+        "PDF",
+        upload_to="methodics/",
+        validators=[FileExtensionValidator(allowed_extensions=["pdf"])],
+    )
+    title = models.CharField("Название", max_length=256, blank=True)
+    uploaded_at = models.DateTimeField("Загружено", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Методичка"
+        verbose_name_plural = "Методички"
+        ordering = ["uploaded_at", "pk"]
+
+    def __str__(self):
+        return self.display_name
+
+    @property
+    def display_name(self) -> str:
+        if self.title:
+            return self.title
+        return self.file.name.rsplit("/", 1)[-1]

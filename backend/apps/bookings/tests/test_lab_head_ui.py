@@ -1,8 +1,9 @@
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, Semester
+from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, LabWorkMethodics, Semester
 from apps.bookings.models import Booking
 from apps.bookings.tests.conftest import create_lab_work
 from apps.scheduling.models import LabSession, LabSessionStatus, LabStand, Laboratory, Room, ScheduleEntry, TrainingCenter
@@ -701,6 +702,101 @@ class TestLabHeadRoomDisciplines:
         assert response.status_code == 302
         own_room.refresh_from_db()
         assert own_room.disciplines.count() == 0
+
+
+@pytest.mark.django_db
+class TestLabHeadDisciplineFolders:
+    @pytest.fixture
+    def department_folder(self, db):
+        from apps.academics.models import Department
+
+        return Department.objects.create(title="Кафедра тестовая")
+
+    def test_create_department_folder(self, client_logged_in):
+        response = client_logged_in.post(
+            reverse("lab-head-department-create"),
+            {"title": "Новая папка"},
+        )
+        assert response.status_code == 302
+        from apps.academics.models import Department
+
+        assert Department.objects.filter(title="Новая папка").exists()
+
+    def test_assign_discipline_to_folder(
+        self,
+        client_logged_in,
+        own_discipline,
+        department_folder,
+    ):
+        response = client_logged_in.post(
+            reverse("lab-head-discipline-department", kwargs={"pk": own_discipline.pk}),
+            {"department": department_folder.pk},
+        )
+        assert response.status_code == 302
+        own_discipline.refresh_from_db()
+        assert own_discipline.department_id == department_folder.pk
+
+    def test_clear_discipline_folder(self, client_logged_in, own_discipline, department_folder):
+        own_discipline.department = department_folder
+        own_discipline.save(update_fields=["department"])
+        response = client_logged_in.post(
+            reverse("lab-head-discipline-department", kwargs={"pk": own_discipline.pk}),
+            {"department": ""},
+        )
+        assert response.status_code == 302
+        own_discipline.refresh_from_db()
+        assert own_discipline.department_id is None
+
+
+@pytest.mark.django_db
+class TestLabHeadLabWorkMethodics:
+    @pytest.fixture
+    def own_lab_work(self, own_discipline, own_laboratory):
+        lab_work = create_lab_work(
+            own_discipline,
+            number=20,
+            title="ЛР для методичек",
+            duration_minutes=90,
+            is_published=True,
+        )
+        lab_work.laboratories.add(own_laboratory)
+        return lab_work
+
+    def test_upload_multiple_methodics(self, client_logged_in, own_lab_work):
+        files = [
+            SimpleUploadedFile("guide1.pdf", b"%PDF-1.4 test", content_type="application/pdf"),
+            SimpleUploadedFile("guide2.pdf", b"%PDF-1.4 test2", content_type="application/pdf"),
+        ]
+        response = client_logged_in.post(
+            reverse("lab-head-lab-work-methodics-upload", kwargs={"pk": own_lab_work.pk}),
+            {"methodics_files": files},
+        )
+        assert response.status_code == 302
+        assert own_lab_work.methodics_files.count() == 2
+
+    def test_delete_methodics(self, client_logged_in, own_lab_work):
+        methodics = LabWorkMethodics.objects.create(
+            lab_work=own_lab_work,
+            file=SimpleUploadedFile("guide.pdf", b"%PDF-1.4 test", content_type="application/pdf"),
+        )
+        response = client_logged_in.post(
+            reverse(
+                "lab-head-lab-work-methodics-delete",
+                kwargs={"pk": own_lab_work.pk, "methodics_id": methodics.pk},
+            ),
+        )
+        assert response.status_code == 302
+        assert not LabWorkMethodics.objects.filter(pk=methodics.pk).exists()
+
+    def test_staff_can_upload_methodics(self, client, staff_admin, own_lab_work):
+        client.force_login(staff_admin)
+        file = SimpleUploadedFile("staff-guide.pdf", b"%PDF-1.4 test", content_type="application/pdf")
+        response = client.post(
+            reverse("staff-lab-work-upload", kwargs={"pk": own_lab_work.pk}),
+            {"methodics_files": [file]},
+        )
+        assert response.status_code == 302
+        assert own_lab_work.methodics_files.count() == 1
 
 
 @pytest.mark.django_db

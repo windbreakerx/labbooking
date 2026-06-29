@@ -13,6 +13,7 @@ from apps.academics.querysets import (
 from apps.bookings.models import SupportMessage, SupportTicket
 from apps.bookings.reports import generate_report
 from apps.bookings.services import is_staff_user, staff_lab_filter
+from apps.bookings.services.methodics import delete_lab_work_methodics, upload_lab_work_methodics
 from apps.scheduling.models import LabStand, ScheduleEntry
 from apps.users.models import UserRole
 
@@ -38,19 +39,40 @@ class StaffLabWorksView(StaffRequiredMixin, ListView):
     context_object_name = "lab_works"
 
     def get_queryset(self):
-        return staff_managed_lab_works_qs(self.request.user).prefetch_related("disciplines")
+        return staff_managed_lab_works_qs(self.request.user).prefetch_related(
+            "disciplines",
+            "methodics_files",
+        )
 
 
 class StaffLabWorkUploadView(StaffRequiredMixin, View):
     def post(self, request, pk):
         lab_work = get_object_or_404(staff_managed_lab_works_qs(request.user), pk=pk)
-        if file := request.FILES.get("methodics_file"):
-            if file.size > 10 * 1024 * 1024:
-                messages.error(request, "Файл не должен превышать 10 МБ.")
-            else:
-                lab_work.methodics_file = file
-                lab_work.save(update_fields=["methodics_file"])
-                messages.success(request, "Методичка загружена.")
+        files = request.FILES.getlist("methodics_files")
+        if not files:
+            messages.error(request, "Выберите один или несколько PDF-файлов.")
+            return redirect("staff-lab-works")
+        try:
+            uploaded, errors = upload_lab_work_methodics(request.user, lab_work, files)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("staff-lab-works")
+        for error in errors:
+            messages.error(request, error)
+        if uploaded:
+            messages.success(request, f"Загружено методичек: {uploaded}.")
+        return redirect("staff-lab-works")
+
+
+class StaffLabWorkMethodicsDeleteView(StaffRequiredMixin, View):
+    def post(self, request, pk, methodics_id):
+        lab_work = get_object_or_404(staff_managed_lab_works_qs(request.user), pk=pk)
+        try:
+            display_name = delete_lab_work_methodics(request.user, lab_work, methodics_id)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("staff-lab-works")
+        messages.success(request, f"Методичка «{display_name}» удалена.")
         return redirect("staff-lab-works")
 
 

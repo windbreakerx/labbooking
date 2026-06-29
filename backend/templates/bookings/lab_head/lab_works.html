@@ -83,6 +83,10 @@
                         <dd>{{ lw.capacity }}</dd>
                     </div>
                 </dl>
+                <div class="lab-work-item__methodics">
+                    <p class="catalog-section-title">Методички (PDF)</p>
+                    {% include "bookings/partials/lab_work_methodics_panel.html" with lw=lw upload_url_name="lab-head-lab-work-methodics-upload" delete_url_name="lab-head-lab-work-methodics-delete" %}
+                </div>
                 <button
                     type="button"
                     class="button button--secondary lab-work-edit-btn"
@@ -356,6 +360,20 @@
 
     document.querySelectorAll('.lab-work-item__body').forEach(function (body) {
         body.addEventListener('click', function (e) {
+            e.stopPropagation();
+        });
+    });
+
+    document.querySelectorAll('.methodics-delete-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            e.stopPropagation();
+            if (!confirm('Удалить эту методичку?')) {
+                e.preventDefault();
+            }
+        });
+    });
+    document.querySelectorAll('.methodics-upload-form, .methodics-upload-form *').forEach(function (el) {
+        el.addEventListener('click', function (e) {
             e.stopPropagation();
         });
     });

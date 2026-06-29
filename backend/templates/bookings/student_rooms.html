@@ -1,0 +1,97 @@
+{% extends "base_student.html" %}
+{% block title %}Аудитории{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Студент</p>
+        <h1 class="page-title">Аудитории</h1>
+        <p class="page-description">Аудитории ваших лабораторных: фото, дисциплины, работы, методички и стенды.</p>
+    </div>
+</header>
+
+{% if rooms %}
+<div class="room-catalog">
+    {% for room in rooms %}
+    <details class="room-catalog__item card">
+        <summary class="room-catalog__summary">
+            <div class="room-catalog__heading">
+                {% if room.photo %}
+                <img src="{{ room.photo.url }}" alt="Аудитория {{ room.number }}" class="room-catalog__thumb">
+                {% else %}
+                <div class="room-catalog__thumb room-catalog__thumb--placeholder" aria-hidden="true">ауд.</div>
+                {% endif %}
+                <div>
+                    <span class="room-catalog__number">ауд. {{ room.number }}</span>
+                    {% if room.name %}<span class="room-catalog__name">{{ room.name }}</span>{% endif %}
+                    <span class="muted room-catalog__tc">УЦ №{{ room.training_center.number }}</span>
+                </div>
+            </div>
+            <span class="room-catalog__meta">{{ room.visible_lab_works|length }} ЛР · {{ room.published_stands|length }} стендов</span>
+        </summary>
+        <div class="room-catalog__body">
+            {% if room.visible_disciplines %}
+            <p class="catalog-section-title">Дисциплины</p>
+            <div class="room-catalog__tags">
+                {% for d in room.visible_disciplines %}
+                <span class="badge badge--muted">{{ d.title }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if room.visible_lab_works %}
+            <p class="catalog-section-title">Лабораторные работы</p>
+            <ul class="catalog-lab-works">
+                {% for lw in room.visible_lab_works %}
+                <li>
+                    <div class="room-lab-work">
+                        <div class="room-lab-work__header">
+                            <span class="catalog-lab-work__number">№{{ lw.number }}</span>
+                            <span class="catalog-lab-work__title">{{ lw.title }}</span>
+                            <a class="button button--sm" href="{% url 'book-lab-work' lw.pk %}">Записаться</a>
+                        </div>
+                        {% if lw.methodics_files.all %}
+                        <ul class="methodics-links">
+                            {% for m in lw.methodics_files.all %}
+                            <li>
+                                <a href="{{ m.file.url }}" target="_blank" rel="noopener" class="methodics-links__item">
+                                    PDF: {{ m.display_name }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="muted">Нет доступных лабораторных работ в этой аудитории.</p>
+            {% endif %}
+
+            {% if room.published_stands %}
+            <p class="catalog-section-title">Стенды</p>
+            <ul class="stand-list">
+                {% for stand in room.published_stands %}
+                <li class="stand-list__item">
+                    {% if stand.photo %}
+                    <img src="{{ stand.photo.url }}" alt="{{ stand.name }}" class="stand-list__thumb">
+                    {% endif %}
+                    <div>
+                        <strong>{{ stand.name }}</strong>
+                        <span class="muted"> · {{ stand.inventory_number }}</span>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </details>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state empty-state--icon">
+    <p>Нет доступных аудиторий.</p>
+    <p class="muted">Аудитории появятся, когда к вашим дисциплинам будут привязаны лабораторные работы.</p>
+</div>
+{% endif %}
+{% endblock %}

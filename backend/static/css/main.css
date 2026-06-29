@@ -3775,3 +3775,63 @@ a.report-card--link:focus-visible {
     padding: 0.25rem 0;
 }
 
+.methodics-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.methodics-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.methodics-list__item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.methodics-upload-form {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.methodics-panel__hint {
+    font-size: 0.8125rem;
+    margin: 0;
+}
+
+.methodics-panel__empty {
+    margin: 0;
+}
+
+.lab-work-item__methodics {
+    margin: 0.75rem 0 1rem;
+}
+
+.discipline-folder-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.discipline-folder-form__label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.discipline-folder-form__select {
+    min-width: 12rem;
+}
+

@@ -24,8 +24,8 @@
     {% for group in department_groups %}
     <details class="catalog-dept">
         <summary class="catalog-dept__summary">
-            <span class="catalog-dept__label">Кафедра</span>
-            <span class="catalog-dept__title">{% if group.department %}{{ group.department.title }}{% else %}Без кафедры{% endif %}</span>
+            <span class="catalog-dept__label">Раздел</span>
+            <span class="catalog-dept__title">{% if group.department %}{{ group.department.title }}{% else %}Без раздела{% endif %}</span>
             <span class="catalog-dept__count">{{ group.disciplines|length }} дисц.</span>
         </summary>
         <div class="catalog-dept__body">

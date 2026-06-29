@@ -28,6 +28,11 @@
             hx-boost="true"
         >Дисциплины</a>
         <a
+            class="pill-nav__link{% if request.resolver_match.url_name == 'student-rooms' %} pill-nav__link--current{% endif %}"
+            href="{% url 'student-rooms' %}"
+            hx-boost="true"
+        >Аудитории</a>
+        <a
             class="pill-nav__link{% if request.resolver_match.url_name == 'my-bookings' or request.resolver_match.url_name == 'booking-detail' %} pill-nav__link--current{% endif %}"
             href="{% url 'my-bookings' %}"
             hx-boost="true"
