@@ -20,7 +20,13 @@
                 <td data-label="ФИО"><strong>{{ u.full_name }}</strong></td>
                 <td data-label="Email"><span class="muted">{{ u.email }}</span></td>
                 <td data-label="Роль"><span class="badge badge--muted">{{ u.get_role_display }}</span></td>
-                <td data-label="Лаборатория">{% if u.profile.training_center %}УЦ №{{ u.profile.training_center.number }}{% else %}—{% endif %}</td>
+                <td data-label="Лаборатория">
+                    {% if u.profile.laboratory %}
+                    {{ u.profile.laboratory.name }}
+                    {% elif u.profile.training_center %}
+                    УЦ №{{ u.profile.training_center.number }}
+                    {% else %}—{% endif %}
+                </td>
             </tr>
             {% empty %}
             <tr><td colspan="4">

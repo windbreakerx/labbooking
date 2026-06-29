@@ -68,7 +68,7 @@
 | **Scoping laboratory** | ✅ | `staff_lab_filter`, `test_staff_scope.py` | Изоляция sibling labs в одном УЦ |
 | **Scoping по аудитории (LAB_ADMIN)** | ❌ | — | Сотрудник видит всю лабораторию |
 | **profile.disciplines** | ⚠️ | `UserProfile.disciplines` M2M | Metadata; не security boundary (skill) |
-| **CSV / seed** | ✅ | `import_dekanat_csv`, `seed_demo.py` | Пилот НГФ; groups/faculty — строки |
+| **CSV / seed** | ✅ | `import_dekanat_csv`, `seed_demo.py`, [csv_templates/README.md](csv_templates/README.md) | Пилот НГФ; groups/faculty — строки |
 | **Деканат API / SSO** | ❌ stub | `integrations/dekanat.py`, `SSO_ENABLED` | Post-MVP |
 
 ---

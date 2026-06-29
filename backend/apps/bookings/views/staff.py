@@ -8,12 +8,13 @@ from django.views.generic import ListView, TemplateView
 from apps.academics.querysets import (
     staff_managed_disciplines_qs,
     staff_managed_lab_works_qs,
+    staff_people_qs,
 )
 from apps.bookings.models import SupportMessage, SupportTicket
 from apps.bookings.reports import generate_report
 from apps.bookings.services import is_staff_user, staff_lab_filter
 from apps.scheduling.models import LabStand, ScheduleEntry
-from apps.users.models import User, UserRole
+from apps.users.models import UserRole
 
 
 class StaffRequiredMixin(LoginRequiredMixin):
@@ -130,15 +131,7 @@ class StaffPeopleView(StaffRequiredMixin, ListView):
     context_object_name = "people"
 
     def get_queryset(self):
-        qs = User.objects.filter(
-            role__in=[UserRole.TEACHER, UserRole.LAB_ADMIN],
-        ).select_related("profile", "profile__training_center")
-        if self.request.user.role == UserRole.SYS_ADMIN:
-            return qs.order_by("last_name", "first_name", "email")
-        tc = getattr(self.request.user.profile, "training_center", None)
-        if not tc:
-            return qs.none()
-        return qs.filter(profile__training_center=tc).order_by("last_name", "first_name", "email")
+        return staff_people_qs(self.request.user)
 
 
 class StaffSupportView(StaffRequiredMixin, ListView):

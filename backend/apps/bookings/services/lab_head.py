@@ -9,6 +9,7 @@ from apps.academics.querysets import (
     resolve_staff_training_center,
     staff_managed_disciplines_qs,
     staff_managed_lab_works_qs,
+    staff_people_qs,
 )
 from apps.scheduling.models import LabStand, Laboratory, Room, ScheduleEntry, TrainingCenter
 from apps.users.models import User, UserRole
@@ -32,21 +33,7 @@ def sync_training_centers_for_laboratories(obj) -> None:
 
 
 def lab_head_people_qs(user: User) -> QuerySet[User]:
-    laboratory = lab_head_laboratory(user)
-    tc = lab_head_training_center(user)
-    if not laboratory and not tc:
-        return User.objects.none()
-    filters = {"role__in": [UserRole.LAB_ADMIN, UserRole.TEACHER]}
-    if laboratory:
-        filters["profile__laboratory"] = laboratory
-    elif tc:
-        filters["profile__training_center"] = tc
-    return (
-        User.objects.filter(**filters)
-        .select_related("profile", "profile__training_center", "profile__laboratory")
-        .prefetch_related("profile__disciplines")
-        .order_by("last_name", "first_name")
-    )
+    return staff_people_qs(user).prefetch_related("profile__disciplines")
 
 
 def _published_search_q(query: str) -> Q:

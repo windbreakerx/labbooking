@@ -6,10 +6,156 @@
         <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
         <h1 class="page-title">Сотрудники и преподаватели</h1>
     </div>
+    <div class="page-actions">
+        <button type="button" class="button" id="person-create-open">Добавить</button>
+    </div>
 </header>
 
-<div class="empty-state empty-state--icon">
-    <p>На доработке</p>
-    <p class="muted">Раздел временно недоступен.</p>
+<div class="table-wrap">
+    <table class="table table--compact table--sticky responsive-table">
+        <thead>
+            <tr><th>ФИО</th><th>Email</th><th>Роль</th><th>Дисциплины</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for person in people %}
+            <tr>
+                <td data-label="ФИО"><strong>{{ person.full_name }}</strong></td>
+                <td data-label="Email"><span class="muted">{{ person.email }}</span></td>
+                <td data-label="Роль"><span class="badge badge--muted">{{ person.get_role_display }}</span></td>
+                <td data-label="Дисциплины">
+                    {% for d in person.profile.disciplines.all %}
+                    <span class="badge badge--muted">{{ d.title }}</span>
+                    {% empty %}
+                    <span class="muted">—</span>
+                    {% endfor %}
+                </td>
+                <td data-label="">
+                    <button type="button" class="button button--sm person-bindings-btn"
+                        data-person-id="{{ person.pk }}"
+                        data-person-name="{{ person.full_name|escapejs }}"
+                        data-discipline-ids="{% for d in person.profile.disciplines.all %}{{ d.pk }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                        Привязки
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">
+                <div class="empty-state empty-state--icon">
+                    <p>Сотрудников и преподавателей пока нет.</p>
+                    <p class="muted">Добавьте пользователя кнопкой «Добавить».</p>
+                </div>
+            </td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+
+<dialog id="person-create-dialog" class="app-dialog app-dialog--wide" aria-labelledby="person-create-title">
+    <div class="app-dialog__header">
+        <h2 class="card__title" id="person-create-title">Новый сотрудник или преподаватель</h2>
+    </div>
+    <form method="post" action="{% url 'lab-head-person-create' %}" class="form-grid">
+        {% csrf_token %}
+        <label>Email <input type="email" name="email" required autocomplete="off"></label>
+        <label>Имя <input type="text" name="first_name" required maxlength="150"></label>
+        <label>Фамилия <input type="text" name="last_name" required maxlength="150"></label>
+        <label>Роль
+            <select name="role" required>
+                {% for value, label in role_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Пароль (необязательно)
+            <input type="text" name="password" placeholder="ChangeMe123!" autocomplete="new-password">
+        </label>
+        <div class="app-dialog__actions form-grid__full">
+            <button type="submit">Сохранить</button>
+            <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="person-bindings-dialog" class="app-dialog app-dialog--wide app-dialog--scrollable" aria-labelledby="person-bindings-title">
+    <div class="app-dialog__header">
+        <h2 class="card__title" id="person-bindings-title">Привязка дисциплин</h2>
+        <p class="muted" id="person-bindings-subtitle"></p>
+    </div>
+    <form method="post" action="" class="form-grid" id="person-bindings-form">
+        {% csrf_token %}
+        <fieldset class="form-grid__full">
+            <legend class="muted">Дисциплины лаборатории</legend>
+            {% for d in lab_disciplines %}
+            <label class="checkbox-row">
+                <input type="checkbox" name="disciplines" value="{{ d.pk }}">
+                {{ d.title }}
+            </label>
+            {% empty %}
+            <p class="muted">Нет дисциплин в лаборатории.</p>
+            {% endfor %}
+        </fieldset>
+        <div class="app-dialog__actions form-grid__full">
+            <button type="submit">Сохранить</button>
+            <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+(function () {
+    function bindDialog(dialog) {
+        if (!dialog) {
+            return;
+        }
+        dialog.addEventListener('click', function (e) {
+            if (e.target === dialog) {
+                dialog.close();
+            }
+        });
+        dialog.querySelectorAll('[data-dialog-close]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dialog.close();
+            });
+        });
+    }
+
+    var createDialog = document.getElementById('person-create-dialog');
+    var createOpen = document.getElementById('person-create-open');
+    bindDialog(createDialog);
+    if (createOpen && createDialog) {
+        createOpen.addEventListener('click', function () {
+            createDialog.showModal();
+        });
+    }
+
+    var bindingsDialog = document.getElementById('person-bindings-dialog');
+    var bindingsForm = document.getElementById('person-bindings-form');
+    var bindingsSubtitle = document.getElementById('person-bindings-subtitle');
+    bindDialog(bindingsDialog);
+
+    document.querySelectorAll('.person-bindings-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (!bindingsDialog || !bindingsForm) {
+                return;
+            }
+            var personId = btn.getAttribute('data-person-id');
+            bindingsForm.action = '{% url "lab-head-person-bindings" pk=0 %}'.replace('/0/', '/' + personId + '/');
+            if (bindingsSubtitle) {
+                bindingsSubtitle.textContent = btn.getAttribute('data-person-name') || '';
+            }
+            bindingsDialog.querySelectorAll('input[name="disciplines"]').forEach(function (input) {
+                input.checked = false;
+            });
+            var disciplineIds = (btn.getAttribute('data-discipline-ids') || '').split(',').filter(Boolean);
+            disciplineIds.forEach(function (id) {
+                var input = bindingsDialog.querySelector('input[name="disciplines"][value="' + id + '"]');
+                if (input) {
+                    input.checked = true;
+                }
+            });
+            bindingsDialog.showModal();
+        });
+    });
+})();
+</script>
 {% endblock %}

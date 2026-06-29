@@ -785,6 +785,41 @@ class TestStaffLaboratoryIsolation:
         booking_b.refresh_from_db()
         assert booking_b.current_status != BookingStatus.VISITED
 
+    def test_staff_people_hides_sibling_laboratory(
+        self,
+        staff_lab_a,
+        lab_a,
+        lab_b,
+    ):
+        teacher_a = User.objects.create_user(
+            email="teacher-lab-a@spmi.ru",
+            password="pass",
+            first_name="Teacher",
+            last_name="LabA",
+            role=UserRole.TEACHER,
+        )
+        teacher_a.profile.training_center = lab_a.training_center
+        teacher_a.profile.laboratory = lab_a
+        teacher_a.profile.save(update_fields=["training_center", "laboratory"])
+
+        teacher_b = User.objects.create_user(
+            email="teacher-lab-b@spmi.ru",
+            password="pass",
+            first_name="Teacher",
+            last_name="LabB",
+            role=UserRole.TEACHER,
+        )
+        teacher_b.profile.training_center = lab_b.training_center
+        teacher_b.profile.laboratory = lab_b
+        teacher_b.profile.save(update_fields=["training_center", "laboratory"])
+
+        client = Client()
+        client.force_login(staff_lab_a)
+        response = client.get("/staff/people/")
+        assert response.status_code == 200
+        assert teacher_a.email.encode() in response.content
+        assert teacher_b.email.encode() not in response.content
+
 
 @pytest.fixture
 def lab_head_with_laboratory(db, shared_tc, lab_a):

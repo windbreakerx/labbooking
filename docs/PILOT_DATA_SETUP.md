@@ -67,7 +67,7 @@
 
 ## Шаблоны CSV
 
-Готовые шаблоны в `docs/csv_templates/`:
+Готовые шаблоны в `docs/csv_templates/` (описание колонок: [csv_templates/README.md](csv_templates/README.md)):
 
 - `pilot_students.csv`
 - `pilot_staff.csv`

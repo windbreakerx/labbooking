@@ -143,6 +143,22 @@ def resolve_staff_laboratory(user: User) -> Laboratory | None:
     return tc.laboratories.order_by("name").first()
 
 
+def staff_people_qs(user: User) -> QuerySet[User]:
+    """Сотрудники и преподаватели в зоне доступа staff/lab-head."""
+    qs = User.objects.filter(
+        role__in=[UserRole.LAB_ADMIN, UserRole.TEACHER],
+    ).select_related("profile", "profile__training_center", "profile__laboratory")
+    if user.role == UserRole.SYS_ADMIN:
+        return qs.order_by("last_name", "first_name", "email")
+    laboratory = resolve_staff_laboratory(user)
+    if laboratory:
+        return qs.filter(profile__laboratory=laboratory).order_by("last_name", "first_name", "email")
+    tc = resolve_staff_training_center(user)
+    if not tc:
+        return User.objects.none()
+    return qs.filter(profile__training_center=tc).order_by("last_name", "first_name", "email")
+
+
 def staff_disciplines_qs(user: User) -> QuerySet[Discipline]:
     """Опубликованные дисциплины активного семестра в лаборатории сотрудника."""
     qs = published_disciplines_qs()
