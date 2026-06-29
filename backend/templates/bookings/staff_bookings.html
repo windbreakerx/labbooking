@@ -159,6 +159,7 @@
                 <div><dt>Группа</dt><dd>{{ b.student.profile.group_name|default:"—" }}</dd></div>
                 <div><dt>Дисциплина</dt><dd>{{ b.discipline.title }}</dd></div>
                 <div><dt>ЛР</dt><dd>{{ b.lab_work.title }}</dd></div>
+                <div><dt>Аудитория</dt><dd>№{{ b.room.number }} · УЦ №{{ b.room.training_center.number }}</dd></div>
                 <div><dt>Регистрация</dt><dd>{{ b.get_registration_type_display }}{% if b.registered_by %} · {{ b.registered_by.full_name }}{% endif %}</dd></div>
             </dl>
             <div class="staff-booking-card__actions">
@@ -176,6 +177,7 @@
                     {% sortable_th "group" "Группа" %}
                     {% sortable_th "discipline" "Дисциплина" %}
                     {% sortable_th "lab_work" "ЛР" %}
+                    {% sortable_th "room" "Ауд." %}
                     {% sortable_th "date" "Дата" %}
                     {% sortable_th "registration" "Регистрация" %}
                     {% sortable_th "status" "Статус" %}
@@ -192,6 +194,7 @@
                     <td>{{ b.student.profile.group_name|default:"—" }}</td>
                     <td class="cell-truncate" title="{{ b.discipline.title }}">{{ b.discipline.title }}</td>
                     <td class="cell-truncate" title="{{ b.lab_work.title }}">{{ b.lab_work.title }}</td>
+                    <td class="cell-nowrap">{{ b.room.number }}</td>
                     <td class="cell-nowrap">{{ b.scheduled_at|date:"d.m.Y H:i" }}</td>
                     <td class="cell-registration">
                         {{ b.get_registration_type_display }}

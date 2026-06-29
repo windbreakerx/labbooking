@@ -236,6 +236,9 @@ class TestStudentScopeWeb:
         other_student.profile.student_group = student_group
         other_student.profile.save(update_fields=["student_group"])
 
+        room.capacity = 1
+        room.save(update_fields=["capacity"])
+
         short_lab = create_lab_work(
             own_discipline,
             number=2,
