@@ -1,0 +1,39 @@
+---
+description: Frontend conventions for labbooking — student vs staff UI, Django templates, HTMX, CSS tokens. Applies when editing templates or static CSS/JS.
+globs: backend/templates/**/*,backend/static/**/*
+alwaysApply: false
+---
+
+# labbooking frontend
+
+## Two zones
+
+- **Student** (disciplines, book, my bookings, support, login): mobile-first, cards, wizard, brand quality. Skills: `labbooking-student-ui`, `ui-ux-pro-max`.
+- **Staff / lab_head** (`staff/`, `staff_bookings.html`, `lab_head/`): tables, forms, dialogs, minimal JS. Skill: `labbooking-htmx-staff-ui`.
+
+Do not apply staff table patterns to student pages or student card wizards to staff lists.
+
+## Stack
+
+- Django templates + HTMX 2.x + small vanilla JS hooks.
+- No React/Vue for web UI unless explicitly requested.
+- HTMX patterns: skill `labbooking-htmx-patterns`.
+- CSS: tokens in `main.css`; skill `labbooking-design-system`.
+
+## Rules
+
+- Business logic in services/querysets, not templates.
+- HTMX partials: small fragments, CSRF on POST, scoped querysets before render (`labbooking-access-scope`).
+- Booking mutations via `BookingService` (`labbooking-booking-service`).
+- New student features: service → API → web view (future mobile app).
+- Reuse partials with `filter_route` / `filter_chain_selector` for cascade filters.
+- Self-host HTMX in static for production; avoid CDN in prod settings.
+- One chat = one page or partial set.
+
+## UX defaults
+
+- Touch targets ≥44px on student flows.
+- Loading feedback on HTMX requests.
+- Empty states with next action.
+- Confirm destructive POSTs.
+- No emoji as icons on student UI.
