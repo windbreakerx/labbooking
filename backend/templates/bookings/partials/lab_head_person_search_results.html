@@ -1,0 +1,27 @@
+{% if query|length < 2 %}
+<p class="muted manual-student-search__hint">Введите минимум 2 символа: ФИО или email.</p>
+{% elif people %}
+<ul class="manual-student-search__list" role="listbox" aria-label="Результаты поиска сотрудников">
+    {% for p in people %}
+    <li>
+        <button
+            type="button"
+            class="manual-student-search__item"
+            data-person-id="{{ p.pk }}"
+            data-person-name="{{ p.full_name }}"
+            data-person-email="{{ p.email }}"
+            data-person-role="{{ p.get_role_display }}"
+        >
+            <strong>{{ p.full_name }}</strong>
+            <span class="muted">{{ p.email }}</span>
+            <span class="manual-student-search__group">{{ p.get_role_display }}</span>
+            {% if p.profile.laboratory %}
+            <span class="muted">сейчас: {{ p.profile.laboratory.name }}</span>
+            {% endif %}
+        </button>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="muted">Сотрудники не найдены. Уточните запрос.</p>
+{% endif %}

@@ -149,21 +149,50 @@ class TestLabHeadUIAccess:
 
 @pytest.mark.django_db
 class TestLabHeadPeople:
-    def test_create_staff_member(self, client_logged_in, own_tc):
+    def test_bind_staff_member(self, client_logged_in, own_tc, own_laboratory):
+        teacher = User.objects.create_user(
+            email="teacher.unbound@spmi.ru",
+            password="pass",
+            first_name="Пётр",
+            last_name="Препод",
+            role=UserRole.TEACHER,
+        )
         response = client_logged_in.post(
-            reverse("lab-head-person-create"),
-            {
-                "email": "new.staff@spmi.ru",
-                "first_name": "Новый",
-                "last_name": "Сотрудник",
-                "role": UserRole.LAB_ADMIN,
-                "password": "TempPass123!",
-            },
+            reverse("lab-head-person-bind"),
+            {"person_id": teacher.pk},
         )
         assert response.status_code == 302
-        user = User.objects.get(email="new.staff@spmi.ru")
-        assert user.role == UserRole.LAB_ADMIN
-        assert user.profile.training_center_id == own_tc.pk
+        teacher.profile.refresh_from_db()
+        assert teacher.profile.training_center_id == own_tc.pk
+        assert teacher.profile.laboratory_id == own_laboratory.pk
+
+    def test_bind_requires_selection(self, client_logged_in):
+        response = client_logged_in.post(reverse("lab-head-person-bind"), {})
+        assert response.status_code == 302
+        assert User.objects.filter(profile__laboratory__isnull=False, role=UserRole.TEACHER).count() == 0
+
+    def test_person_search_excludes_already_bound(self, client_logged_in, staff_admin):
+        response = client_logged_in.get(
+            reverse("lab-head-person-search"),
+            {"q": staff_admin.email},
+        )
+        assert response.status_code == 200
+        assert staff_admin.email not in response.content.decode()
+
+    def test_person_search_finds_unbound(self, client_logged_in):
+        teacher = User.objects.create_user(
+            email="search.teacher@spmi.ru",
+            password="pass",
+            first_name="Иван",
+            last_name="Иванов",
+            role=UserRole.TEACHER,
+        )
+        response = client_logged_in.get(
+            reverse("lab-head-person-search"),
+            {"q": teacher.email},
+        )
+        assert response.status_code == 200
+        assert teacher.email in response.content.decode()
 
     def test_bind_disciplines_to_person(self, client_logged_in, own_discipline, staff_admin):
         response = client_logged_in.post(

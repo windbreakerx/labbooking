@@ -3,7 +3,7 @@ from datetime import datetime
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Prefetch
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
@@ -25,7 +25,9 @@ from apps.bookings.services.lab_head import (
     lab_head_laboratories_qs,
     lab_head_laboratory,
     lab_head_laboratory_in_scope,
+    bind_staff_person_to_lab,
     lab_head_people_qs,
+    search_staff_for_lab_bind,
     lab_head_room_in_scope,
     lab_head_rooms_qs,
     lab_head_schedule_qs,
@@ -44,7 +46,6 @@ from apps.bookings.services.lab_head import (
     validate_lab_duration_minutes,
 )
 from apps.scheduling.models import LabStand, Room, ScheduleEntry, WeekParity
-from apps.users.models import User, UserRole
 
 WEEKDAY_LABELS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 
@@ -89,50 +90,33 @@ class LabHeadPeopleView(LabHeadRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["training_center"] = self.get_training_center()
         ctx["lab_disciplines"] = staff_managed_disciplines_qs(self.request.user)
-        ctx["role_choices"] = [
-            (UserRole.LAB_ADMIN, UserRole.LAB_ADMIN.label),
-            (UserRole.TEACHER, UserRole.TEACHER.label),
-        ]
         return ctx
 
 
-class LabHeadPersonCreateView(LabHeadRequiredMixin, View):
-    def post(self, request):
-        tc = self.get_training_center()
-        email = request.POST.get("email", "").strip().lower()
-        first_name = request.POST.get("first_name", "").strip()
-        last_name = request.POST.get("last_name", "").strip()
-        role = request.POST.get("role", "")
-        password = request.POST.get("password", "").strip() or "ChangeMe123!"
-
-        if not email or not first_name or not last_name:
-            messages.error(request, "Заполните email, имя и фамилию.")
-            return redirect("lab-head-people")
-        if role not in {UserRole.LAB_ADMIN, UserRole.TEACHER}:
-            messages.error(request, "Выберите роль: сотрудник или преподаватель.")
-            return redirect("lab-head-people")
-        if User.objects.filter(email=email).exists():
-            messages.error(request, "Пользователь с таким email уже существует.")
-            return redirect("lab-head-people")
-
-        user = User.objects.create_user(
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name,
-            role=role,
-            is_staff=(role == UserRole.LAB_ADMIN),
+class LabHeadPersonSearchView(LabHeadRequiredMixin, View):
+    def get(self, request):
+        query = request.GET.get("q", "").strip()
+        people = search_staff_for_lab_bind(request.user, query)
+        return render(
+            request,
+            "bookings/partials/lab_head_person_search_results.html",
+            {"people": people, "query": query},
         )
-        user.profile.training_center = tc
-        laboratory = lab_head_laboratory(request.user)
-        if laboratory:
-            user.profile.laboratory = laboratory
-            user.profile.save(update_fields=["training_center", "laboratory"])
-        else:
-            user.profile.save(update_fields=["training_center"])
+
+
+class LabHeadPersonBindView(LabHeadRequiredMixin, View):
+    def post(self, request):
+        person_id_raw = request.POST.get("person_id", "").strip()
+        if not person_id_raw.isdigit():
+            messages.error(request, "Выберите сотрудника из результатов поиска.")
+            return redirect("lab-head-people")
+        person, error = bind_staff_person_to_lab(request.user, int(person_id_raw))
+        if error:
+            messages.error(request, error)
+            return redirect("lab-head-people")
         messages.success(
             request,
-            f"Добавлен {user.get_role_display()}: {user.full_name}. Временный пароль: {password}",
+            f"{person.get_role_display()} {person.full_name} привязан к лаборатории.",
         )
         return redirect("lab-head-people")
 

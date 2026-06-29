@@ -5,9 +5,10 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Кабинет завлаба · УЦ №{{ training_center.number }}</p>
         <h1 class="page-title">Сотрудники и преподаватели</h1>
+        <p class="page-description">Привязка уже существующих сотрудников к лаборатории и дисциплинам.</p>
     </div>
     <div class="page-actions">
-        <button type="button" class="button" id="person-create-open">Добавить</button>
+        <button type="button" class="button" id="person-bind-open">Привязать</button>
     </div>
 </header>
 
@@ -42,7 +43,7 @@
             <tr><td colspan="5">
                 <div class="empty-state empty-state--icon">
                     <p>Сотрудников и преподавателей пока нет.</p>
-                    <p class="muted">Добавьте пользователя кнопкой «Добавить».</p>
+                    <p class="muted">Найдите сотрудника в базе и привяжите его к лаборатории.</p>
                 </div>
             </td></tr>
             {% endfor %}
@@ -50,27 +51,37 @@
     </table>
 </div>
 
-<dialog id="person-create-dialog" class="app-dialog app-dialog--wide" aria-labelledby="person-create-title">
+<dialog id="person-bind-dialog" class="app-dialog app-dialog--wide" aria-labelledby="person-bind-title">
     <div class="app-dialog__header">
-        <h2 class="card__title" id="person-create-title">Новый сотрудник или преподаватель</h2>
+        <h2 class="card__title" id="person-bind-title">Привязать сотрудника к лаборатории</h2>
+        <p class="muted">Учётная запись уже существует — найдите сотрудника по ФИО или email.</p>
     </div>
-    <form method="post" action="{% url 'lab-head-person-create' %}" class="form-grid">
+    <form method="post" action="{% url 'lab-head-person-bind' %}" class="form-grid" id="person-bind-form">
         {% csrf_token %}
-        <label>Email <input type="email" name="email" required autocomplete="off"></label>
-        <label>Имя <input type="text" name="first_name" required maxlength="150"></label>
-        <label>Фамилия <input type="text" name="last_name" required maxlength="150"></label>
-        <label>Роль
-            <select name="role" required>
-                {% for value, label in role_choices %}
-                <option value="{{ value }}">{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Пароль (необязательно)
-            <input type="text" name="password" placeholder="ChangeMe123!" autocomplete="new-password">
-        </label>
+        <input type="hidden" name="person_id" id="person-bind-id" value="">
+
+        <label for="person-bind-query">Сотрудник</label>
+        <input
+            type="search"
+            id="person-bind-query"
+            name="q"
+            placeholder="ФИО или email"
+            autocomplete="off"
+            hx-get="{% url 'lab-head-person-search' %}"
+            hx-trigger="input changed delay:300ms, search"
+            hx-target="#person-bind-results"
+            hx-swap="innerHTML"
+        >
+        <div id="person-bind-results" class="manual-student-search form-grid__full"></div>
+        <div id="person-bind-selected" class="manual-student-selected form-grid__full" hidden>
+            <span class="manual-student-selected__label">Выбран:</span>
+            <strong id="person-bind-selected-name"></strong>
+            <span class="muted" id="person-bind-selected-meta"></span>
+            <button type="button" class="btn-link" id="person-bind-clear">Изменить</button>
+        </div>
+
         <div class="app-dialog__actions form-grid__full">
-            <button type="submit">Сохранить</button>
+            <button type="submit" id="person-bind-submit" disabled>Привязать</button>
             <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
         </div>
     </form>
@@ -119,12 +130,103 @@
         });
     }
 
-    var createDialog = document.getElementById('person-create-dialog');
-    var createOpen = document.getElementById('person-create-open');
-    bindDialog(createDialog);
-    if (createOpen && createDialog) {
-        createOpen.addEventListener('click', function () {
-            createDialog.showModal();
+    function resetPersonBindForm() {
+        var personIdInput = document.getElementById('person-bind-id');
+        var personQuery = document.getElementById('person-bind-query');
+        var personResults = document.getElementById('person-bind-results');
+        var selectedPerson = document.getElementById('person-bind-selected');
+        var submitBtn = document.getElementById('person-bind-submit');
+        if (personIdInput) {
+            personIdInput.value = '';
+        }
+        if (personQuery) {
+            personQuery.value = '';
+        }
+        if (personResults) {
+            personResults.innerHTML = '';
+        }
+        if (selectedPerson) {
+            selectedPerson.hidden = true;
+        }
+        if (submitBtn) {
+            submitBtn.disabled = true;
+        }
+    }
+
+    var bindDialogEl = document.getElementById('person-bind-dialog');
+    var bindOpen = document.getElementById('person-bind-open');
+    var personIdInput = document.getElementById('person-bind-id');
+    var personQuery = document.getElementById('person-bind-query');
+    var personResults = document.getElementById('person-bind-results');
+    var selectedPerson = document.getElementById('person-bind-selected');
+    var selectedPersonName = document.getElementById('person-bind-selected-name');
+    var selectedPersonMeta = document.getElementById('person-bind-selected-meta');
+    var personClearBtn = document.getElementById('person-bind-clear');
+    var submitBtn = document.getElementById('person-bind-submit');
+
+    bindDialog(bindDialogEl);
+    if (bindOpen && bindDialogEl) {
+        bindOpen.addEventListener('click', function () {
+            resetPersonBindForm();
+            bindDialogEl.showModal();
+            if (personQuery) {
+                personQuery.focus();
+            }
+        });
+    }
+
+    function selectPerson(button) {
+        if (!button || !personIdInput) {
+            return;
+        }
+        personIdInput.value = button.getAttribute('data-person-id') || '';
+        if (selectedPersonName) {
+            selectedPersonName.textContent = button.getAttribute('data-person-name') || '';
+        }
+        if (selectedPersonMeta) {
+            var meta = button.getAttribute('data-person-email') || '';
+            var role = button.getAttribute('data-person-role') || '';
+            selectedPersonMeta.textContent = role ? meta + ' · ' + role : meta;
+        }
+        if (selectedPerson) {
+            selectedPerson.hidden = false;
+        }
+        if (personResults) {
+            personResults.innerHTML = '';
+        }
+        if (personQuery) {
+            personQuery.value = '';
+            personQuery.hidden = true;
+        }
+        if (submitBtn) {
+            submitBtn.disabled = !personIdInput.value;
+        }
+    }
+
+    if (personClearBtn) {
+        personClearBtn.addEventListener('click', function () {
+            if (personIdInput) {
+                personIdInput.value = '';
+            }
+            if (selectedPerson) {
+                selectedPerson.hidden = true;
+            }
+            if (personQuery) {
+                personQuery.hidden = false;
+                personQuery.focus();
+            }
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
+        });
+    }
+
+    if (personResults) {
+        personResults.addEventListener('click', function (e) {
+            var button = e.target.closest('.manual-student-search__item');
+            if (button) {
+                selectPerson(button);
+            }
         });
     }
 

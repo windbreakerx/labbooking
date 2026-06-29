@@ -97,7 +97,7 @@
 | **G-018** | эксплуатация | Auto VISITED — глобальный cron сразу после ends_at | Per-lab: 22:00 / 12:00+1 / off | **P2** | `LaboratorySettings` или JSON на lab |
 | **G-019** | эксплуатация | Окно записи — global env | Per-lab override `BOOKING_*` | **P2** | Fallback на global |
 | **G-020** | UI | Нет закрытия отдельного слота в lab-head UI | Close slot + duty staff picker | **P2** | `LabSession.status` уже есть |
-| **G-021** | UI | Нет «добавить из базы» для staff | Search existing users + bind to lab | **P1** | vs только create в `LabHeadPersonCreateView` |
+| **G-021** | UI | ~~Нет «добавить из базы» для staff~~ → форма создания с email/паролем | **Поиск существующего сотрудника + привязка к лаборатории/дисциплинам** (учётная запись уже есть) | **P1** | ~~vs только create в `LabHeadPersonCreateView`~~ → `LabHeadPersonSearchView` + `LabHeadPersonBindView`; создание аккаунтов — вне scope вкладки |
 | **G-022** | UI | Нет ручного распределения нагрузки | Workload view по дисциплинам/аудиториям | **P3** | Аналитика, не блокер |
 | **G-023** | UI | Студент не видит стенды/ответственного | В booking flow + `booking_detail` | **P2** | `LabSession.teacher`, stands M2M |
 | **G-024** | UI/API | Методички только staff upload | Student download если опубликовано | **P2** | ACL: только свои ЛР |
@@ -123,6 +123,8 @@ Faculty → Department → StudentGroup; Laboratory → Faculty + type.
 ### E2: Восстановление Lab Head UI (M, фаза 1)
 
 `lab_head/people.html`, `schedule.html` — backend уже есть.
+
+**Вкладка «Сотрудники»** — не создание учётных записей (email/пароль уже есть в системе), а **поиск существующего сотрудника/преподавателя и привязка к лаборатории**; дисциплины — отдельно через «Привязки».
 
 ### E3: Scoping audit (S, фаза 1)
 

@@ -36,6 +36,60 @@ def lab_head_people_qs(user: User) -> QuerySet[User]:
     return staff_people_qs(user).prefetch_related("profile__disciplines")
 
 
+STAFF_BINDABLE_ROLES = (UserRole.LAB_ADMIN, UserRole.TEACHER)
+
+
+def _staff_person_search_q(query: str) -> Q:
+    parts = query.split()
+    search_q = (
+        Q(email__icontains=query)
+        | Q(first_name__icontains=query)
+        | Q(last_name__icontains=query)
+    )
+    if len(parts) >= 2:
+        search_q |= Q(first_name__icontains=parts[0], last_name__icontains=parts[-1])
+        search_q |= Q(last_name__icontains=parts[0], first_name__icontains=parts[-1])
+    return search_q
+
+
+def search_staff_for_lab_bind(lab_head_user: User, query: str, limit: int = 15) -> QuerySet[User]:
+    """Сотрудники и преподаватели, ещё не привязанные к лаборатории завлаба."""
+    query = (query or "").strip()
+    if len(query) < 2:
+        return User.objects.none()
+    already_bound_ids = lab_head_people_qs(lab_head_user).values("pk")
+    return (
+        User.objects.filter(role__in=STAFF_BINDABLE_ROLES)
+        .exclude(pk__in=already_bound_ids)
+        .select_related("profile", "profile__laboratory", "profile__training_center")
+        .filter(_staff_person_search_q(query))
+        .order_by("last_name", "first_name", "email")[:limit]
+    )
+
+
+def bind_staff_person_to_lab(lab_head_user: User, person_id: int) -> tuple[User | None, str | None]:
+    person = (
+        User.objects.filter(pk=person_id, role__in=STAFF_BINDABLE_ROLES)
+        .select_related("profile")
+        .first()
+    )
+    if not person:
+        return None, "Сотрудник не найден или недоступен для привязки."
+    if lab_head_people_qs(lab_head_user).filter(pk=person_id).exists():
+        return None, "Этот сотрудник уже привязан к вашей лаборатории."
+
+    tc = lab_head_training_center(lab_head_user)
+    laboratory = lab_head_laboratory(lab_head_user)
+    profile = person.profile
+    profile.training_center = tc
+    update_fields = ["training_center"]
+    if laboratory:
+        profile.laboratory = laboratory
+        update_fields.append("laboratory")
+    profile.save(update_fields=update_fields)
+    return person, None
+
+
 def _published_search_q(query: str) -> Q:
     lower = query.lower()
     if lower in {"да", "yes"}:
