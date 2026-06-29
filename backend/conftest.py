@@ -1,4 +1,4 @@
-"""Fixtures for scheduling app tests."""
+"""Shared pytest fixtures for all Django apps."""
 
 import pytest
 from django.utils import timezone

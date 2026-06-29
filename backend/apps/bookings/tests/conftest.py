@@ -52,21 +52,6 @@ def far_open_weekday_pair(min_days_ahead: int = 20, hour: int = 10, minute: int 
 
 
 @pytest.fixture
-def semester(db):
-    return Semester.objects.create(
-        name="Test",
-        start_date=timezone.now().date(),
-        end_date=timezone.now().date().replace(year=timezone.now().year + 1),
-        is_active=True,
-    )
-
-
-@pytest.fixture
-def discipline(semester):
-    return Discipline.objects.create(title="Физика", semester=semester, is_published=True)
-
-
-@pytest.fixture
 def inactive_discipline(db):
     old_sem = Semester.objects.create(
         name="Old",
