@@ -32,15 +32,14 @@
     {% if department_groups %}
     <div class="catalog-tree">
         {% for group in department_groups %}
-        <details class="catalog-dept">
+        <details class="catalog-dept"{% if search_query %} open{% endif %}>
             <summary class="catalog-dept__summary">
-                <span class="catalog-dept__label">Папка</span>
                 <span class="catalog-dept__title">{% if group.department %}{{ group.department.title }}{% else %}Без папки{% endif %}</span>
                 <span class="catalog-dept__count">{{ group.disciplines|length }} дисц.</span>
             </summary>
             <div class="catalog-dept__body">
                 {% for d in group.disciplines %}
-                <details class="catalog-discipline">
+                <details class="catalog-discipline"{% if search_query %} open{% endif %}>
                     <summary class="catalog-discipline__summary">
                         <span class="catalog-discipline__label">Дисциплина</span>
                         <span class="catalog-discipline__title">{{ d.title }}</span>
@@ -57,17 +56,35 @@
                                 class="discipline-folder-form"
                             >
                                 {% csrf_token %}
-                                <label class="discipline-folder-form__label">
-                                    Папка
-                                    <select name="department" class="discipline-folder-form__select">
-                                        <option value="" {% if not d.department_id %}selected{% endif %}>Без папки</option>
-                                        {% for folder in department_folders %}
-                                        <option value="{{ folder.pk }}" {% if d.department_id == folder.pk %}selected{% endif %}>{{ folder.title }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </label>
+                                <select
+                                    name="department"
+                                    class="discipline-folder-form__select"
+                                    aria-label="Папка"
+                                >
+                                    <option value="" {% if not d.department_id %}selected{% endif %}>Без папки</option>
+                                    {% for folder in department_folders %}
+                                    <option value="{{ folder.pk }}" {% if d.department_id == folder.pk %}selected{% endif %}>{{ folder.title }}</option>
+                                    {% endfor %}
+                                </select>
                                 <button type="submit" class="button--sm">Сохранить</button>
                             </form>
+                            {% if d.department_id %}
+                            <form
+                                method="post"
+                                action="{% url 'lab-head-discipline-department' d.pk %}"
+                                class="discipline-folder-clear-form"
+                                title="Убрать из папки"
+                            >
+                                {% csrf_token %}
+                                <input type="hidden" name="department" value="">
+                                <button
+                                    type="submit"
+                                    class="button--sm button--ghost discipline-toolbar-icon"
+                                    title="Убрать из папки"
+                                    aria-label="Убрать из папки"
+                                >↩</button>
+                            </form>
+                            {% endif %}
                             <form
                                 method="post"
                                 action="{% url 'lab-head-discipline-unbind' d.pk %}"
@@ -75,7 +92,12 @@
                                 data-discipline-title="{{ d.title|escapejs }}"
                             >
                                 {% csrf_token %}
-                                <button type="submit" class="button--sm button--secondary">Отвязать дисциплину</button>
+                                <button
+                                    type="submit"
+                                    class="button--sm button--danger discipline-toolbar-icon"
+                                    title="Отвязать от лаборатории"
+                                    aria-label="Отвязать от лаборатории"
+                                >×</button>
                             </form>
                         </div>
 

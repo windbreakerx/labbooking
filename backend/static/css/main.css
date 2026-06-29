@@ -3461,7 +3461,7 @@ a.report-card--link:focus-visible {
 
 .catalog-dept__summary {
     display: grid;
-    grid-template-columns: auto 1fr auto auto;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-4) var(--space-5);
@@ -3570,8 +3570,27 @@ a.report-card--link:focus-visible {
 
 .catalog-discipline__toolbar {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
+    gap: 0.5rem;
+    flex-wrap: wrap;
     margin-bottom: var(--space-3);
+}
+
+.discipline-folder-form,
+.discipline-folder-clear-form,
+.discipline-unbind-form {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.discipline-toolbar-icon {
+    min-width: 2rem;
+    padding-inline: 0.45rem;
+    font-size: 1.1rem;
+    line-height: 1;
 }
 
 .catalog-section-title {
@@ -3818,20 +3837,11 @@ a.report-card--link:focus-visible {
 }
 
 .discipline-folder-form {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.5rem;
     flex-wrap: wrap;
-}
-
-.discipline-folder-form__label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.875rem;
 }
 
 .discipline-folder-form__select {
     min-width: 12rem;
+    min-height: 2rem;
 }
 
