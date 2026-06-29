@@ -32,8 +32,7 @@ def department_discipline_groups(
     for department in department_list:
         dept_disciplines = [d for d in discipline_list if d.department_id == department.pk]
         assigned_ids.update(d.pk for d in dept_disciplines)
-        if dept_disciplines:
-            groups.append({"department": department, "disciplines": dept_disciplines})
+        groups.append({"department": department, "disciplines": dept_disciplines})
     unassigned = [d for d in discipline_list if d.pk not in assigned_ids]
     if unassigned:
         groups.append({"department": None, "disciplines": unassigned})

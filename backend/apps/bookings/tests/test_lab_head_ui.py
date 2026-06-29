@@ -747,6 +747,33 @@ class TestLabHeadDisciplineFolders:
         own_discipline.refresh_from_db()
         assert own_discipline.department_id is None
 
+    def test_delete_empty_department_folder(self, client_logged_in, department_folder):
+        response = client_logged_in.post(
+            reverse("lab-head-department-delete", kwargs={"pk": department_folder.pk}),
+        )
+        assert response.status_code == 302
+        from apps.academics.models import Department
+
+        assert not Department.objects.filter(pk=department_folder.pk).exists()
+
+    def test_delete_department_folder_moves_disciplines(
+        self,
+        client_logged_in,
+        own_discipline,
+        department_folder,
+    ):
+        own_discipline.department = department_folder
+        own_discipline.save(update_fields=["department"])
+        response = client_logged_in.post(
+            reverse("lab-head-department-delete", kwargs={"pk": department_folder.pk}),
+        )
+        assert response.status_code == 302
+        own_discipline.refresh_from_db()
+        assert own_discipline.department_id is None
+        from apps.academics.models import Department
+
+        assert not Department.objects.filter(pk=department_folder.pk).exists()
+
 
 @pytest.mark.django_db
 class TestLabHeadLabWorkMethodics:

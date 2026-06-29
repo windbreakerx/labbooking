@@ -244,6 +244,18 @@ def lab_head_create_department_folder(user: User, *, title: str) -> Department:
     return department
 
 
+def lab_head_department_folder_in_scope(user: User, pk: int) -> Department | None:
+    return lab_head_department_folders_qs(user).filter(pk=pk).first()
+
+
+def lab_head_delete_department_folder(user: User, department: Department) -> int:
+    if not lab_head_department_folder_in_scope(user, department.pk):
+        raise ValueError("Папка недоступна.")
+    discipline_count = department.disciplines.count()
+    department.delete()
+    return discipline_count
+
+
 def lab_head_assign_discipline_department(
     user: User,
     discipline: Discipline,

@@ -41,6 +41,8 @@ from apps.bookings.services.lab_head import (
     lab_head_departments_for_disciplines,
     lab_head_department_folders_qs,
     lab_head_create_department_folder,
+    lab_head_delete_department_folder,
+    lab_head_department_folder_in_scope,
     lab_head_assign_discipline_department,
     lab_head_room_disciplines,
     lab_head_update_lab_work,
@@ -260,6 +262,30 @@ class LabHeadDepartmentCreateView(LabHeadRequiredMixin, View):
             messages.error(request, str(exc))
             return redirect("lab-head-bindings")
         messages.success(request, f"Папка «{department.title}» создана.")
+        return redirect("lab-head-bindings")
+
+
+class LabHeadDepartmentDeleteView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        department = lab_head_department_folder_in_scope(request.user, pk)
+        if not department:
+            messages.error(request, "Папка недоступна.")
+            return redirect("lab-head-bindings")
+
+        folder_title = department.title
+        try:
+            discipline_count = lab_head_delete_department_folder(request.user, department)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-bindings")
+
+        if discipline_count:
+            messages.success(
+                request,
+                f"Папка «{folder_title}» удалена. {discipline_count} дисц. перемещены в «Прикрепленные дисциплины».",
+            )
+        else:
+            messages.success(request, f"Папка «{folder_title}» удалена.")
         return redirect("lab-head-bindings")
 
 

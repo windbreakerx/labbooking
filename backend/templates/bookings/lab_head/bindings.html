@@ -33,9 +33,25 @@
     <div class="catalog-tree">
         {% for group in department_groups %}
         <details class="catalog-dept"{% if search_query %} open{% endif %}>
-            <summary class="catalog-dept__summary">
+            <summary class="catalog-dept__summary{% if group.department %} catalog-dept__summary--folder{% endif %}">
                 <span class="catalog-dept__title">{% if group.department %}{{ group.department.title }}{% else %}Прикрепленные дисциплины{% endif %}</span>
                 <span class="catalog-dept__count">{{ group.disciplines|length }} дисц.</span>
+                {% if group.department %}
+                <form
+                    method="post"
+                    action="{% url 'lab-head-department-delete' group.department.pk %}"
+                    class="catalog-dept__delete-form"
+                    data-folder-title="{{ group.department.title|escapejs }}"
+                    data-discipline-count="{{ group.disciplines|length }}"
+                >
+                    {% csrf_token %}
+                    <button
+                        type="submit"
+                        class="button--sm button--ghost"
+                        title="Удалить папку"
+                    >Удалить</button>
+                </form>
+                {% endif %}
             </summary>
             <div class="catalog-dept__body">
                 {% for d in group.disciplines %}
@@ -97,10 +113,8 @@
                                 {% csrf_token %}
                                 <button
                                     type="submit"
-                                    class="button--sm button--danger discipline-toolbar-icon"
-                                    title="Отвязать от лаборатории"
-                                    aria-label="Отвязать от лаборатории"
-                                >×</button>
+                                    class="button--sm button--secondary"
+                                >Открепить от лаборатории</button>
                             </form>
                         </div>
                         {% endif %}
@@ -275,13 +289,29 @@
         });
         form.addEventListener('submit', function (e) {
             var title = form.getAttribute('data-discipline-title') || 'дисциплину';
-            if (!confirm('Отвязать «' + title + '» от лаборатории? Дисциплина останется в каталоге.')) {
+            if (!confirm('Открепить «' + title + '» от лаборатории? Дисциплина останется в каталоге.')) {
                 e.preventDefault();
             }
         });
     });
 
-    document.querySelectorAll('.catalog-discipline__summary form, .catalog-discipline__body form').forEach(function (form) {
+    document.querySelectorAll('.catalog-dept__delete-form').forEach(function (form) {
+        form.addEventListener('click', function (e) {
+            e.stopPropagation();
+        });
+        form.addEventListener('submit', function (e) {
+            var title = form.getAttribute('data-folder-title') || 'папку';
+            var count = parseInt(form.getAttribute('data-discipline-count') || '0', 10);
+            var message = count
+                ? 'Удалить папку «' + title + '»? ' + count + ' дисц. переместятся в «Прикрепленные дисциплины».'
+                : 'Удалить папку «' + title + '»?';
+            if (!confirm(message)) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    document.querySelectorAll('.catalog-dept__summary form, .catalog-discipline__summary form, .catalog-discipline__body form').forEach(function (form) {
         form.addEventListener('click', function (e) {
             e.stopPropagation();
         });

@@ -7,6 +7,7 @@ from apps.bookings.views.lab_head import (
     LabHeadDisciplineDepartmentView,
     LabHeadDisciplineUnbindView,
     LabHeadDepartmentCreateView,
+    LabHeadDepartmentDeleteView,
     LabHeadHomeView,
     LabHeadLabWorkBindView,
     LabHeadLabWorkCreateView,
@@ -163,6 +164,11 @@ urlpatterns = [
         "lab-head/bindings/departments/create/",
         LabHeadDepartmentCreateView.as_view(),
         name="lab-head-department-create",
+    ),
+    path(
+        "lab-head/bindings/departments/<int:pk>/delete/",
+        LabHeadDepartmentDeleteView.as_view(),
+        name="lab-head-department-delete",
     ),
     path(
         "lab-head/bindings/disciplines/<int:pk>/unbind/",
