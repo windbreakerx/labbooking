@@ -532,23 +532,52 @@ def is_staff_user(user: User) -> bool:
     }
 
 
-def staff_lab_filter(qs, user, *, training_center_lookup: str = "room__training_center"):
-    """Ограничивает queryset сотрудника своей лабораторией (SYS_ADMIN видит всё)."""
+def staff_lab_filter(
+    qs,
+    user,
+    *,
+    training_center_lookup: str = "room__training_center",
+    laboratory_lookup: str = "room__laboratory",
+):
+    """Scope staff data to own lab (SYS_ADMIN sees all).
+
+    When profile.laboratory is set, filter by laboratory (sibling labs in the same
+    training center stay isolated). Otherwise fall back to training_center scope.
+    """
     if user.role == UserRole.SYS_ADMIN:
         return qs
     try:
         profile = user.profile
     except (AttributeError, ObjectDoesNotExist):
         profile = None
-    tc = getattr(profile, "training_center", None)
+    if not profile:
+        return qs.none()
+
+    if profile.laboratory_id:
+        laboratory = profile.laboratory
+        lookup_value = laboratory.pk if laboratory_lookup in {"pk", "id"} else laboratory
+        return qs.filter(**{laboratory_lookup: lookup_value})
+
+    tc = profile.training_center
     if not tc:
         return qs.none()
     lookup_value = tc.pk if training_center_lookup in {"pk", "id"} else tc
     return qs.filter(**{training_center_lookup: lookup_value})
 
 
-def staff_can_access_scoped_object(user: User, qs, *, training_center_lookup: str = "room__training_center") -> bool:
-    return staff_lab_filter(qs, user, training_center_lookup=training_center_lookup).exists()
+def staff_can_access_scoped_object(
+    user: User,
+    qs,
+    *,
+    training_center_lookup: str = "room__training_center",
+    laboratory_lookup: str = "room__laboratory",
+) -> bool:
+    return staff_lab_filter(
+        qs,
+        user,
+        training_center_lookup=training_center_lookup,
+        laboratory_lookup=laboratory_lookup,
+    ).exists()
 
 
 BOOKING_SORT_FIELDS: dict[str, tuple[list[str], str]] = {

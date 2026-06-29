@@ -12,12 +12,13 @@ from apps.academics.querysets import (
     staff_lab_works_qs,
     staff_managed_disciplines_qs,
 )
-from apps.bookings.models import BookingStatus, SupportTicket
+from apps.bookings.models import Booking, BookingStatus, SupportTicket
 from apps.bookings.services import BookingService, staff_lab_filter
 from apps.scheduling.models import (
     LabSession,
     LabSessionStatus,
     LabStand,
+    Laboratory,
     Room,
     ScheduleEntry,
     TrainingCenter,
@@ -553,3 +554,233 @@ class TestStaffScopeApi:
         ids = set(staff_lab_works_qs(staff_with_lab).values_list("pk", flat=True))
         assert own_lab_work.pk in ids
         assert foreign_lab_work.pk not in ids
+
+
+@pytest.fixture
+def shared_tc(db):
+    return TrainingCenter.objects.create(number=50, name="Shared UC")
+
+
+@pytest.fixture
+def lab_a(shared_tc):
+    return Laboratory.objects.create(training_center=shared_tc, name="Lab A")
+
+
+@pytest.fixture
+def lab_b(shared_tc):
+    return Laboratory.objects.create(training_center=shared_tc, name="Lab B")
+
+
+@pytest.fixture
+def staff_lab_a(db, shared_tc, lab_a):
+    user = User.objects.create_user(
+        email="staff-lab-a@spmi.ru",
+        password="pass",
+        first_name="Staff",
+        last_name="LabA",
+        role=UserRole.LAB_ADMIN,
+        is_staff=True,
+    )
+    user.profile.training_center = shared_tc
+    user.profile.laboratory = lab_a
+    user.profile.save(update_fields=["training_center", "laboratory"])
+    return user
+
+
+@pytest.fixture
+def lab_a_discipline(semester, shared_tc, lab_a):
+    discipline = Discipline.objects.create(
+        title="Lab A discipline",
+        semester=semester,
+        is_published=True,
+    )
+    discipline.training_centers.add(shared_tc)
+    discipline.laboratories.add(lab_a)
+    return discipline
+
+
+@pytest.fixture
+def lab_b_discipline(semester, shared_tc, lab_b):
+    discipline = Discipline.objects.create(
+        title="Lab B discipline",
+        semester=semester,
+        is_published=True,
+    )
+    discipline.training_centers.add(shared_tc)
+    discipline.laboratories.add(lab_b)
+    return discipline
+
+
+@pytest.fixture
+def lab_a_lab_work(lab_a_discipline, shared_tc, lab_a):
+    lab_work = create_lab_work(
+        lab_a_discipline,
+        number=1,
+        title="Lab A LR",
+        duration_minutes=90,
+        is_published=True,
+    )
+    lab_work.training_centers.add(shared_tc)
+    lab_work.laboratories.add(lab_a)
+    return lab_work
+
+
+@pytest.fixture
+def lab_b_lab_work(lab_b_discipline, shared_tc, lab_b):
+    lab_work = create_lab_work(
+        lab_b_discipline,
+        number=1,
+        title="Lab B LR",
+        duration_minutes=90,
+        is_published=True,
+    )
+    lab_work.training_centers.add(shared_tc)
+    lab_work.laboratories.add(lab_b)
+    return lab_work
+
+
+@pytest.fixture
+def room_a(shared_tc, lab_a):
+    return Room.objects.create(
+        training_center=shared_tc,
+        laboratory=lab_a,
+        number="A-101",
+        capacity=5,
+    )
+
+
+@pytest.fixture
+def room_b(shared_tc, lab_b):
+    return Room.objects.create(
+        training_center=shared_tc,
+        laboratory=lab_b,
+        number="B-201",
+        capacity=5,
+    )
+
+
+@pytest.fixture
+def session_a(lab_a_lab_work, room_a, semester):
+    tz = timezone.get_current_timezone()
+    starts = timezone.make_aware(datetime(2026, 8, 4, 10, 35), tz)
+    return LabSession.objects.create(
+        lab_work=lab_a_lab_work,
+        room=room_a,
+        semester=semester,
+        starts_at=starts,
+        ends_at=starts + timezone.timedelta(minutes=90),
+        capacity=5,
+        status=LabSessionStatus.OPEN,
+    )
+
+
+@pytest.fixture
+def session_b(lab_b_lab_work, room_b, semester):
+    tz = timezone.get_current_timezone()
+    starts = timezone.make_aware(datetime(2026, 8, 5, 10, 35), tz)
+    return LabSession.objects.create(
+        lab_work=lab_b_lab_work,
+        room=room_b,
+        semester=semester,
+        starts_at=starts,
+        ends_at=starts + timezone.timedelta(minutes=90),
+        capacity=5,
+        status=LabSessionStatus.OPEN,
+    )
+
+
+@pytest.fixture
+def booking_a(staff_lab_a, student, session_a):
+    return BookingService(actor=staff_lab_a).create_booking(
+        student,
+        session_a.pk,
+        manual=True,
+        skip_student_rules=True,
+    )
+
+
+@pytest.fixture
+def booking_b(staff_lab_a, student, session_b):
+    return BookingService(actor=staff_lab_a).create_booking(
+        student,
+        session_b.pk,
+        manual=True,
+        skip_student_rules=True,
+    )
+
+
+@pytest.mark.django_db
+class TestStaffLaboratoryIsolation:
+    def test_staff_lab_filter_uses_laboratory_when_profile_set(
+        self,
+        staff_lab_a,
+        booking_a,
+        booking_b,
+    ):
+        ids = set(staff_lab_filter(Booking.objects.all(), staff_lab_a).values_list("pk", flat=True))
+        assert booking_a.pk in ids
+        assert booking_b.pk not in ids
+
+    def test_staff_bookings_web_hides_sibling_laboratory(
+        self,
+        staff_lab_a,
+        booking_a,
+        booking_b,
+        room_b,
+    ):
+        client = Client()
+        client.force_login(staff_lab_a)
+        response = client.get("/staff/bookings/")
+        assert response.status_code == 200
+        assert booking_a.room.number.encode() in response.content
+        assert room_b.number.encode() not in response.content
+
+    def test_manual_booking_foreign_laboratory_session_denied(
+        self,
+        staff_lab_a,
+        student,
+        session_b,
+    ):
+        client = APIClient()
+        client.force_authenticate(user=staff_lab_a)
+        response = client.post(
+            "/api/v1/admin/bookings/manual/",
+            {"student_id": student.pk, "lab_session_id": session_b.pk},
+            format="json",
+        )
+        assert response.status_code == 403
+
+    def test_admin_report_excludes_sibling_laboratory_booking(
+        self,
+        staff_lab_a,
+        booking_a,
+        booking_b,
+    ):
+        client = APIClient()
+        client.force_authenticate(user=staff_lab_a)
+        response = client.get("/api/v1/admin/reports/bookings/")
+        assert response.status_code == 200
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        wb = load_workbook(BytesIO(response.content))
+        rows = list(wb.active.iter_rows(values_only=True))
+        assert len(rows) == 2
+        assert booking_b.discipline.title not in {row[3] for row in rows[1:]}
+
+    def test_status_update_foreign_laboratory_booking_denied(
+        self,
+        staff_lab_a,
+        booking_b,
+    ):
+        client = APIClient()
+        client.force_authenticate(user=staff_lab_a)
+        response = client.patch(
+            f"/api/v1/admin/bookings/{booking_b.pk}/status/",
+            {"status": BookingStatus.VISITED},
+            format="json",
+        )
+        assert response.status_code == 403
+        booking_b.refresh_from_db()
+        assert booking_b.current_status != BookingStatus.VISITED

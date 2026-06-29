@@ -15,6 +15,7 @@ env = environ.Env(
 
 environ.Env.read_env(BASE_DIR.parent / ".env")
 
+# Production must override via config.settings.prod (no default there).
 SECRET_KEY = env("SECRET_KEY", default="insecure-dev-key-change-in-production")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])

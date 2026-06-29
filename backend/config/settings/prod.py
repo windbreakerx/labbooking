@@ -2,6 +2,9 @@ from .base import *  # noqa: F403
 
 DEBUG = False
 
+# No insecure default in production — misconfigured deploy must fail at startup.
+SECRET_KEY = env("SECRET_KEY")  # noqa: F405
+
 # Первый выклад по HTTP: SECURE_SSL_REDIRECT=0. После HTTPS — включите в .env.
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)  # noqa: F405
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

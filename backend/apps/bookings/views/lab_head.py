@@ -124,7 +124,12 @@ class LabHeadPersonCreateView(LabHeadRequiredMixin, View):
             is_staff=(role == UserRole.LAB_ADMIN),
         )
         user.profile.training_center = tc
-        user.profile.save(update_fields=["training_center"])
+        laboratory = lab_head_laboratory(request.user)
+        if laboratory:
+            user.profile.laboratory = laboratory
+            user.profile.save(update_fields=["training_center", "laboratory"])
+        else:
+            user.profile.save(update_fields=["training_center"])
         messages.success(
             request,
             f"Добавлен {user.get_role_display()}: {user.full_name}. Временный пароль: {password}",
