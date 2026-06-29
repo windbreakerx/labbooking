@@ -1,0 +1,43 @@
+{% load static %}
+<header class="header header--student">
+    <div class="container header__inner">
+        <a href="{% url 'home' %}" class="header__brand logo">
+            <img src="{% static 'img/spmi-logo.png' %}" alt="" class="header__brand-logo" width="40" height="40">
+            <span class="header__brand-text">
+                <span class="header__brand-title">Лабораторные</span>
+                <span class="header__brand-subtitle">Горный университет</span>
+            </span>
+        </a>
+        <div class="header__student-meta">
+            <span class="header__account-name">{% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}</span>
+            <form method="post" action="{% url 'logout' %}" class="header__logout">
+                {% csrf_token %}
+                <button type="submit" class="button button--ghost button--sm">Выход</button>
+            </form>
+        </div>
+    </div>
+    <nav class="student-top-nav" aria-label="Основная навигация">
+        <a
+            class="student-top-nav__link{% if request.resolver_match.url_name == 'disciplines' or request.resolver_match.url_name == 'lab-works' or request.resolver_match.url_name == 'book-lab-work' %} student-top-nav__link--current{% endif %}"
+            href="{% url 'disciplines' %}"
+            hx-boost="true"
+        >Дисциплины</a>
+        <a
+            class="student-top-nav__link{% if request.resolver_match.url_name == 'my-bookings' or request.resolver_match.url_name == 'booking-detail' %} student-top-nav__link--current{% endif %}"
+            href="{% url 'my-bookings' %}"
+            hx-boost="true"
+        >Мои записи</a>
+        <a
+            class="student-top-nav__link{% if request.resolver_match.url_name == 'support' or request.resolver_match.url_name == 'support-detail' %} student-top-nav__link--current{% endif %}"
+            href="{% url 'support' %}"
+            hx-boost="true"
+        >Обращения</a>
+        {% if patch_notes_enabled %}
+        <a
+            class="student-top-nav__link{% if request.resolver_match.url_name == 'patch-notes' %} student-top-nav__link--current{% endif %}"
+            href="{% url 'patch-notes' %}"
+            hx-boost="true"
+        >Что нового</a>
+        {% endif %}
+    </nav>
+</header>

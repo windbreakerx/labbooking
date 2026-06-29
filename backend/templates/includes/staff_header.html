@@ -1,0 +1,75 @@
+{% load static %}
+<header class="header">
+    <div class="container header__inner">
+        <a href="{% url 'home' %}" class="header__brand logo">
+            <img src="{% static 'img/spmi-logo.png' %}" alt="" class="header__brand-logo" width="48" height="48">
+            <span>
+                <span class="header__brand-title">Запись на лабораторные работы</span>
+                <span class="header__brand-subtitle">Санкт-Петербургский горный университет</span>
+            </span>
+        </a>
+        {% if user.is_authenticated %}
+        <div class="header__nav-row">
+            <nav class="nav">
+                {% if user.role == 'LAB_ADMIN' or user.role == 'TEACHER' or user.role == 'SYS_ADMIN' %}
+                <div class="nav__section">
+                    <span class="nav__section-title">Студенты</span>
+                    <a class="nav__link" href="{% url 'staff-bookings' %}">Записавшиеся</a>
+                    <a class="nav__link" href="{% url 'staff-support' %}">Обращения</a>
+                    <a class="nav__link" href="{% url 'staff-reports' %}">Отчёты</a>
+                </div>
+                <div class="nav__section">
+                    <span class="nav__section-title">Лаборатория</span>
+                    <a class="nav__link" href="{% url 'staff-disciplines' %}">Дисциплины</a>
+                    <a class="nav__link" href="{% url 'staff-lab-works' %}">Лаб. работы</a>
+                    <a class="nav__link" href="{% url 'staff-rooms' %}">Аудитории</a>
+                    <a class="nav__link" href="{% url 'staff-stands' %}">Стенды</a>
+                    <a class="nav__link" href="{% url 'staff-schedule' %}">Расписание</a>
+                    <a class="nav__link" href="{% url 'staff-people' %}">Сотрудники</a>
+                </div>
+                {% endif %}
+                {% if user.role == 'LAB_HEAD' %}
+                <div class="nav__group nav__group--lab-head">
+                    <span class="nav__group-label">Завлаб</span>
+                    <div class="nav__group-inner">
+                        <div class="nav__section">
+                            <span class="nav__section-title">Студенты</span>
+                            <a class="nav__link" href="{% url 'staff-bookings' %}">Записавшиеся</a>
+                            <a class="nav__link" href="{% url 'staff-support' %}">Обращения</a>
+                            <a class="nav__link" href="{% url 'staff-reports' %}">Отчёты</a>
+                        </div>
+                        <div class="nav__section">
+                            <span class="nav__section-title">Кабинет</span>
+                            <a class="nav__link" href="{% url 'lab-head-people' %}">Сотрудники</a>
+                            <a class="nav__link" href="{% url 'lab-head-bindings' %}">Дисциплины</a>
+                            <a class="nav__link" href="{% url 'lab-head-lab-works' %}">Лаб. работы</a>
+                            <a class="nav__link" href="{% url 'lab-head-rooms' %}">Аудитории</a>
+                            <a class="nav__link" href="{% url 'lab-head-stands' %}">Стенды</a>
+                            <a class="nav__link" href="{% url 'lab-head-schedule' %}">Расписание</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if patch_notes_enabled %}
+                <div class="nav__section nav__section--updates">
+                    <a
+                        class="nav__link nav__link--updates{% if request.resolver_match.url_name == 'patch-notes' %} nav__link--current{% endif %}"
+                        href="{% url 'patch-notes' %}"
+                    >
+                        Что нового
+                        <span class="badge badge--warning">Новое</span>
+                    </a>
+                </div>
+                {% endif %}
+            </nav>
+            <div class="header__account">
+                <span class="header__account-name">{% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}</span>
+                <form method="post" action="{% url 'logout' %}" class="header__logout">
+                    {% csrf_token %}
+                    <button type="submit">Выход</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</header>

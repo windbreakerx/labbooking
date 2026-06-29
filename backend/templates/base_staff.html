@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block body_class %}staff-layout{% endblock %}
+
+{% block header %}
+{% include "includes/staff_header.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    function closeRowActions(except) {
+        document.querySelectorAll('details.row-actions[open]').forEach(function (el) {
+            if (el !== except) {
+                el.removeAttribute('open');
+            }
+        });
+    }
+
+    function positionRowActionsMenu(details) {
+        var menu = details.querySelector('.row-actions__menu');
+        if (!menu) {
+            return;
+        }
+        menu.classList.remove('row-actions__menu--flip');
+        requestAnimationFrame(function () {
+            var rect = menu.getBoundingClientRect();
+            if (rect.bottom > window.innerHeight - 8) {
+                menu.classList.add('row-actions__menu--flip');
+            }
+        });
+    }
+
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('details.row-actions')) {
+            closeRowActions(null);
+        }
+    });
+
+    document.querySelectorAll('details.row-actions').forEach(function (details) {
+        details.addEventListener('toggle', function () {
+            if (!details.open) {
+                return;
+            }
+            closeRowActions(details);
+            positionRowActionsMenu(details);
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -19,7 +19,7 @@ Pair with `labbooking-htmx-patterns` for HTMX partials and `ui-ux-pro-max` for U
 
 ## Layout
 
-- Prefer `{% extends "base_student.html" %}` when it exists; otherwise `base.html` until split layouts land.
+- Prefer `{% extends "base_student.html" %}` for student pages; `base_staff.html` for staff/lab-head.
 - Student nav: Disciplines · My bookings · Support (≤5 items; bottom nav on mobile when `base_student` exists).
 - Staff/lab-head nav must not leak into student-only templates.
 

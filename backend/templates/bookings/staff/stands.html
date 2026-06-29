@@ -1,36 +1,36 @@
-{% extends "base.html" %}
-{% block title %}Стенды — staff{% endblock %}
-{% block content %}
-<header class="page-header">
-    <div class="page-header__content">
-        <p class="page-eyebrow">Лаборатория</p>
-        <h1 class="page-title">Лабораторные стенды</h1>
-        <p class="page-description">Список стендов вашей лаборатории. Добавление — в кабинете завлаба.</p>
-    </div>
-</header>
-
-<div class="table-wrap">
-    <table class="table table--compact table--sticky responsive-table stand-table">
-        <thead>
-            <tr><th>Название</th><th>Инв. №</th><th>УЦ</th><th>Ауд.</th></tr>
-        </thead>
-        <tbody>
-            {% for s in stands %}
-            <tr>
-                <td data-label="Название"><strong>{{ s.name }}</strong></td>
-                <td data-label="Инв. №"><code>{{ s.inventory_number }}</code></td>
-                <td data-label="УЦ">№{{ s.training_center.number }}</td>
-                <td data-label="Ауд.">{{ s.room.number }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4">
-                <div class="empty-state empty-state--icon">
-                    <p>Стендов нет.</p>
-                    <p class="muted">Заведующий лабораторией может добавить стенды в кабинете завлаба.</p>
-                </div>
-            </td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endblock %}
+{% extends "base_staff.html" %}
+{% block title %}Стенды — staff{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Лаборатория</p>
+        <h1 class="page-title">Лабораторные стенды</h1>
+        <p class="page-description">Список стендов вашей лаборатории. Добавление — в кабинете завлаба.</p>
+    </div>
+</header>
+
+<div class="table-wrap">
+    <table class="table table--compact table--sticky responsive-table stand-table">
+        <thead>
+            <tr><th>Название</th><th>Инв. №</th><th>УЦ</th><th>Ауд.</th></tr>
+        </thead>
+        <tbody>
+            {% for s in stands %}
+            <tr>
+                <td data-label="Название"><strong>{{ s.name }}</strong></td>
+                <td data-label="Инв. №"><code>{{ s.inventory_number }}</code></td>
+                <td data-label="УЦ">№{{ s.training_center.number }}</td>
+                <td data-label="Ауд.">{{ s.room.number }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">
+                <div class="empty-state empty-state--icon">
+                    <p>Стендов нет.</p>
+                    <p class="muted">Заведующий лабораторией может добавить стенды в кабинете завлаба.</p>
+                </div>
+            </td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

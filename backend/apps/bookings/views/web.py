@@ -216,6 +216,11 @@ def _render_manual_filter_partial(request, lab_work_id: int, date, time_str, tc_
 class HomeView(LoginRequiredMixin, TemplateView):
     template_name = "bookings/home.html"
 
+    def get_template_names(self):
+        if self.request.user.role == "STUDENT":
+            return ["bookings/home_student.html"]
+        return ["bookings/home.html"]
+
 
 class PatchNotesWebView(LoginRequiredMixin, TemplateView):
     template_name = "bookings/patch_notes.html"

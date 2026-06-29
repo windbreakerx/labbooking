@@ -1,16 +1,26 @@
-{% extends "base.html" %}
+{% extends "base_student.html" %}
 {% block title %}Учебные дисциплины{% endblock %}
 {% block content %}
 <header class="page-header">
     <div class="page-header__content">
         <p class="page-eyebrow">Студент</p>
         <h1 class="page-title">Учебные дисциплины</h1>
-        <p class="page-description">Откройте кафедру, затем дисциплину — появится список лабораторных работ для записи.</p>
+        <p class="page-description">Найдите дисциплину по названию или откройте кафедру в каталоге.</p>
     </div>
 </header>
 
 {% if department_groups %}
-<div class="catalog-tree">
+<div class="student-search-bar card">
+    <label for="discipline-search">Поиск дисциплины</label>
+    <input
+        type="search"
+        id="discipline-search"
+        name="discipline_search"
+        placeholder="Например: физика, геология…"
+        autocomplete="off"
+    >
+</div>
+<div class="catalog-tree" id="discipline-catalog">
     {% for group in department_groups %}
     <details class="catalog-dept">
         <summary class="catalog-dept__summary">

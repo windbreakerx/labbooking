@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_student.html" %}
 {% load table_sort %}
 {% block title %}Мои записи{% endblock %}
 {% block content %}
@@ -41,7 +41,7 @@
         <div class="booking-card__actions">
             <a class="button button--secondary button--sm" href="{% url 'booking-detail' b.pk %}">Подробнее</a>
             {% if b.current_status == 'BOOKED' %}
-            <form method="post" action="{% url 'cancel-booking' b.pk %}">
+        <form method="post" action="{% url 'cancel-booking' b.pk %}" onsubmit="return confirm('Отменить запису на эту лабораторную работу?');">
                 {% csrf_token %}
                 <button type="submit" class="button button--ghost button--sm">Отменить</button>
             </form>
@@ -95,7 +95,7 @@
                         <div class="row-actions__menu">
                             <a href="{% url 'booking-detail' b.pk %}" class="row-actions__item">Просмотреть</a>
                             {% if b.current_status == 'BOOKED' %}
-                            <form method="post" action="{% url 'cancel-booking' b.pk %}">
+                        <form method="post" action="{% url 'cancel-booking' b.pk %}" onsubmit="return confirm('Отменить запису на эту лабораторную работу?');">
                                 {% csrf_token %}
                                 <button type="submit" class="row-actions__item row-actions__item--button">Отменить запись</button>
                             </form>

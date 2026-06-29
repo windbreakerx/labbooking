@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_staff.html" %}
 {% block title %}Главная{% endblock %}
 {% block content %}
 {% if user.role == 'LAB_HEAD' %}
@@ -28,7 +28,7 @@
         <span class="action-card__cta">Открыть раздел</span>
     </a>
 </div>
-{% elif user.role == 'LAB_ADMIN' or user.role == 'TEACHER' or user.role == 'SYS_ADMIN' %}
+{% else %}
 <section class="hero-card">
     <p class="page-eyebrow">Кабинет сотрудника</p>
     <h1>Добро пожаловать, {{ user.full_name }}.</h1>
@@ -53,33 +53,6 @@
         <h2 class="action-card__title">Отчёты</h2>
         <p class="action-card__text">Excel-выгрузки по записям и посещаемости.</p>
         <span class="action-card__cta">Открыть раздел</span>
-    </a>
-</div>
-{% else %}
-<section class="hero-card hero-card--student">
-    <p class="page-eyebrow">Личный кабинет</p>
-    <h1>Добро пожаловать, {{ user.first_name }}</h1>
-    <p>Выберите дисциплину, запишитесь на лабораторную работу или проверьте свои активные записи.</p>
-</section>
-
-<div class="quick-actions quick-actions--student">
-    <a class="card card--interactive action-card action-card--primary" href="{% url 'disciplines' %}">
-        <span class="action-card__icon" aria-hidden="true">📚</span>
-        <h2 class="action-card__title">Учебные дисциплины</h2>
-        <p class="action-card__text">Дисциплины и лабораторные работы.</p>
-        <span class="action-card__cta">Выбрать дисциплину</span>
-    </a>
-    <a class="card card--interactive action-card" href="{% url 'my-bookings' %}">
-        <span class="action-card__icon" aria-hidden="true">📅</span>
-        <h2 class="action-card__title">Мои записи</h2>
-        <p class="action-card__text">Управление записями.</p>
-        <span class="action-card__cta">Открыть записи</span>
-    </a>
-    <a class="card card--interactive action-card" href="{% url 'support' %}">
-        <span class="action-card__icon" aria-hidden="true">💬</span>
-        <h2 class="action-card__title">Обращения</h2>
-        <p class="action-card__text">Технические и организационные вопросы сотрудникам лаборатории.</p>
-        <span class="action-card__cta">Написать вопрос</span>
     </a>
 </div>
 {% endif %}

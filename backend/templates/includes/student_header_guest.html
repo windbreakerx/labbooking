@@ -1,0 +1,12 @@
+{% load static %}
+<header class="header header--student header--guest">
+    <div class="container header__inner">
+        <a href="{% url 'login' %}" class="header__brand logo">
+            <img src="{% static 'img/spmi-logo.png' %}" alt="" class="header__brand-logo" width="40" height="40">
+            <span class="header__brand-text">
+                <span class="header__brand-title">Запись на лабораторные</span>
+                <span class="header__brand-subtitle">Санкт-Петербургский горный университет</span>
+            </span>
+        </a>
+    </div>
+</header>

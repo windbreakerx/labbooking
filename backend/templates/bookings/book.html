@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_student.html" %}
 {% block title %}Запись — {{ lab_work.title }}{% endblock %}
 {% block breadcrumbs %}
 <nav class="breadcrumbs" aria-label="Навигация">
@@ -51,13 +51,25 @@
                 <span class="booking-step__label">Подтверждение</span>
             </span>
         </div>
-        <form method="post" id="booking-form">
+        <form method="post" action="{% url 'book-lab-work' lab_work.pk %}" id="booking-form">
             {% csrf_token %}
             <input type="hidden" name="discipline_id" value="{{ discipline.pk }}">
-            <div id="filter-chain">
-                {% include "bookings/partials/filter_date_calendar.html" with lab_work_id=lab_work.pk options=filter_options calendar_months=calendar_months %}
+            <div class="htmx-booking-swap" id="booking-swap-root">
+                <div class="htmx-booking-swap__content">
+                    <div id="filter-chain">
+                        {% include "bookings/partials/filter_date_calendar.html" with lab_work_id=lab_work.pk options=filter_options calendar_months=calendar_months %}
+                    </div>
+                    <div id="session-slot"></div>
+                </div>
+                <div class="htmx-booking-indicator" aria-live="polite" aria-busy="true">
+                    <div class="skeleton-stack" role="status">
+                        <span class="skeleton-line skeleton-line--medium"></span>
+                        <span class="skeleton-line"></span>
+                        <span class="skeleton-line skeleton-line--short"></span>
+                        <span class="muted">Загрузка слотов…</span>
+                    </div>
+                </div>
             </div>
-            <div id="session-slot"></div>
             <div class="booking-actions">
                 <button type="submit" id="book-btn" disabled>Записаться</button>
                 <span class="booking-actions__hint muted">Кнопка станет активной после выбора доступного слота.</span>
@@ -66,48 +78,66 @@
     </section>
 </div>
 <script>
-document.body.addEventListener('htmx:afterSwap', function(evt) {
-    const btn = document.getElementById('book-btn');
-    if (evt.detail.target.id === 'filter-chain') {
-        document.getElementById('session-slot').innerHTML = '';
-        btn.disabled = true;
+(function () {
+    var swapRoot = document.getElementById('booking-swap-root');
+
+    function bookingRequestLifecycle(evt, add) {
+        if (!swapRoot || !evt.detail.elt || !evt.detail.elt.closest('#booking-form')) {
+            return;
+        }
+        swapRoot.classList.toggle('htmx-request', add);
     }
-    if (evt.detail.target.id === 'session-slot') {
-        const hiddenSession = document.querySelector('#session-slot input[name=session_id]');
-        const sel = document.querySelector('#session-slot select[name=session_id]');
-        if (hiddenSession) {
-            btn.disabled = false;
-        } else if (sel) {
-            btn.disabled = !sel.value;
-            sel.addEventListener('change', () => { btn.disabled = !sel.value; });
-        } else {
+
+    document.body.addEventListener('htmx:beforeRequest', function (evt) {
+        bookingRequestLifecycle(evt, true);
+    });
+    document.body.addEventListener('htmx:afterRequest', function (evt) {
+        bookingRequestLifecycle(evt, false);
+    });
+
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+        const btn = document.getElementById('book-btn');
+        if (evt.detail.target.id === 'filter-chain') {
+            document.getElementById('session-slot').innerHTML = '';
             btn.disabled = true;
         }
-    }
-    updateBookingStepper();
-});
-
-function updateBookingStepper() {
-    const steps = document.querySelectorAll('.booking-stepper [data-step]');
-    if (!steps.length) return;
-
-    const chain = document.getElementById('filter-chain');
-    const slot = document.getElementById('session-slot');
-    let active = 1;
-
-    if (slot.querySelector('.booking-summary') || slot.querySelector('input[name=session_id][type=hidden]')) {
-        active = 3;
-    } else if (chain.querySelector('select[name=pair]') || chain.querySelector('input[name=date][type=hidden]')) {
-        active = 2;
-    } else if (chain.querySelector('.calendar-card')) {
-        active = 1;
-    }
-
-    steps.forEach(function(el) {
-        const n = parseInt(el.getAttribute('data-step'), 10);
-        el.classList.toggle('booking-step--active', n === active);
-        el.classList.toggle('booking-step--done', n < active);
+        if (evt.detail.target.id === 'session-slot') {
+            const hiddenSession = document.querySelector('#session-slot input[name=session_id]');
+            const sel = document.querySelector('#session-slot select[name=session_id]');
+            if (hiddenSession) {
+                btn.disabled = false;
+            } else if (sel) {
+                btn.disabled = !sel.value;
+                sel.addEventListener('change', function () { btn.disabled = !sel.value; });
+            } else {
+                btn.disabled = true;
+            }
+        }
+        updateBookingStepper();
     });
-}
+
+    function updateBookingStepper() {
+        const steps = document.querySelectorAll('.booking-stepper [data-step]');
+        if (!steps.length) return;
+
+        const chain = document.getElementById('filter-chain');
+        const slot = document.getElementById('session-slot');
+        let active = 1;
+
+        if (slot.querySelector('.booking-summary') || slot.querySelector('input[name=session_id][type=hidden]')) {
+            active = 3;
+        } else if (chain.querySelector('select[name=pair]') || chain.querySelector('input[name=date][type=hidden]')) {
+            active = 2;
+        } else if (chain.querySelector('.calendar-card')) {
+            active = 1;
+        }
+
+        steps.forEach(function (el) {
+            const n = parseInt(el.getAttribute('data-step'), 10);
+            el.classList.toggle('booking-step--active', n === active);
+            el.classList.toggle('booking-step--done', n < active);
+        });
+    }
+})();
 </script>
 {% endblock %}
