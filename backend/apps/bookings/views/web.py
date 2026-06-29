@@ -225,6 +225,11 @@ class HomeView(LoginRequiredMixin, TemplateView):
 class PatchNotesWebView(LoginRequiredMixin, TemplateView):
     template_name = "bookings/patch_notes.html"
 
+    def get_template_names(self):
+        if is_staff_user(self.request.user):
+            return ["bookings/patch_notes_staff.html"]
+        return ["bookings/patch_notes.html"]
+
     def dispatch(self, request, *args, **kwargs):
         if not getattr(settings, "PATCH_NOTES_ENABLED", False):
             raise Http404

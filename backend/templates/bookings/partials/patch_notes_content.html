@@ -1,0 +1,29 @@
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Обновления</p>
+        <h1 class="page-title">Что нового в системе</h1>
+        <p class="page-description">
+            Список изменений пилотной версии. Раздел временный — перед официальным запуском он будет убран.
+        </p>
+    </div>
+</header>
+
+<div class="patch-notes">
+    {% for release in releases %}
+    <article class="card patch-notes__release">
+        <header class="patch-notes__header">
+            <div class="patch-notes__meta">
+                <span class="badge badge--warning">v{{ release.version }}</span>
+                <time class="patch-notes__date" datetime="{{ release.date }}">{{ release.date }}</time>
+            </div>
+            <h2 class="patch-notes__title">{{ release.title }}</h2>
+            <p class="patch-notes__summary">{{ release.summary }}</p>
+        </header>
+        <ul class="patch-notes__list">
+            {% for item in release.items %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+    </article>
+    {% endfor %}
+</div>

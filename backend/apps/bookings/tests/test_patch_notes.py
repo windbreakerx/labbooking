@@ -2,6 +2,7 @@ import pytest
 from django.test import override_settings
 
 from apps.bookings.patch_notes import PATCH_NOTES
+from apps.users.models import User, UserRole
 
 
 @pytest.mark.django_db
@@ -13,6 +14,38 @@ def test_patch_notes_page_for_student(client, student):
     content = response.content.decode()
     assert "Что нового в системе" in content
     assert f"v{PATCH_NOTES[0]['version']}" in content
+
+
+@pytest.mark.django_db
+@override_settings(PATCH_NOTES_ENABLED=True)
+def test_patch_notes_page_uses_staff_layout_for_staff(client, staff):
+    client.force_login(staff)
+    response = client.get("/patch-notes/")
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Что нового в системе" in content
+    assert "staff-pill-nav" in content
+    assert "student-top-nav" not in content
+    assert "Мои записи" not in content
+
+
+@pytest.mark.django_db
+@override_settings(PATCH_NOTES_ENABLED=True)
+def test_patch_notes_page_uses_staff_layout_for_lab_head(client, db):
+    lab_head = User.objects.create_user(
+        email="pn-labhead@spmi.ru",
+        password="pass",
+        role=UserRole.LAB_HEAD,
+        is_staff=True,
+    )
+    client.force_login(lab_head)
+    response = client.get("/patch-notes/")
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "staff-pill-nav" in content
+    assert "Кабинет завлаба" in content
+    assert "student-top-nav" not in content
+    assert "Мои записи" not in content
 
 
 @pytest.mark.django_db
