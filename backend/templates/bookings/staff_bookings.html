@@ -145,83 +145,65 @@
     {% if bookings %}
     <div class="staff-cards staff-cards--mobile" aria-label="Список записей">
         {% for b in bookings %}
-        <article class="staff-booking-card">
-            <div class="staff-booking-card__header">
-                <time class="staff-booking-card__datetime" datetime="{{ b.scheduled_at|date:'c' }}">{{ b.scheduled_at|date:"d.m.Y H:i" }}</time>
-                <span class="status-badge status-badge--with-dot
-                    {% if b.current_status == 'BOOKED' %}status-badge--booked
-                    {% elif b.current_status == 'NO_SHOW' %}status-badge--no-show
-                    {% elif b.current_status == 'CANCELLED' %}status-badge--cancelled
-                    {% elif b.current_status == 'REACCESS' %}status-badge--reaccess
-                    {% elif b.current_status == 'VISITED' %}status-badge--visited
-                    {% endif %}">
-                    {{ b.get_current_status_display }}
-                </span>
+        <details class="staff-booking-card">
+            <summary class="staff-booking-card__summary">
+                <dl class="staff-booking-card__summary-grid">
+                    <div>
+                        <dt>Студент</dt>
+                        <dd><strong>{{ b.student.full_name }}</strong></dd>
+                    </div>
+                    <div>
+                        <dt>Группа</dt>
+                        <dd>{{ b.student.profile.group_name|default:"—" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Лабораторная работа</dt>
+                        <dd>{{ b.lab_work.title }}</dd>
+                    </div>
+                    <div>
+                        <dt>Дата</dt>
+                        <dd>{{ b.scheduled_at|date:"d.m.Y H:i" }}</dd>
+                    </div>
+                </dl>
+            </summary>
+            <div class="staff-booking-card__body">
+                {% include "bookings/partials/staff_booking_detail.html" with booking=b %}
             </div>
-            <dl class="staff-booking-card__details">
-                <div><dt>Студент</dt><dd><strong>{{ b.student.full_name }}</strong><br><span class="muted">{{ b.student.email }}</span></dd></div>
-                <div><dt>Группа</dt><dd>{{ b.student.profile.group_name|default:"—" }}</dd></div>
-                <div><dt>Дисциплина</dt><dd>{{ b.discipline.title }}</dd></div>
-                <div><dt>ЛР</dt><dd>{{ b.lab_work.title }}</dd></div>
-                <div><dt>Аудитория</dt><dd>№{{ b.room.number }} · УЦ №{{ b.room.training_center.number }}</dd></div>
-                <div><dt>Регистрация</dt><dd>{{ b.get_registration_type_display }}{% if b.registered_by %} · {{ b.registered_by.full_name }}{% endif %}</dd></div>
-            </dl>
-            {% if can_modify_bookings %}
-            <div class="staff-booking-card__actions">
-                {% include "bookings/partials/staff_status_form.html" with booking=b %}
-            </div>
-            {% endif %}
-        </article>
+        </details>
         {% endfor %}
     </div>
 
     <div class="table-wrap staff-table">
-        <table class="table table--compact table--staff table--sticky">
+        <table class="table table--compact table--staff table--sticky staff-booking-table">
             <thead>
                 <tr>
                     {% sortable_th "student" "Студент" %}
                     {% sortable_th "group" "Группа" %}
-                    {% sortable_th "discipline" "Дисциплина" %}
-                    {% sortable_th "lab_work" "ЛР" %}
-                    {% sortable_th "room" "Ауд." %}
+                    {% sortable_th "lab_work" "Лабораторная работа" %}
                     {% sortable_th "date" "Дата" %}
-                    {% sortable_th "registration" "Регистрация" %}
-                    {% sortable_th "status" "Статус" %}
-                    {% if can_modify_bookings %}{% sortable_th "actions" "Действия" sortable=False %}{% endif %}
                 </tr>
             </thead>
             <tbody>
                 {% for b in bookings %}
-                <tr>
+                <tr
+                    class="staff-booking-row"
+                    data-booking-row
+                    aria-expanded="false"
+                    tabindex="0"
+                    aria-controls="staff-booking-detail-{{ b.pk }}"
+                >
                     <td class="cell-student">
                         <span class="cell-student__name">{{ b.student.full_name }}</span>
-                        <span class="cell-student__email muted">{{ b.student.email }}</span>
+                        <span class="staff-booking-row__hint">Подробности по клику</span>
                     </td>
                     <td>{{ b.student.profile.group_name|default:"—" }}</td>
-                    <td class="cell-truncate" title="{{ b.discipline.title }}">{{ b.discipline.title }}</td>
                     <td class="cell-truncate" title="{{ b.lab_work.title }}">{{ b.lab_work.title }}</td>
-                    <td class="cell-nowrap">{{ b.room.number }}</td>
                     <td class="cell-nowrap">{{ b.scheduled_at|date:"d.m.Y H:i" }}</td>
-                    <td class="cell-registration">
-                        {{ b.get_registration_type_display }}
-                        {% if b.registered_by %}<span class="muted"> · {{ b.registered_by.full_name }}</span>{% endif %}
+                </tr>
+                <tr class="staff-booking-detail" id="staff-booking-detail-{{ b.pk }}" hidden>
+                    <td colspan="4">
+                        {% include "bookings/partials/staff_booking_detail.html" with booking=b %}
                     </td>
-                    <td class="cell-status">
-                        <span class="status-badge status-badge--with-dot
-                            {% if b.current_status == 'BOOKED' %}status-badge--booked
-                            {% elif b.current_status == 'NO_SHOW' %}status-badge--no-show
-                            {% elif b.current_status == 'CANCELLED' %}status-badge--cancelled
-                            {% elif b.current_status == 'REACCESS' %}status-badge--reaccess
-                            {% elif b.current_status == 'VISITED' %}status-badge--visited
-                            {% endif %}">
-                            {{ b.get_current_status_display }}
-                        </span>
-                    </td>
-                    {% if can_modify_bookings %}
-                    <td class="cell-actions">
-                        {% include "bookings/partials/staff_status_form.html" with booking=b %}
-                    </td>
-                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
@@ -236,6 +218,55 @@
 </section>
 
 <script>
+(function () {
+    function closeBookingRows(exceptRow) {
+        document.querySelectorAll('[data-booking-row]').forEach(function (row) {
+            if (row === exceptRow) {
+                return;
+            }
+            row.classList.remove('is-expanded');
+            row.setAttribute('aria-expanded', 'false');
+            var detailId = row.getAttribute('aria-controls');
+            if (detailId) {
+                var detail = document.getElementById(detailId);
+                if (detail) {
+                    detail.hidden = true;
+                }
+            }
+        });
+    }
+
+    function toggleBookingRow(row) {
+        var detailId = row.getAttribute('aria-controls');
+        if (!detailId) {
+            return;
+        }
+        var detail = document.getElementById(detailId);
+        if (!detail) {
+            return;
+        }
+        var willOpen = detail.hidden;
+        closeBookingRows(willOpen ? row : null);
+        detail.hidden = !willOpen;
+        row.classList.toggle('is-expanded', willOpen);
+        row.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    }
+
+    document.querySelectorAll('[data-booking-row]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            if (e.target.closest('a, button, select, input, textarea, label')) {
+                return;
+            }
+            toggleBookingRow(row);
+        });
+        row.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleBookingRow(row);
+            }
+        });
+    });
+})();
 {% if can_modify_bookings %}
 (function () {
     var dialog = document.getElementById('manual-booking-dialog');

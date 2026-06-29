@@ -1,0 +1,51 @@
+<div class="staff-booking-detail__inner">
+    <dl class="staff-booking-detail__grid">
+        <div>
+            <dt>Email</dt>
+            <dd>{{ booking.student.email }}</dd>
+        </div>
+        <div>
+            <dt>Дисциплина</dt>
+            <dd>{{ booking.discipline.title }}</dd>
+        </div>
+        <div>
+            <dt>Аудитория</dt>
+            <dd>№{{ booking.room.number }} · УЦ №{{ booking.room.training_center.number }}</dd>
+        </div>
+        <div>
+            <dt>Дата и время ЛР</dt>
+            <dd>{{ booking.scheduled_at|date:"d.m.Y H:i" }}</dd>
+        </div>
+        <div>
+            <dt>Момент записи</dt>
+            <dd>{{ booking.created_at|date:"d.m.Y H:i" }}</dd>
+        </div>
+        <div>
+            <dt>Статус</dt>
+            <dd>
+                <span class="status-badge status-badge--with-dot
+                    {% if booking.current_status == 'BOOKED' %}status-badge--booked
+                    {% elif booking.current_status == 'NO_SHOW' %}status-badge--no-show
+                    {% elif booking.current_status == 'CANCELLED' %}status-badge--cancelled
+                    {% elif booking.current_status == 'REACCESS' %}status-badge--reaccess
+                    {% elif booking.current_status == 'VISITED' %}status-badge--visited
+                    {% endif %}">
+                    {{ booking.get_current_status_display }}
+                </span>
+            </dd>
+        </div>
+        <div>
+            <dt>Регистрация</dt>
+            <dd>
+                {{ booking.get_registration_type_display }}
+                {% if booking.registered_by %}<span class="muted"> · {{ booking.registered_by.full_name }}</span>{% endif %}
+            </dd>
+        </div>
+    </dl>
+    {% if can_modify_bookings %}
+    <div class="staff-booking-detail__actions">
+        <span class="staff-booking-detail__actions-label">Изменить статус</span>
+        {% include "bookings/partials/staff_status_form.html" with booking=booking %}
+    </div>
+    {% endif %}
+</div>
