@@ -103,14 +103,25 @@ class LaboratoryType(models.TextChoices):
    - создаёт факультет **НГФ** (`code=НГФ`, `title=Нефтегазовый факультет`, `ordering=0`);
    - проставляет `Department.faculty_id = НГФ` для всех кафедр без faculty.
 
-### 3.2. `scheduling/migrations/0007_laboratory_faculty.py`
+### 3.2. `scheduling/migrations/0007_laboratory_faculty.py` + `0008_backfill_laboratory_faculty.py`
 
 Зависит от `academics.0011_faculty`.
 
-1. Добавляет `Laboratory.faculty` и `Laboratory.lab_type` (default `REGULAR`).
-2. RunPython `backfill_laboratory_faculty`:
-   - всем лабораториям без faculty — `faculty_id` НГФ;
-   - лабораториям с подстрокой «комплексн» в `name` (case-insensitive) — `lab_type=COMPLEX`.
+**0007** — только схема (`atomic = False`):
+
+- `Laboratory.faculty` (FK, `db_index=False` — индекс откладывается);
+- `Laboratory.lab_type` (`db_default="REGULAR"` — без массового UPDATE строк в PostgreSQL).
+
+**0008** — данные и индекс (`atomic = False`):
+
+- backfill `faculty_id` → НГФ, `lab_type=COMPLEX` для «комплексн» в названии;
+- `AddIndex` на `faculty_id`.
+
+Разделение нужно из‑за ошибки PostgreSQL: `cannot CREATE INDEX ... because it has pending trigger events` при смешении `RunPython(UPDATE)` и создания индекса FK в одной транзакции.
+
+### 3.3. `academics/migrations/0011_faculty.py`
+
+Добавлен `atomic = False` — каждая операция в отдельной транзакции (профилактика той же ошибки на `Department`).
 
 **На существующей VM-БД достаточно:**
 
@@ -272,7 +283,7 @@ discipline → department → faculty.code
 bash scripts/deploy-vm.sh
 ```
 
-Скрипт: build → migrate (применит `0011` и `0007`) → collectstatic → smoke test.
+Скрипт: build → migrate (применит `0011`, `0007`, `0008`) → collectstatic → smoke test.
 
 С импортом Excel (завлаб + Excel, без full-pilot групп):
 
@@ -324,7 +335,8 @@ StudentGroup.objects.filter(department__isnull=False).count()
 | `backend/apps/academics/tests/test_faculty.py` | 8 unit-тестов |
 | `backend/apps/academics/tests/__init__.py` | Пакет тестов |
 | `backend/apps/scheduling/models.py` | `LaboratoryType`; FK faculty, lab_type |
-| `backend/apps/scheduling/migrations/0007_laboratory_faculty.py` | Схема + backfill |
+| `backend/apps/scheduling/migrations/0007_laboratory_faculty.py` | Схема: faculty + lab_type |
+| `backend/apps/scheduling/migrations/0008_backfill_laboratory_faculty.py` | Backfill + индекс faculty |
 | `backend/apps/scheduling/admin.py` | Поля faculty, lab_type в LaboratoryAdmin |
 | `backend/apps/bookings/services/lab_head.py` | `generate_lab_work_code()` из department→faculty |
 | `backend/apps/bookings/management/commands/seed_demo.py` | НГФ faculty, lab metadata, department на группах (--full-pilot) |
@@ -338,6 +350,44 @@ StudentGroup.objects.filter(department__isnull=False).count()
 3. Добавить `apps/academics/tests/test_faculty.py` в `PILOT_TESTS` в `scripts/run-tests-vm.sh` (опционально).
 4. M2M faculty для межкафедральных лабораторий (G-004).
 5. Постепенный отказ от CharField `faculty` на группах — только после миграции всех импортов.
+
+---
+
+## 12. Troubleshooting: migrate на PostgreSQL
+
+### Симптом
+
+```
+OperationalError: cannot CREATE INDEX "scheduling_laboratory" because it has pending trigger events
+```
+
+### Причина
+
+В одной транзакции миграции смешаны `UPDATE` (RunPython или default на AddField) и `CREATE INDEX` для FK на `scheduling_laboratory`.
+
+### Решение (в репозитории)
+
+Миграция разбита на `0007` (схема) и `0008` (backfill + индекс), обе с `atomic = False`. У `academics/0011` добавлен `atomic = False`.
+
+### Если migrate уже упал на VM
+
+1. `git pull` — подтянуть исправленные миграции.
+2. Проверить частичное применение старой `0007`:
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.vm.yml exec db \
+     psql -U labbooking -d labbooking -c "\d scheduling_laboratory"
+   ```
+
+3. Колонок `faculty_id` / `lab_type` **нет** → `bash scripts/deploy-vm.sh`.
+
+4. Колонки **есть**, запись в `django_migrations` для `0007` **нет**:
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.vm.yml exec -T web \
+     python manage.py migrate scheduling 0007 --fake
+   bash scripts/deploy-vm.sh
+   ```
 
 ---
 

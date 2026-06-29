@@ -27,6 +27,8 @@ class Migration(migrations.Migration):
         ("academics", "0010_labwork_code_and_short_codes"),
     ]
 
+    atomic = False
+
     operations = [
         migrations.CreateModel(
             name="Faculty",

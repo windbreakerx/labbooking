@@ -1,19 +1,9 @@
 from django.db import migrations, models
 
 
-def backfill_laboratory_faculty(apps, schema_editor):
-    Faculty = apps.get_model("academics", "Faculty")
-    Laboratory = apps.get_model("scheduling", "Laboratory")
-
-    ngf = Faculty.objects.filter(code="НГФ").first()
-    if ngf is None:
-        return
-
-    Laboratory.objects.filter(faculty__isnull=True).update(faculty_id=ngf.id)
-    Laboratory.objects.filter(name__icontains="комплексн").update(lab_type="COMPLEX")
-
-
 class Migration(migrations.Migration):
+    atomic = False
+
     dependencies = [
         ("academics", "0011_faculty"),
         ("scheduling", "0006_room_details"),
@@ -25,6 +15,7 @@ class Migration(migrations.Migration):
             name="faculty",
             field=models.ForeignKey(
                 blank=True,
+                db_index=False,
                 null=True,
                 on_delete=models.SET_NULL,
                 related_name="laboratories",
@@ -41,10 +32,10 @@ class Migration(migrations.Migration):
                     ("INTERDEPT", "Межкафедральная"),
                     ("COMPLEX", "Комплексная"),
                 ],
+                db_default="REGULAR",
                 default="REGULAR",
                 max_length=16,
                 verbose_name="Тип лаборатории",
             ),
         ),
-        migrations.RunPython(backfill_laboratory_faculty, migrations.RunPython.noop),
     ]
