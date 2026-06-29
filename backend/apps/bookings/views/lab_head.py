@@ -42,6 +42,8 @@ from apps.bookings.services.lab_head import (
     lab_head_room_disciplines,
     lab_head_update_lab_work,
     lab_head_update_room,
+    lab_head_update_stand,
+    lab_head_delete_stand,
     sync_training_centers_for_laboratories,
     validate_lab_duration_minutes,
 )
@@ -432,7 +434,59 @@ class LabHeadStandsView(LabHeadRequiredMixin, ListView):
         ctx["training_center"] = self.get_training_center()
         ctx["rooms"] = lab_head_rooms_qs(self.request.user)
         ctx["search_query"] = self.request.GET.get("q", "").strip()
+        ctx["edit_stand_id"] = self.request.GET.get("edit", "").strip()
         return ctx
+
+
+class LabHeadStandUpdateView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        stand = lab_head_stand_in_scope(request.user, pk)
+        if not stand:
+            messages.error(request, "Стенд недоступен.")
+            return redirect("lab-head-stands")
+
+        room_id = request.POST.get("room", "").strip()
+        room = lab_head_room_in_scope(request.user, int(room_id)) if room_id else None
+        if not room:
+            messages.error(request, "Выберите аудиторию.")
+            return redirect("lab-head-stands")
+
+        try:
+            lab_head_update_stand(
+                request.user,
+                stand,
+                name=request.POST.get("name", ""),
+                inventory_number=request.POST.get("inventory_number", ""),
+                room=room,
+                description=request.POST.get("description", ""),
+                is_published=request.POST.get("is_published") == "on",
+                photo=request.FILES.get("photo"),
+                clear_photo=request.POST.get("clear_photo") == "on",
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-stands")
+
+        messages.success(request, f"Стенд «{stand.name}» обновлён.")
+        return redirect("lab-head-stands")
+
+
+class LabHeadStandDeleteView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        stand = lab_head_stand_in_scope(request.user, pk)
+        if not stand:
+            messages.error(request, "Стенд недоступен.")
+            return redirect("lab-head-stands")
+
+        stand_name = stand.name
+        try:
+            lab_head_delete_stand(request.user, stand)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-stands")
+
+        messages.success(request, f"Стенд «{stand_name}» удалён.")
+        return redirect("lab-head-stands")
 
 
 class LabHeadStandCreateView(LabHeadRequiredMixin, View):
@@ -473,6 +527,7 @@ class LabHeadRoomsView(LabHeadRequiredMixin, ListView):
         ctx["training_center"] = self.get_training_center()
         ctx["laboratory"] = lab_head_laboratory(self.request.user)
         ctx["laboratories"] = lab_head_laboratories_qs(self.request.user)
+        ctx["lab_disciplines"] = staff_managed_disciplines_qs(self.request.user)
         ctx["edit_room_id"] = self.request.GET.get("edit", "").strip()
         return ctx
 
@@ -493,6 +548,10 @@ class LabHeadRoomUpdateView(LabHeadRequiredMixin, View):
         )
         photo = request.FILES.get("photo")
         clear_photo = request.POST.get("clear_photo") == "on"
+        discipline_ids = request.POST.getlist("disciplines")
+        disciplines = list(
+            staff_managed_disciplines_qs(request.user).filter(pk__in=discipline_ids)
+        )
 
         try:
             lab_head_update_room(
@@ -502,6 +561,7 @@ class LabHeadRoomUpdateView(LabHeadRequiredMixin, View):
                 laboratory=laboratory,
                 photo=photo,
                 clear_photo=clear_photo,
+                disciplines=disciplines,
             )
         except ValueError as exc:
             messages.error(request, str(exc))

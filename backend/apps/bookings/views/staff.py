@@ -59,10 +59,9 @@ class StaffRoomsView(StaffRequiredMixin, ListView):
     context_object_name = "rooms"
 
     def get_queryset(self):
-        from apps.academics.models import Discipline
         from apps.scheduling.models import Room
 
-        qs = Room.objects.select_related("training_center", "laboratory")
+        qs = Room.objects.select_related("training_center", "laboratory").prefetch_related("disciplines").prefetch_related("disciplines")
         qs = staff_lab_filter(
             qs,
             self.request.user,
@@ -71,9 +70,7 @@ class StaffRoomsView(StaffRequiredMixin, ListView):
         )
         rooms = list(qs.order_by("number"))
         for room in rooms:
-            room.room_disciplines = list(
-                Discipline.objects.filter(lab_works__default_room=room).distinct().order_by("title")
-            )
+            room.room_disciplines = list(room.disciplines.order_by("title"))
         return rooms
 
 

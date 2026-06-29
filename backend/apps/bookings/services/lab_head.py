@@ -144,6 +144,7 @@ def lab_head_stand_search_q(query: str) -> Q:
         | Q(inventory_number__icontains=query)
         | Q(description__icontains=query)
         | Q(room__number__icontains=query)
+        | _published_search_q(query)
     )
     if query.isdigit():
         search_q |= Q(training_center__number=int(query))
@@ -202,17 +203,13 @@ def lab_head_rooms_qs(user: User) -> QuerySet[Room]:
     return (
         Room.objects.filter(training_center=tc)
         .select_related("training_center", "laboratory")
-        .prefetch_related("default_lab_works__disciplines")
+        .prefetch_related("disciplines", "default_lab_works__disciplines")
         .order_by("number")
     )
 
 
 def lab_head_room_disciplines(room: Room) -> QuerySet[Discipline]:
-    return (
-        Discipline.objects.filter(lab_works__default_room=room)
-        .distinct()
-        .order_by("title")
-    )
+    return room.disciplines.order_by("title")
 
 
 def lab_head_departments_for_disciplines(disciplines_qs: QuerySet[Discipline]) -> QuerySet[Department]:
@@ -437,6 +434,8 @@ def lab_head_update_lab_work(
     lab_work.disciplines.set(disciplines)
     lab_work.laboratories.set([laboratory.pk])
     sync_training_centers_for_laboratories(lab_work)
+    if default_room:
+        default_room.disciplines.add(*disciplines)
     if capacity_changed:
         from apps.scheduling.services.capacity import sync_open_session_capacities
 
@@ -484,6 +483,7 @@ def lab_head_update_room(
     laboratory: Laboratory | None,
     photo=None,
     clear_photo: bool = False,
+    disciplines: list[Discipline] | None = None,
 ) -> Room:
     if not lab_head_room_in_scope(user, room.pk):
         raise ValueError("Аудитория недоступна.")
@@ -499,4 +499,51 @@ def lab_head_update_room(
         room.photo = None
         update_fields.append("photo")
     room.save(update_fields=update_fields)
+    if disciplines is not None:
+        for discipline in disciplines:
+            if not lab_head_discipline_in_scope(user, discipline.pk):
+                raise ValueError("Дисциплина недоступна.")
+        room.disciplines.set(disciplines)
     return room
+
+
+def lab_head_update_stand(
+    user: User,
+    stand: LabStand,
+    *,
+    name: str,
+    inventory_number: str,
+    room: Room,
+    description: str = "",
+    is_published: bool = True,
+    photo=None,
+    clear_photo: bool = False,
+) -> LabStand:
+    if not lab_head_stand_in_scope(user, stand.pk):
+        raise ValueError("Стенд недоступен.")
+    if not lab_head_room_in_scope(user, room.pk):
+        raise ValueError("Аудитория недоступна.")
+    name = name.strip()
+    inventory_number = inventory_number.strip()
+    if not name or not inventory_number:
+        raise ValueError("Заполните название и инвентарный номер.")
+    stand.name = name
+    stand.inventory_number = inventory_number
+    stand.room = room
+    stand.description = description.strip()
+    stand.is_published = is_published
+    update_fields = ["name", "inventory_number", "room", "description", "is_published"]
+    if photo is not None:
+        stand.photo = photo
+        update_fields.append("photo")
+    elif clear_photo:
+        stand.photo = None
+        update_fields.append("photo")
+    stand.save(update_fields=update_fields)
+    return stand
+
+
+def lab_head_delete_stand(user: User, stand: LabStand) -> None:
+    if not lab_head_stand_in_scope(user, stand.pk):
+        raise ValueError("Стенд недоступен.")
+    stand.delete()

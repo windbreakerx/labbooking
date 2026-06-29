@@ -524,7 +524,43 @@ class TestLabHeadStandsAndSchedule:
             },
         )
         assert response.status_code == 302
-        assert LabStand.objects.filter(training_center=own_tc, inventory_number="INV-001").exists()
+        stand = LabStand.objects.get(training_center=own_tc, inventory_number="INV-001")
+        assert stand.is_published is True
+
+    def test_update_stand(self, client_logged_in, own_stand, own_room):
+        response = client_logged_in.post(
+            reverse("lab-head-stand-update", kwargs={"pk": own_stand.pk}),
+            {
+                "name": "Стенд обновлён",
+                "inventory_number": "INV-UPD",
+                "room": own_room.pk,
+                "description": "Новое описание",
+            },
+        )
+        assert response.status_code == 302
+        own_stand.refresh_from_db()
+        assert own_stand.name == "Стенд обновлён"
+        assert own_stand.inventory_number == "INV-UPD"
+        assert own_stand.description == "Новое описание"
+
+    def test_unpublish_stand(self, client_logged_in, own_stand, own_room):
+        response = client_logged_in.post(
+            reverse("lab-head-stand-update", kwargs={"pk": own_stand.pk}),
+            {
+                "name": own_stand.name,
+                "inventory_number": own_stand.inventory_number,
+                "room": own_room.pk,
+            },
+        )
+        assert response.status_code == 302
+        own_stand.refresh_from_db()
+        assert own_stand.is_published is False
+
+    def test_delete_stand(self, client_logged_in, own_stand):
+        stand_id = own_stand.pk
+        response = client_logged_in.post(reverse("lab-head-stand-delete", kwargs={"pk": stand_id}))
+        assert response.status_code == 302
+        assert not LabStand.objects.filter(pk=stand_id).exists()
 
     def test_create_schedule_entry(
         self,
@@ -632,6 +668,39 @@ class TestLabHeadStandsAndSchedule:
 
     def test_allowed_durations_constant(self):
         assert ALLOWED_LAB_DURATIONS == (30, 45, 60, 90)
+
+
+@pytest.mark.django_db
+class TestLabHeadRoomDisciplines:
+    def test_bind_disciplines_to_room(
+        self,
+        client_logged_in,
+        own_room,
+        own_discipline,
+        own_discipline_secondary,
+    ):
+        response = client_logged_in.post(
+            reverse("lab-head-room-update", kwargs={"pk": own_room.pk}),
+            {
+                "name": "Аудитория 101",
+                "disciplines": [own_discipline.pk, own_discipline_secondary.pk],
+            },
+        )
+        assert response.status_code == 302
+        own_room.refresh_from_db()
+        bound_ids = set(own_room.disciplines.values_list("pk", flat=True))
+        assert own_discipline.pk in bound_ids
+        assert own_discipline_secondary.pk in bound_ids
+
+    def test_clear_room_disciplines(self, client_logged_in, own_room, own_discipline):
+        own_room.disciplines.add(own_discipline)
+        response = client_logged_in.post(
+            reverse("lab-head-room-update", kwargs={"pk": own_room.pk}),
+            {"name": own_room.name},
+        )
+        assert response.status_code == 302
+        own_room.refresh_from_db()
+        assert own_room.disciplines.count() == 0
 
 
 @pytest.mark.django_db

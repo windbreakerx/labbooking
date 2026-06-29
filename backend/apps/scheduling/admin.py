@@ -20,6 +20,7 @@ class LaboratoryAdmin(admin.ModelAdmin):
 class RoomAdmin(admin.ModelAdmin):
     list_display = ("number", "name", "training_center", "laboratory", "capacity")
     list_filter = ("training_center", "laboratory")
+    filter_horizontal = ("disciplines",)
 
 
 @admin.register(LabSession)
@@ -37,8 +38,8 @@ class HolidayAdmin(admin.ModelAdmin):
 
 @admin.register(LabStand)
 class LabStandAdmin(admin.ModelAdmin):
-    list_display = ("name", "inventory_number", "training_center", "room")
-    list_filter = ("training_center",)
+    list_display = ("name", "inventory_number", "training_center", "room", "is_published")
+    list_filter = ("training_center", "is_published")
 
 
 @admin.register(ScheduleEntry)

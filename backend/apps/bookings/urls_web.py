@@ -20,6 +20,8 @@ from apps.bookings.views.lab_head import (
     LabHeadScheduleCreateView,
     LabHeadScheduleView,
     LabHeadStandCreateView,
+    LabHeadStandDeleteView,
+    LabHeadStandUpdateView,
     LabHeadStandsView,
 )
 from apps.bookings.views.staff import (
@@ -170,6 +172,8 @@ urlpatterns = [
     path("lab-head/rooms/<int:pk>/update/", LabHeadRoomUpdateView.as_view(), name="lab-head-room-update"),
     path("lab-head/stands/", LabHeadStandsView.as_view(), name="lab-head-stands"),
     path("lab-head/stands/create/", LabHeadStandCreateView.as_view(), name="lab-head-stand-create"),
+    path("lab-head/stands/<int:pk>/update/", LabHeadStandUpdateView.as_view(), name="lab-head-stand-update"),
+    path("lab-head/stands/<int:pk>/delete/", LabHeadStandDeleteView.as_view(), name="lab-head-stand-delete"),
     path("lab-head/schedule/", LabHeadScheduleView.as_view(), name="lab-head-schedule"),
     path(
         "lab-head/schedule/create/",

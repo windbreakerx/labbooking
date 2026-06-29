@@ -81,6 +81,12 @@ class Room(models.Model):
         related_name="rooms",
         verbose_name="Лаборатория",
     )
+    disciplines = models.ManyToManyField(
+        "academics.Discipline",
+        blank=True,
+        related_name="rooms",
+        verbose_name="Дисциплины",
+    )
 
     class Meta:
         verbose_name = "Аудитория"
@@ -203,6 +209,8 @@ class LabStand(models.Model):
         related_name="stands",
     )
     description = models.TextField("Описание", blank=True)
+    photo = models.ImageField("Фотография", upload_to="stands/", blank=True)
+    is_published = models.BooleanField("Опубликован", default=True)
 
     class Meta:
         verbose_name = "Лабораторный стенд"

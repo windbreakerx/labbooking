@@ -32,6 +32,7 @@
                 data-name="{{ room.name|escapejs }}"
                 data-laboratory-id="{% if room.laboratory_id %}{{ room.laboratory_id }}{% endif %}"
                 data-photo-url="{% if room.photo %}{{ room.photo.url }}{% endif %}"
+                data-discipline-ids="{% for d in room.room_disciplines %}{{ d.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
             >
                 <td data-label="№"><strong>{{ room.number }}</strong></td>
                 <td data-label="Название">{% if room.name %}{{ room.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
@@ -86,6 +87,19 @@
                 <span>Удалить текущее фото</span>
             </label>
         </div>
+        <fieldset class="form-grid__full">
+            <legend>Дисциплины в аудитории</legend>
+            <div class="checkbox-grid">
+                {% for d in lab_disciplines %}
+                <label class="checkbox-inline">
+                    <input type="checkbox" name="disciplines" value="{{ d.pk }}" class="room-discipline-checkbox">
+                    <span>{{ d.title }}</span>
+                </label>
+                {% empty %}
+                <p class="muted">Нет дисциплин лаборатории. Привяжите дисциплины на странице «Дисциплины».</p>
+                {% endfor %}
+            </div>
+        </fieldset>
         <div class="app-dialog__actions form-grid__full">
             <button type="submit">Сохранить</button>
             <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
@@ -120,6 +134,10 @@
             }
         }
         document.getElementById('room-edit-clear-photo').checked = false;
+        var disciplineIds = (row.getAttribute('data-discipline-ids') || '').split(',').filter(Boolean);
+        document.querySelectorAll('.room-discipline-checkbox').forEach(function (checkbox) {
+            checkbox.checked = disciplineIds.indexOf(checkbox.value) !== -1;
+        });
         dialog.showModal();
     }
 
