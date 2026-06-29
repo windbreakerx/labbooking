@@ -1,0 +1,30 @@
+/* Shared pill navigation (student + staff) */
+
+.pill-nav__link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 2.75rem;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-pill);
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.pill-nav__link:hover {
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+}
+
+.pill-nav__link--current {
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+}
+
+.pill-nav__link--updates .badge {
+    margin-left: var(--space-1);
+}

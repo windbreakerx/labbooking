@@ -16,28 +16,36 @@
             </form>
         </div>
     </div>
-    <nav class="student-top-nav" aria-label="Основная навигация">
+    <nav class="student-top-nav container" aria-label="Основная навигация">
         <a
-            class="student-top-nav__link{% if request.resolver_match.url_name == 'disciplines' or request.resolver_match.url_name == 'lab-works' or request.resolver_match.url_name == 'book-lab-work' %} student-top-nav__link--current{% endif %}"
+            class="pill-nav__link{% if request.resolver_match.url_name == 'home' %} pill-nav__link--current{% endif %}"
+            href="{% url 'home' %}"
+            hx-boost="true"
+        >Главная</a>
+        <a
+            class="pill-nav__link{% if request.resolver_match.url_name == 'disciplines' or request.resolver_match.url_name == 'lab-works' or request.resolver_match.url_name == 'book-lab-work' %} pill-nav__link--current{% endif %}"
             href="{% url 'disciplines' %}"
             hx-boost="true"
         >Дисциплины</a>
         <a
-            class="student-top-nav__link{% if request.resolver_match.url_name == 'my-bookings' or request.resolver_match.url_name == 'booking-detail' %} student-top-nav__link--current{% endif %}"
+            class="pill-nav__link{% if request.resolver_match.url_name == 'my-bookings' or request.resolver_match.url_name == 'booking-detail' %} pill-nav__link--current{% endif %}"
             href="{% url 'my-bookings' %}"
             hx-boost="true"
         >Мои записи</a>
         <a
-            class="student-top-nav__link{% if request.resolver_match.url_name == 'support' or request.resolver_match.url_name == 'support-detail' %} student-top-nav__link--current{% endif %}"
+            class="pill-nav__link{% if request.resolver_match.url_name == 'support' or request.resolver_match.url_name == 'support-detail' %} pill-nav__link--current{% endif %}"
             href="{% url 'support' %}"
             hx-boost="true"
         >Обращения</a>
         {% if patch_notes_enabled %}
         <a
-            class="student-top-nav__link{% if request.resolver_match.url_name == 'patch-notes' %} student-top-nav__link--current{% endif %}"
+            class="pill-nav__link pill-nav__link--updates{% if request.resolver_match.url_name == 'patch-notes' %} pill-nav__link--current{% endif %}"
             href="{% url 'patch-notes' %}"
             hx-boost="true"
-        >Что нового</a>
+        >
+            Что нового
+            <span class="badge badge--warning">Новое</span>
+        </a>
         {% endif %}
     </nav>
 </header>

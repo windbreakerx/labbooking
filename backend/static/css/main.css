@@ -2074,7 +2074,20 @@ button.calendar-day--available {
     margin-top: var(--space-4);
 }
 
-/* Staff */
+/* Staff app shell (body) — do not use .staff-layout here; that class is a page grid. */
+
+.staff-app {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-sans);
+    font-size: var(--text-md);
+    line-height: var(--line-height-base);
+    color: var(--color-text);
+    background:
+        radial-gradient(circle at 0% 0%, rgba(11, 79, 156, 0.07), transparent 32rem),
+        radial-gradient(circle at 100% 0%, rgba(184, 134, 11, 0.04), transparent 24rem),
+        var(--color-bg);
+}
 
 .staff-layout {
     display: grid;

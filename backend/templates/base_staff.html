@@ -1,6 +1,11 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block body_class %}staff-layout{% endblock %}
+{% block body_class %}staff-app{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/staff.css' %}?v=20260630">
+{% endblock %}
 
 {% block header %}
 {% include "includes/staff_header.html" %}
