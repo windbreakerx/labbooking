@@ -31,6 +31,7 @@ from apps.bookings.services import (
     order_bookings_queryset,
     search_students_for_staff,
     staff_can_access_scoped_object,
+    staff_can_modify_bookings,
     staff_lab_filter,
 )
 from apps.bookings.services.session_availability import (
@@ -577,12 +578,15 @@ class StaffBookingsWebView(LoginRequiredMixin, ListView):
         ):
             for discipline in lab_work.disciplines.all():
                 ctx["manual_lab_works"].append({"lab_work": lab_work, "discipline": discipline})
+        ctx["can_modify_bookings"] = staff_can_modify_bookings(self.request.user)
         return ctx
 
 
 class StaffManualStudentSearchView(LoginRequiredMixin, View):
     def get(self, request):
         if not is_staff_user(request.user):
+            return HttpResponseForbidden()
+        if not staff_can_modify_bookings(request.user):
             return HttpResponseForbidden()
         query = request.GET.get("q", "").strip()
         students = search_students_for_staff(query)
@@ -598,6 +602,8 @@ class StaffManualFilterPartialView(LoginRequiredMixin, View):
 
     def get(self, request, lab_work_id):
         if not is_staff_user(request.user):
+            return HttpResponseForbidden()
+        if not staff_can_modify_bookings(request.user):
             return HttpResponseForbidden()
         get_object_or_404(staff_lab_works_qs(request.user), pk=lab_work_id)
         date = request.GET.get("date") or None
@@ -618,6 +624,8 @@ class StaffManualBookingWebView(LoginRequiredMixin, View):
     def post(self, request):
         if not is_staff_user(request.user):
             return redirect("home")
+        if not staff_can_modify_bookings(request.user):
+            return HttpResponseForbidden()
         student_id = request.POST.get("student_id")
         session_id = request.POST.get("session_id")
         discipline_id = request.POST.get("discipline_id")
@@ -661,6 +669,8 @@ class StaffStatusUpdateWebView(LoginRequiredMixin, View):
     def post(self, request, pk):
         if not is_staff_user(request.user):
             return redirect("home")
+        if not staff_can_modify_bookings(request.user):
+            return HttpResponseForbidden()
         booking = get_object_or_404(Booking, pk=pk)
         scoped = staff_lab_filter(Booking.objects.filter(pk=booking.pk), request.user)
         if not scoped.exists():

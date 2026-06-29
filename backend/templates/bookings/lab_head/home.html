@@ -5,7 +5,7 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Заведующий лабораторией</p>
         <h1 class="page-title">УЦ №{{ training_center.number }}{% if training_center.name %} — {{ training_center.name }}{% endif %}</h1>
-        <p class="page-description">Управление сотрудниками, привязками, лабораторными работами, стендами и расписанием вашей лаборатории.</p>
+        <p class="page-description">Управление сотрудниками, привязками, лабораторными работами и стендами вашей лаборатории.</p>
     </div>
 </header>
 
@@ -29,11 +29,6 @@
         <h2 class="card__title">Стенды</h2>
         <p class="card__meta">{{ stands_count }} стендов</p>
         <p class="muted">Учёт оборудования и привязка к аудиториям.</p>
-    </a>
-    <a class="card card--link" href="{% url 'lab-head-schedule' %}">
-        <h2 class="card__title">Расписание</h2>
-        <p class="card__meta">{{ schedule_count }} записей</p>
-        <p class="muted">Шаблоны слотов для генерации записи студентов.</p>
     </a>
 </div>
 {% endblock %}

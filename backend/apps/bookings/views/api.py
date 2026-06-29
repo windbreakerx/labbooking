@@ -33,7 +33,14 @@ from apps.bookings.serializers import (
     SupportTicketSerializer,
     WaitlistEntrySerializer,
 )
-from apps.bookings.services import BookingError, BookingService, is_staff_user, staff_can_access_scoped_object, staff_lab_filter
+from apps.bookings.services import (
+    BookingError,
+    BookingService,
+    is_staff_user,
+    staff_can_access_scoped_object,
+    staff_can_modify_bookings,
+    staff_lab_filter,
+)
 from apps.bookings.services.session_availability import (
     bookable_sessions_qs,
     get_earliest_session_for_date_pair,
@@ -367,6 +374,8 @@ class BookingStatusUpdateView(APIView):
     permission_classes = [IsLabStaff]
 
     def patch(self, request, pk):
+        if not staff_can_modify_bookings(request.user):
+            return Response({"detail": "Нет доступа."}, status=status.HTTP_403_FORBIDDEN)
         serializer = BookingStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -396,6 +405,8 @@ class ManualBookingView(APIView):
     permission_classes = [IsLabStaff]
 
     def post(self, request):
+        if not staff_can_modify_bookings(request.user):
+            return Response({"detail": "Нет доступа."}, status=status.HTTP_403_FORBIDDEN)
         serializer = ManualBookingSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         from apps.users.models import User

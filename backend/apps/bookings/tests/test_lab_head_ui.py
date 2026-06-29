@@ -129,13 +129,12 @@ class TestLabHeadUIAccess:
         assert "На доработке" not in content
         assert staff_admin.email in content
 
-    def test_lab_head_schedule_page_renders(self, client_logged_in):
+    def test_lab_head_schedule_page_stub(self, client_logged_in):
         response = client_logged_in.get(reverse("lab-head-schedule"))
         assert response.status_code == 200
         content = response.content.decode()
-        assert "На доработке" not in content
-        assert "Расписание на аудиторию" in content
-        assert "Кабинет завлаба" in response.content.decode()
+        assert "На доработке" in content
+        assert "Раздел временно недоступен" in content
 
     def test_staff_cannot_open_lab_head_pages(self, client, staff_admin):
         client.force_login(staff_admin)

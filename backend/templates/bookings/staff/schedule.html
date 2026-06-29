@@ -5,40 +5,11 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Лаборатория</p>
         <h1 class="page-title">Расписание на аудиторию</h1>
-        <p class="page-description">Настройки расписания, по которым генерируются доступные слоты записи.</p>
-    </div>
-    <div class="page-actions">
-        {% if user.role == 'SYS_ADMIN' %}
-        <a class="button button--secondary" href="/admin/">Админка</a>
-        {% endif %}
     </div>
 </header>
 
-<div class="table-wrap">
-    <table class="table table--compact table--sticky responsive-table">
-        <thead>
-            <tr><th>ЛР</th><th>Ауд.</th><th>День</th><th>Время</th><th>Неделя</th><th>Преподаватель</th></tr>
-        </thead>
-        <tbody>
-            {% for e in entries %}
-            <tr>
-                <td data-label="ЛР">{{ e.lab_work }}</td>
-                <td data-label="Ауд.">{{ e.room }}</td>
-                <td data-label="День">{{ e.weekday }}</td>
-                <td data-label="Время"><strong>{{ e.start_time }}</strong></td>
-                <td data-label="Неделя"><span class="badge badge--muted">{{ e.get_week_parity_display }}</span></td>
-                <td data-label="Преподаватель">{{ e.teacher.full_name|default:"—" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6">
-                <div class="empty-state empty-state--icon">
-                    <p>Записей расписания нет.</p>
-                    <p class="muted">Заведующий лабораторией добавляет расписание в кабинете завлаба.</p>
-                </div>
-            </td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="empty-state empty-state--icon">
+    <p>На доработке</p>
+    <p class="muted">Раздел временно недоступен.</p>
 </div>
-<p class="admin-note muted">Генерация слотов: <code>python manage.py generate_sessions</code></p>
 {% endblock %}

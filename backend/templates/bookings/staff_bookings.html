@@ -6,7 +6,7 @@
     <div class="page-header__content">
         <p class="page-eyebrow">Сотрудник</p>
         <h1 class="page-title">Записавшиеся студенты</h1>
-        <p class="page-description">Рабочий список записей: фильтры, ручная запись и смена статуса посещения.</p>
+        <p class="page-description">{% if can_modify_bookings %}Рабочий список записей: фильтры, ручная запись и смена статуса посещения.{% else %}Список записей вашей лаборатории (только просмотр).{% endif %}</p>
     </div>
 </header>
 
@@ -21,9 +21,12 @@
             {% endif %}
         </p>
     </div>
+    {% if can_modify_bookings %}
     <button type="button" class="button button--secondary" id="manual-booking-open">Ручная запись</button>
+    {% endif %}
 </div>
 
+{% if can_modify_bookings %}
 <dialog id="manual-booking-dialog" class="app-dialog app-dialog--wide" aria-labelledby="manual-booking-title">
     <div class="app-dialog__header">
         <h2 class="card__title" id="manual-booking-title">Ручная запись</h2>
@@ -79,6 +82,7 @@
         <p><strong>Сохраняется:</strong> только будущие слоты, будни и университетские пары, статус OPEN, запрет праздников, лимит пересечений по аудитории, привязка к вашей лаборатории.</p>
     </div>
 </dialog>
+{% endif %}
 
 <section class="card card--form filter-panel staff-filters">
     <div class="card__header">
@@ -162,9 +166,11 @@
                 <div><dt>Аудитория</dt><dd>№{{ b.room.number }} · УЦ №{{ b.room.training_center.number }}</dd></div>
                 <div><dt>Регистрация</dt><dd>{{ b.get_registration_type_display }}{% if b.registered_by %} · {{ b.registered_by.full_name }}{% endif %}</dd></div>
             </dl>
+            {% if can_modify_bookings %}
             <div class="staff-booking-card__actions">
                 {% include "bookings/partials/staff_status_form.html" with booking=b %}
             </div>
+            {% endif %}
         </article>
         {% endfor %}
     </div>
@@ -181,7 +187,7 @@
                     {% sortable_th "date" "Дата" %}
                     {% sortable_th "registration" "Регистрация" %}
                     {% sortable_th "status" "Статус" %}
-                    {% sortable_th "actions" "Действия" sortable=False %}
+                    {% if can_modify_bookings %}{% sortable_th "actions" "Действия" sortable=False %}{% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -211,9 +217,11 @@
                             {{ b.get_current_status_display }}
                         </span>
                     </td>
+                    {% if can_modify_bookings %}
                     <td class="cell-actions">
                         {% include "bookings/partials/staff_status_form.html" with booking=b %}
                     </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
@@ -222,12 +230,13 @@
     {% else %}
     <div class="empty-state empty-state--icon staff-empty-state">
         <p>Записей не найдено.</p>
-        <p class="muted">Измените фильтры или нажмите «Ручная запись».</p>
+        <p class="muted">{% if can_modify_bookings %}Измените фильтры или нажмите «Ручная запись».{% else %}Измените фильтры поиска.{% endif %}</p>
     </div>
     {% endif %}
 </section>
 
 <script>
+{% if can_modify_bookings %}
 (function () {
     var dialog = document.getElementById('manual-booking-dialog');
     var openBtn = document.getElementById('manual-booking-open');
@@ -429,5 +438,6 @@
         });
     });
 })();
+{% endif %}
 </script>
 {% endblock %}

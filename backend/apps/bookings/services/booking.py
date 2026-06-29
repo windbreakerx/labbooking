@@ -272,6 +272,8 @@ class BookingService:
         manual: bool = False,
         skip_student_rules: bool = False,
     ) -> Booking:
+        if manual and self.actor and not staff_can_modify_bookings(self.actor):
+            raise BookingError("Недостаточно прав для ручной записи.")
         session = (
             LabSession.objects.select_related("lab_work", "room")
             .prefetch_related("lab_work__disciplines")
@@ -355,6 +357,8 @@ class BookingService:
         new_status: str,
         note: str = "",
     ) -> Booking:
+        if self.actor and not staff_can_modify_bookings(self.actor):
+            raise BookingError("Недостаточно прав для изменения статуса записи.")
         booking = Booking.objects.select_for_update().get(pk=booking.pk)
         allowed = {
             BookingStatus.BOOKED,
@@ -528,6 +532,15 @@ def is_staff_user(user: User) -> bool:
         UserRole.LAB_ADMIN,
         UserRole.LAB_HEAD,
         UserRole.TEACHER,
+        UserRole.SYS_ADMIN,
+    }
+
+
+def staff_can_modify_bookings(user: User) -> bool:
+    """LAB_ADMIN, LAB_HEAD, SYS_ADMIN may change statuses and manual bookings; TEACHER — read-only."""
+    return user.role in {
+        UserRole.LAB_ADMIN,
+        UserRole.LAB_HEAD,
         UserRole.SYS_ADMIN,
     }
 

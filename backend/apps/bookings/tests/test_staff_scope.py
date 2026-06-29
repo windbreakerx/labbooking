@@ -388,13 +388,15 @@ class TestStaffScopeWeb:
         assert own_stand.name.encode() in response.content
         assert foreign_stand.name.encode() not in response.content
 
-    def test_staff_schedule_hides_foreign(self, staff_with_lab, own_schedule, foreign_schedule):
+    def test_staff_schedule_stub(self, staff_with_lab, own_schedule, foreign_schedule):
         client = Client()
         client.force_login(staff_with_lab)
         response = client.get("/staff/schedule/")
         assert response.status_code == 200
-        assert own_schedule.lab_work.title.encode() in response.content
-        assert foreign_schedule.lab_work.title.encode() not in response.content
+        content = response.content.decode()
+        assert "На доработке" in content
+        assert own_schedule.lab_work.title not in content
+        assert foreign_schedule.lab_work.title not in content
 
     def test_staff_people_hides_foreign_lab_people(
         self,
@@ -448,6 +450,85 @@ class TestStaffScopeWeb:
         assert response.status_code == 302
         foreign_booking.refresh_from_db()
         assert foreign_booking.current_status != BookingStatus.VISITED
+
+
+@pytest.mark.django_db
+class TestTeacherBookingReadOnly:
+    def test_teacher_get_bookings_web(self, own_teacher, own_booking):
+        client = Client()
+        client.force_login(own_teacher)
+        response = client.get("/staff/bookings/")
+        assert response.status_code == 200
+        assert own_booking.student.email.encode() in response.content
+
+    def test_teacher_post_status_forbidden(self, own_teacher, own_booking):
+        client = Client()
+        client.force_login(own_teacher)
+        response = client.post(
+            f"/staff/bookings/{own_booking.pk}/status/",
+            {"status": BookingStatus.VISITED},
+        )
+        assert response.status_code == 403
+        own_booking.refresh_from_db()
+        assert own_booking.current_status == BookingStatus.BOOKED
+
+    def test_teacher_get_bookings_api(self, own_teacher, own_booking):
+        client = APIClient()
+        client.force_authenticate(user=own_teacher)
+        response = client.get("/api/v1/admin/bookings/")
+        assert response.status_code == 200
+        ids = {item["id"] for item in response.json()["results"]}
+        assert own_booking.pk in ids
+
+    def test_teacher_patch_status_api_forbidden(self, own_teacher, own_booking):
+        client = APIClient()
+        client.force_authenticate(user=own_teacher)
+        response = client.patch(
+            f"/api/v1/admin/bookings/{own_booking.pk}/status/",
+            {"status": BookingStatus.VISITED},
+            format="json",
+        )
+        assert response.status_code == 403
+        own_booking.refresh_from_db()
+        assert own_booking.current_status == BookingStatus.BOOKED
+
+    def test_teacher_manual_booking_api_forbidden(self, own_teacher, student, own_session):
+        client = APIClient()
+        client.force_authenticate(user=own_teacher)
+        response = client.post(
+            "/api/v1/admin/bookings/manual/",
+            {"student_id": student.pk, "lab_session_id": own_session.pk},
+            format="json",
+        )
+        assert response.status_code == 403
+
+    def test_teacher_report_still_allowed(self, own_teacher, own_booking):
+        client = APIClient()
+        client.force_authenticate(user=own_teacher)
+        response = client.get("/api/v1/admin/reports/bookings/")
+        assert response.status_code == 200
+
+    def test_lab_admin_post_status_allowed(self, staff_with_lab, own_booking):
+        client = Client()
+        client.force_login(staff_with_lab)
+        response = client.post(
+            f"/staff/bookings/{own_booking.pk}/status/",
+            {"status": BookingStatus.VISITED},
+        )
+        assert response.status_code == 302
+        own_booking.refresh_from_db()
+        assert own_booking.current_status == BookingStatus.VISITED
+
+    def test_lab_head_post_status_allowed(self, lab_head, own_booking):
+        client = Client()
+        client.force_login(lab_head)
+        response = client.post(
+            f"/staff/bookings/{own_booking.pk}/status/",
+            {"status": BookingStatus.VISITED},
+        )
+        assert response.status_code == 302
+        own_booking.refresh_from_db()
+        assert own_booking.current_status == BookingStatus.VISITED
 
 
 @pytest.mark.django_db
