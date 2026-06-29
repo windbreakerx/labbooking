@@ -784,3 +784,95 @@ class TestStaffLaboratoryIsolation:
         assert response.status_code == 403
         booking_b.refresh_from_db()
         assert booking_b.current_status != BookingStatus.VISITED
+
+
+@pytest.fixture
+def lab_head_with_laboratory(db, shared_tc, lab_a):
+    user = User.objects.create_user(
+        email="lab-head-lab@spmi.ru",
+        password="pass",
+        first_name="Head",
+        last_name="LabA",
+        role=UserRole.LAB_HEAD,
+        is_staff=True,
+    )
+    user.profile.training_center = shared_tc
+    user.profile.laboratory = lab_a
+    user.profile.save(update_fields=["training_center", "laboratory"])
+    return user
+
+
+@pytest.fixture
+def room_a_unassigned(shared_tc):
+    return Room.objects.create(
+        training_center=shared_tc,
+        number="A-legacy",
+        capacity=5,
+    )
+
+
+@pytest.fixture
+def session_a_unassigned(lab_a_lab_work, room_a_unassigned, semester):
+    tz = timezone.get_current_timezone()
+    starts = timezone.make_aware(datetime(2026, 8, 6, 10, 35), tz)
+    return LabSession.objects.create(
+        lab_work=lab_a_lab_work,
+        room=room_a_unassigned,
+        semester=semester,
+        starts_at=starts,
+        ends_at=starts + timezone.timedelta(minutes=90),
+        capacity=5,
+        status=LabSessionStatus.OPEN,
+    )
+
+
+@pytest.fixture
+def own_ticket_lab_a(student, shared_tc):
+    return SupportTicket.objects.create(
+        student=student,
+        subject="Обращение в УЦ",
+        body="Текст",
+        training_center=shared_tc,
+    )
+
+
+@pytest.mark.django_db
+class TestStaffLaboratoryScopeRegression:
+    def test_lab_head_support_page_with_laboratory_profile(
+        self,
+        lab_head_with_laboratory,
+        own_ticket_lab_a,
+    ):
+        client = Client()
+        client.force_login(lab_head_with_laboratory)
+        response = client.get("/staff/support/")
+        assert response.status_code == 200
+        assert own_ticket_lab_a.subject.encode() in response.content
+
+    def test_bookings_visible_when_room_laboratory_unassigned(
+        self,
+        staff_lab_a,
+        student,
+        session_a_unassigned,
+    ):
+        booking = BookingService(actor=staff_lab_a).create_booking(
+            student,
+            session_a_unassigned.pk,
+            manual=True,
+            skip_student_rules=True,
+        )
+        client = Client()
+        client.force_login(staff_lab_a)
+        response = client.get("/staff/bookings/")
+        assert response.status_code == 200
+        assert session_a_unassigned.room.number.encode() in response.content
+        ids = set(staff_lab_filter(Booking.objects.all(), staff_lab_a).values_list("pk", flat=True))
+        assert booking.pk in ids
+
+    def test_staff_rooms_page_with_laboratory_profile(self, staff_lab_a, room_a, room_b):
+        client = Client()
+        client.force_login(staff_lab_a)
+        response = client.get("/staff/rooms/")
+        assert response.status_code == 200
+        assert room_a.number.encode() in response.content
+        assert room_b.number.encode() not in response.content

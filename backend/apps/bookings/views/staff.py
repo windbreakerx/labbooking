@@ -62,7 +62,12 @@ class StaffRoomsView(StaffRequiredMixin, ListView):
         from apps.scheduling.models import Room
 
         qs = Room.objects.select_related("training_center", "laboratory")
-        qs = staff_lab_filter(qs, self.request.user, training_center_lookup="training_center")
+        qs = staff_lab_filter(
+            qs,
+            self.request.user,
+            training_center_lookup="training_center",
+            laboratory_lookup="laboratory",
+        )
         rooms = list(qs.order_by("number"))
         for room in rooms:
             room.room_disciplines = list(
@@ -87,11 +92,13 @@ class StaffStandsView(StaffRequiredMixin, ListView):
             TrainingCenter.objects.all(),
             self.request.user,
             training_center_lookup="pk",
+            laboratory_lookup=None,
         )
         ctx["rooms"] = staff_lab_filter(
             Room.objects.select_related("training_center"),
             self.request.user,
             training_center_lookup="training_center",
+            laboratory_lookup="laboratory",
         )
         return ctx
 
@@ -143,7 +150,12 @@ class StaffSupportView(StaffRequiredMixin, ListView):
             "student",
             "training_center",
         ).prefetch_related("messages__author")
-        return staff_lab_filter(qs, self.request.user, training_center_lookup="training_center")
+        return staff_lab_filter(
+            qs,
+            self.request.user,
+            training_center_lookup="training_center",
+            laboratory_lookup=None,
+        )
 
 
 class StaffSupportReplyView(StaffRequiredMixin, View):
@@ -153,6 +165,7 @@ class StaffSupportReplyView(StaffRequiredMixin, View):
                 SupportTicket.objects.all(),
                 request.user,
                 training_center_lookup="training_center",
+                laboratory_lookup=None,
             ),
             pk=pk,
         )

@@ -270,7 +270,12 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if IsLabStaff().has_permission(self.request, self):
             qs = SupportTicket.objects.all().select_related("training_center").order_by("-created_at")
-            return staff_lab_filter(qs, user, training_center_lookup="training_center")
+            return staff_lab_filter(
+                qs,
+                user,
+                training_center_lookup="training_center",
+                laboratory_lookup=None,
+            )
         return SupportTicket.objects.filter(student=user).order_by("-created_at")
 
     def perform_create(self, serializer):
@@ -298,6 +303,7 @@ class SupportMessageView(APIView):
             request.user,
             SupportTicket.objects.filter(pk=ticket.pk),
             training_center_lookup="training_center",
+            laboratory_lookup=None,
         ):
             return Response({"detail": "Нет доступа."}, status=status.HTTP_403_FORBIDDEN)
 

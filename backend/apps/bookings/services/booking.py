@@ -537,12 +537,17 @@ def staff_lab_filter(
     user,
     *,
     training_center_lookup: str = "room__training_center",
-    laboratory_lookup: str = "room__laboratory",
+    laboratory_lookup: str | None = "room__laboratory",
 ):
     """Scope staff data to own lab (SYS_ADMIN sees all).
 
-    When profile.laboratory is set, filter by laboratory (sibling labs in the same
-    training center stay isolated). Otherwise fall back to training_center scope.
+    When profile.laboratory is set and laboratory_lookup is provided, filter by
+    laboratory (sibling labs in the same training center stay isolated).
+    Pass laboratory_lookup=None for models that only expose training_center
+    (e.g. SupportTicket).
+
+    Bookings in rooms without laboratory assignment remain visible within the
+    same training center as the staff member's laboratory.
     """
     if user.role == UserRole.SYS_ADMIN:
         return qs
@@ -553,12 +558,30 @@ def staff_lab_filter(
     if not profile:
         return qs.none()
 
+    tc = profile.training_center
     if profile.laboratory_id:
+        tc = profile.laboratory.training_center or tc
+
+    if profile.laboratory_id and laboratory_lookup is not None:
         laboratory = profile.laboratory
         lookup_value = laboratory.pk if laboratory_lookup in {"pk", "id"} else laboratory
-        return qs.filter(**{laboratory_lookup: lookup_value})
+        scoped = qs.filter(**{laboratory_lookup: lookup_value})
+        if laboratory_lookup == "room__laboratory" and tc:
+            lookup_tc = tc.pk if training_center_lookup in {"pk", "id"} else tc
+            legacy = qs.filter(
+                room__laboratory__isnull=True,
+                **{training_center_lookup: lookup_tc},
+            )
+            return (scoped | legacy).distinct()
+        if laboratory_lookup == "laboratory" and tc:
+            lookup_tc = tc.pk if training_center_lookup in {"pk", "id"} else tc
+            legacy = qs.filter(
+                laboratory__isnull=True,
+                **{training_center_lookup: lookup_tc},
+            )
+            return (scoped | legacy).distinct()
+        return scoped
 
-    tc = profile.training_center
     if not tc:
         return qs.none()
     lookup_value = tc.pk if training_center_lookup in {"pk", "id"} else tc
@@ -570,7 +593,7 @@ def staff_can_access_scoped_object(
     qs,
     *,
     training_center_lookup: str = "room__training_center",
-    laboratory_lookup: str = "room__laboratory",
+    laboratory_lookup: str | None = "room__laboratory",
 ) -> bool:
     return staff_lab_filter(
         qs,
