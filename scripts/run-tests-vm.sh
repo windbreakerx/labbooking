@@ -3,7 +3,7 @@
 # Запуск из корня репозитория: bash scripts/run-tests-vm.sh
 #
 # Примеры:
-#   bash scripts/run-tests-vm.sh              # все тесты в apps/
+#   bash scripts/run-tests-vm.sh              # все test_*.py (~176)
 #   bash scripts/run-tests-vm.sh --pilot      # быстрый pilot-набор (~141)
 #   bash scripts/run-tests-vm.sh apps/bookings/tests/test_staff_scope.py -v
 #   bash scripts/run-tests-vm.sh --full       # то же, что без аргументов (совместимость)
@@ -21,6 +21,20 @@ PILOT_TESTS=(
   apps/bookings/tests/test_lab_head_ui.py
   apps/bookings/tests/test_pilot_visibility.py
 )
+
+collect_all_tests() {
+  local -n _out=$1
+  shopt -s nullglob
+  _out=()
+  for path in backend/apps/*/tests/test_*.py; do
+    _out+=("${path#backend/}")
+  done
+  shopt -u nullglob
+  if [[ ${#_out[@]} -eq 0 ]]; then
+    echo "ERROR: не найдены test_*.py в backend/apps/*/tests/"
+    exit 1
+  fi
+}
 
 if [[ ! -f .env ]]; then
   echo "Файл .env не найден. Сначала настройте VM: cp .env.vm.example .env"
@@ -64,14 +78,17 @@ run_pytest() {
 
 install_dev_deps
 
+ALL_TESTS=()
+collect_all_tests ALL_TESTS
+
 if [[ "${1:-}" == "--pilot" ]]; then
   shift
   run_pytest -v "${PILOT_TESTS[@]}" "$@"
 elif [[ "${1:-}" == "--full" ]]; then
   shift
-  run_pytest -v apps/ "$@"
+  run_pytest -v "${ALL_TESTS[@]}" "$@"
 elif [[ $# -gt 0 ]]; then
   run_pytest "$@"
 else
-  run_pytest -v apps/
+  run_pytest -v "${ALL_TESTS[@]}"
 fi
