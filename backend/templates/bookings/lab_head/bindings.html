@@ -34,21 +34,40 @@
         {% for group in department_groups %}
         <details class="catalog-dept"{% if search_query %} open{% endif %}>
             <summary class="catalog-dept__summary">
-                <span class="catalog-dept__title">{% if group.department %}{{ group.department.title }}{% else %}Без папки{% endif %}</span>
+                <span class="catalog-dept__title">{% if group.department %}{{ group.department.title }}{% else %}Прикрепленные дисциплины{% endif %}</span>
                 <span class="catalog-dept__count">{{ group.disciplines|length }} дисц.</span>
             </summary>
             <div class="catalog-dept__body">
                 {% for d in group.disciplines %}
                 <details class="catalog-discipline"{% if search_query %} open{% endif %}>
-                    <summary class="catalog-discipline__summary">
+                    <summary class="catalog-discipline__summary{% if group.department %} catalog-discipline__summary--foldered{% endif %}">
+                        {% if group.department %}
+                        <span class="catalog-discipline__title">{{ d.title }}</span>
+                        <form
+                            method="post"
+                            action="{% url 'lab-head-discipline-department' d.pk %}"
+                            class="discipline-folder-clear-form catalog-discipline__action"
+                        >
+                            {% csrf_token %}
+                            <input type="hidden" name="department" value="">
+                            <button
+                                type="submit"
+                                class="button--sm button--danger discipline-toolbar-icon"
+                                title="Убрать из папки"
+                                aria-label="Убрать из папки"
+                            >×</button>
+                        </form>
+                        {% else %}
                         <span class="catalog-discipline__label">Дисциплина</span>
                         <span class="catalog-discipline__title">{{ d.title }}</span>
                         {% if d.semester %}
                         <span class="catalog-discipline__meta">{{ d.semester }}</span>
                         {% endif %}
                         <span class="catalog-discipline__count">{{ d.managed_lab_works|length }} ЛР</span>
+                        {% endif %}
                     </summary>
                     <div class="catalog-discipline__body">
+                        {% if not group.department %}
                         <div class="catalog-discipline__toolbar">
                             <form
                                 method="post"
@@ -60,31 +79,15 @@
                                     name="department"
                                     class="discipline-folder-form__select"
                                     aria-label="Папка"
+                                    required
                                 >
-                                    <option value="" {% if not d.department_id %}selected{% endif %}>Без папки</option>
+                                    <option value="" disabled selected hidden>Выберите папку</option>
                                     {% for folder in department_folders %}
-                                    <option value="{{ folder.pk }}" {% if d.department_id == folder.pk %}selected{% endif %}>{{ folder.title }}</option>
+                                    <option value="{{ folder.pk }}">{{ folder.title }}</option>
                                     {% endfor %}
                                 </select>
                                 <button type="submit" class="button--sm">Сохранить</button>
                             </form>
-                            {% if d.department_id %}
-                            <form
-                                method="post"
-                                action="{% url 'lab-head-discipline-department' d.pk %}"
-                                class="discipline-folder-clear-form"
-                                title="Убрать из папки"
-                            >
-                                {% csrf_token %}
-                                <input type="hidden" name="department" value="">
-                                <button
-                                    type="submit"
-                                    class="button--sm button--ghost discipline-toolbar-icon"
-                                    title="Убрать из папки"
-                                    aria-label="Убрать из папки"
-                                >↩</button>
-                            </form>
-                            {% endif %}
                             <form
                                 method="post"
                                 action="{% url 'lab-head-discipline-unbind' d.pk %}"
@@ -100,6 +103,7 @@
                                 >×</button>
                             </form>
                         </div>
+                        {% endif %}
 
                         {% if d.managed_lab_works %}
                         <p class="catalog-section-title">Лабораторные работы</p>
@@ -277,7 +281,7 @@
         });
     });
 
-    document.querySelectorAll('.catalog-discipline__body form').forEach(function (form) {
+    document.querySelectorAll('.catalog-discipline__summary form, .catalog-discipline__body form').forEach(function (form) {
         form.addEventListener('click', function (e) {
             e.stopPropagation();
         });
