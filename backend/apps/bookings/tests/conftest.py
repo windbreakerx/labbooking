@@ -74,9 +74,17 @@ def lab_work(discipline):
 
 
 @pytest.fixture
-def room():
-    tc = TrainingCenter.objects.create(number=1)
-    return Room.objects.create(training_center=tc, number="101", capacity=2)
+def room(db):
+    tc, _ = TrainingCenter.objects.get_or_create(
+        number=9001,
+        defaults={"name": "Тестовый УЦ"},
+    )
+    room, _ = Room.objects.get_or_create(
+        training_center=tc,
+        number="101",
+        defaults={"capacity": 2},
+    )
+    return room
 
 
 @pytest.fixture

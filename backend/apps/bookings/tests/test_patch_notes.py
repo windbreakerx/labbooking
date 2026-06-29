@@ -1,6 +1,8 @@
 import pytest
 from django.test import override_settings
 
+from apps.bookings.patch_notes import PATCH_NOTES
+
 
 @pytest.mark.django_db
 @override_settings(PATCH_NOTES_ENABLED=True)
@@ -8,8 +10,9 @@ def test_patch_notes_page_for_student(client, student):
     client.force_login(student)
     response = client.get("/patch-notes/")
     assert response.status_code == 200
-    assert "Что нового в системе" in response.content.decode()
-    assert "v0.9.1" in response.content.decode()
+    content = response.content.decode()
+    assert "Что нового в системе" in content
+    assert f"v{PATCH_NOTES[0]['version']}" in content
 
 
 @pytest.mark.django_db
