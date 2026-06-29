@@ -3,9 +3,10 @@
 # Запуск из корня репозитория: bash scripts/run-tests-vm.sh
 #
 # Примеры:
-#   bash scripts/run-tests-vm.sh
+#   bash scripts/run-tests-vm.sh              # все тесты в apps/
+#   bash scripts/run-tests-vm.sh --pilot      # быстрый pilot-набор (~141)
 #   bash scripts/run-tests-vm.sh apps/bookings/tests/test_staff_scope.py -v
-#   bash scripts/run-tests-vm.sh --full
+#   bash scripts/run-tests-vm.sh --full       # то же, что без аргументов (совместимость)
 
 set -euo pipefail
 
@@ -63,11 +64,14 @@ run_pytest() {
 
 install_dev_deps
 
-if [[ "${1:-}" == "--full" ]]; then
+if [[ "${1:-}" == "--pilot" ]]; then
   shift
-  run_pytest "$@"
+  run_pytest -v "${PILOT_TESTS[@]}" "$@"
+elif [[ "${1:-}" == "--full" ]]; then
+  shift
+  run_pytest -v apps/ "$@"
 elif [[ $# -gt 0 ]]; then
   run_pytest "$@"
 else
-  run_pytest -v "${PILOT_TESTS[@]}"
+  run_pytest -v apps/
 fi
