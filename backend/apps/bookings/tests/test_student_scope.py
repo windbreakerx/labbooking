@@ -260,7 +260,7 @@ class TestStudentScopeWeb:
         client.force_login(scoped_student)
         response = client.get(f"/my-bookings/{booking.pk}/")
         assert response.status_code == 200
-        assert b"Методичка к ЛР" in response.content
+        assert "Методичка к ЛР".encode() in response.content
 
     def test_book_filter_shows_pair_not_inner_offsets(self, scoped_student, own_lab_work, room, semester):
         starts = _next_weekday_at(14, 15)
