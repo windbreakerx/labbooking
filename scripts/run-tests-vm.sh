@@ -5,6 +5,7 @@
 # Примеры:
 #   bash scripts/run-tests-vm.sh              # все test_*.py (~176)
 #   bash scripts/run-tests-vm.sh --pilot      # быстрый pilot-набор (~141)
+#   bash scripts/run-tests-vm.sh --manual-booking  # правила ручной записи (~25)
 #   bash scripts/run-tests-vm.sh apps/bookings/tests/test_staff_scope.py -v
 #   bash scripts/run-tests-vm.sh --full       # то же, что без аргументов (совместимость)
 
@@ -20,6 +21,17 @@ PILOT_TESTS=(
   apps/bookings/tests/test_manual_booking.py
   apps/bookings/tests/test_lab_head_ui.py
   apps/bookings/tests/test_pilot_visibility.py
+)
+
+# Регрессия правил ручной записи (сотрудник/завлаб): окно дат, лимиты, стенд, пересечения.
+MANUAL_BOOKING_TESTS=(
+  apps/bookings/tests/test_manual_booking.py
+  apps/bookings/tests/test_booking.py::TestBookingService::test_manual_booking_skips_limits
+  apps/bookings/tests/test_booking.py::test_manual_booking_api
+  apps/bookings/tests/test_booking.py::test_staff_bookings_filters_and_manual_web
+  apps/bookings/tests/test_staff_scope.py::TestTeacherBookingReadOnly::test_teacher_manual_booking_api_forbidden
+  apps/bookings/tests/test_staff_scope.py::TestStaffScopeApi::test_manual_booking_foreign_session_denied
+  apps/bookings/tests/test_staff_scope.py::TestStaffLaboratoryIsolation::test_manual_booking_foreign_laboratory_session_denied
 )
 
 collect_all_tests() {
@@ -84,6 +96,9 @@ collect_all_tests ALL_TESTS
 if [[ "${1:-}" == "--pilot" ]]; then
   shift
   run_pytest -v "${PILOT_TESTS[@]}" "$@"
+elif [[ "${1:-}" == "--manual-booking" ]]; then
+  shift
+  run_pytest -v "${MANUAL_BOOKING_TESTS[@]}" "$@"
 elif [[ "${1:-}" == "--full" ]]; then
   shift
   run_pytest -v "${ALL_TESTS[@]}" "$@"

@@ -73,14 +73,25 @@ class TestBookingService:
         with pytest.raises(BookingError, match="активная запись"):
             BookingService().create_booking(student, session2.pk)
 
-    def test_manual_booking_skips_limits(self, student, session, staff):
-        BookingService(actor=staff).create_booking(student, session.pk)
+    def test_manual_booking_skips_limits(self, student, session, staff, lab_work, room, semester):
+        BookingService().create_booking(student, session.pk)
+        starts2 = session.starts_at + timedelta(days=7)
+        while timezone.localtime(starts2).weekday() >= 5:
+            starts2 += timedelta(days=1)
+        session2 = LabSession.objects.create(
+            lab_work=lab_work,
+            room=room,
+            semester=semester,
+            starts_at=starts2,
+            ends_at=starts2 + timedelta(minutes=90),
+            capacity=5,
+            status=LabSessionStatus.OPEN,
+        )
         service = BookingService(actor=staff)
         booking = service.create_booking(
             student,
-            session.pk,
+            session2.pk,
             manual=True,
-            skip_student_rules=True,
         )
         assert booking.registration_type == "MANUAL"
 
@@ -671,7 +682,6 @@ def test_staff_lab_scope_hides_foreign_booking(staff, student, session, room):
         student,
         other_session.pk,
         manual=True,
-        skip_student_rules=True,
     )
     client = Client()
     client.force_login(staff)
@@ -703,7 +713,7 @@ def test_staff_bookings_sort_by_student(staff, student, session, student_group, 
     other.profile.training_center = session.room.training_center
     other.profile.save(update_fields=["group_name", "training_center"])
 
-    BookingService(actor=staff).create_booking(student, session.pk, manual=True, skip_student_rules=True)
+    BookingService(actor=staff).create_booking(student, session.pk, manual=True)
 
     starts2 = session.starts_at + timezone.timedelta(days=1)
     session2 = LabSession.objects.create(
@@ -715,7 +725,7 @@ def test_staff_bookings_sort_by_student(staff, student, session, student_group, 
         capacity=5,
         status=LabSessionStatus.OPEN,
     )
-    BookingService(actor=staff).create_booking(other, session2.pk, manual=True, skip_student_rules=True)
+    BookingService(actor=staff).create_booking(other, session2.pk, manual=True)
 
     client = Client()
     client.force_login(staff)
@@ -734,7 +744,7 @@ def test_staff_bookings_sort_links_preserve_filters(staff, student, session):
     staff.profile.training_center = session.room.training_center
     staff.profile.save(update_fields=["training_center"])
     session.lab_work.training_centers.add(session.room.training_center)
-    BookingService(actor=staff).create_booking(student, session.pk, manual=True, skip_student_rules=True)
+    BookingService(actor=staff).create_booking(student, session.pk, manual=True)
 
     client = Client()
     client.force_login(staff)

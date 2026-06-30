@@ -63,6 +63,65 @@ def is_day_open_for_booking(session_date, now: datetime | None = None) -> bool:
     return min_date <= session_date <= max_date
 
 
+def manual_booking_max_date(now: datetime | None = None):
+    """Последний календарный день в пределах N рабочих недель от сегодня."""
+    local_now = timezone.localtime(now or timezone.now())
+    current_date = local_now.date()
+    target_working_days = settings.MANUAL_BOOKING_WORKING_WEEKS * 5
+    holiday_dates = set(Holiday.objects.values_list("date", flat=True))
+
+    working_days = 0
+    cursor = current_date
+    while working_days < target_working_days:
+        cursor += timedelta(days=1)
+        if cursor.weekday() < 5 and cursor not in holiday_dates:
+            working_days += 1
+    return cursor
+
+
+def is_session_on_current_pair(session_start: datetime, moment: datetime | None = None) -> bool:
+    """Слот начался в текущей паре относительно момента записи."""
+    local_start = timezone.localtime(session_start)
+    local_moment = timezone.localtime(moment or timezone.now())
+    if local_start.date() != local_moment.date():
+        return False
+    starts_at = local_start.time().replace(second=0, microsecond=0)
+    moment_time = local_moment.time().replace(second=0, microsecond=0)
+    pair_session = _pair_slot_for_time(starts_at)
+    pair_moment = _pair_slot_for_time(moment_time)
+    return (
+        pair_session is not None
+        and pair_moment is not None
+        and pair_session[0] == pair_moment[0]
+    )
+
+
+def is_manual_session_time_allowed(session: LabSession, now: datetime | None = None) -> bool:
+    """Ручная запись: будущий слот или текущая пара, если слот ещё не завершился."""
+    moment = now or timezone.now()
+    if session.ends_at <= moment:
+        return False
+    if session.starts_at > moment:
+        return True
+    return is_session_on_current_pair(session.starts_at, moment)
+
+
+def is_session_in_manual_booking_window(session: LabSession, now: datetime | None = None) -> bool:
+    moment = now or timezone.now()
+    session_local_date = timezone.localtime(session.starts_at).date()
+    if session_local_date > manual_booking_max_date(moment):
+        return False
+    if not is_manual_session_time_allowed(session, moment):
+        return False
+    if not is_weekday_for_booking(session.starts_at):
+        return False
+    if not is_pair_time_for_booking(session.starts_at):
+        return False
+    if Holiday.objects.filter(date=session_local_date).exists():
+        return False
+    return True
+
+
 def is_weekday_for_booking(session_dt: datetime) -> bool:
     local_dt = timezone.localtime(session_dt)
     return local_dt.weekday() < 5
@@ -327,30 +386,25 @@ def bookable_sessions_qs(lab_work_id: int | None = None, *, student=None) -> Que
 
 def staff_manual_sessions_qs(lab_work_id: int) -> QuerySet[LabSession]:
     """
-    Слоты для ручной записи сотрудником: без горизонта записи и фильтра по свободным местам,
-    но с ограничениями расписания (будни, пары, праздники, только будущие OPEN-слоты).
+    Слоты для ручной записи: с текущего момента (включая текущую пару) до двух рабочих недель,
+    без фильтра по свободным местам; будни, пары, праздники.
     """
     now = timezone.now()
-    holiday_dates = set(Holiday.objects.values_list("date", flat=True))
+    max_date = manual_booking_max_date(now)
     qs = (
         LabSession.objects.filter(
             status=LabSessionStatus.OPEN,
-            starts_at__gt=now,
+            ends_at__gt=now,
+            starts_at__date__lte=max_date,
             lab_work_id=lab_work_id,
         )
         .select_related("lab_work", "room", "room__training_center")
         .order_by("starts_at")
     )
-    if holiday_dates:
-        qs = qs.exclude(starts_at__date__in=holiday_dates)
 
-    session_ids = []
-    for session in qs:
-        if not is_weekday_for_booking(session.starts_at):
-            continue
-        if not is_pair_time_for_booking(session.starts_at):
-            continue
-        session_ids.append(session.pk)
+    session_ids = [
+        session.pk for session in qs if is_session_in_manual_booking_window(session, now)
+    ]
     if not session_ids:
         return qs.none()
     return qs.filter(pk__in=session_ids)

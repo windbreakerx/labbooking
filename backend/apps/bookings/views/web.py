@@ -703,9 +703,10 @@ class StaffManualBookingWebView(LoginRequiredMixin, View):
                 int(session_id),
                 discipline_id=int(discipline_id) if discipline_id else None,
                 manual=True,
-                skip_student_rules=True,
             )
             messages.success(request, f"Студент {student.full_name} записан вручную.")
+            for warning in service.booking_warnings:
+                messages.warning(request, warning)
         except BookingError as exc:
             messages.error(request, str(exc))
         return redirect("staff-bookings")

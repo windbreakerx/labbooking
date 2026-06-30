@@ -429,11 +429,16 @@ class ManualBookingView(APIView):
                 student,
                 serializer.validated_data["lab_session_id"],
                 manual=True,
-                skip_student_rules=True,
             )
         except BookingError as exc:
             raise ValidationError({"detail": str(exc)}) from exc
-        return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "booking": BookingSerializer(booking).data,
+                "warnings": service.booking_warnings,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class AdminReportView(APIView):

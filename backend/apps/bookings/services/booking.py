@@ -18,10 +18,12 @@ from apps.bookings.models import (
 )
 from apps.bookings.services.session_availability import (
     is_day_open_for_booking,
+    is_manual_session_time_allowed,
     is_pair_time_for_booking,
     is_weekday_for_booking,
     booking_date_window,
     lab_work_capacity_would_be_exceeded,
+    manual_booking_max_date,
     room_capacity_would_be_exceeded,
 )
 from apps.academics.models import Discipline
@@ -58,6 +60,7 @@ class BookingService:
     def __init__(self, actor: User | None = None, ip_address: str | None = None):
         self.actor = actor
         self.ip_address = ip_address
+        self.booking_warnings: list[str] = []
 
     def _log_audit(self, action: str, entity_type: str, entity_id: int, payload: dict | None = None):
         AuditLog.objects.create(
@@ -101,16 +104,50 @@ class BookingService:
         if Holiday.objects.filter(date=session.starts_at.date()).exists():
             raise BookingError("Запись в праздничный день недоступна.")
 
+    def _validate_manual_booking_window(self, session: LabSession):
+        now = timezone.now()
+        if not is_manual_session_time_allowed(session, now):
+            raise BookingError("Нельзя записаться на прошедший слот.")
+        session_local_date = timezone.localtime(session.starts_at).date()
+        max_date = manual_booking_max_date(now)
+        if session_local_date > max_date:
+            raise BookingError(
+                f"Ручная запись доступна не далее чем на {settings.MANUAL_BOOKING_WORKING_WEEKS} "
+                f"рабочие недели (до {max_date:%d.%m.%Y})."
+            )
+        if not is_weekday_for_booking(session.starts_at):
+            raise BookingError("Запись доступна только в будние дни.")
+        if not is_pair_time_for_booking(session.starts_at):
+            raise BookingError("Запись доступна только на университетские пары.")
+        if session.status != LabSessionStatus.OPEN:
+            raise BookingError("Слот недоступен для записи.")
+        if Holiday.objects.filter(date=session_local_date).exists():
+            raise BookingError("Запись в праздничный день недоступна.")
+
     def _stand_blocked_by_other_lab_work(self, session: LabSession) -> bool:
         return session.is_stand_blocked_by_other_lab_work()
 
-    def _student_overlap_booked(self, student: User, session: LabSession) -> bool:
+    def _student_overlap_bookings(self, student: User, session: LabSession):
         return Booking.objects.filter(
             student=student,
             current_status__in=ACTIVE_STATUSES,
             lab_session__starts_at__lt=session.ends_at,
             lab_session__ends_at__gt=session.starts_at,
-        ).exists()
+        ).select_related("lab_work", "lab_session")
+
+    def _overlap_warning_message(self, student: User, session: LabSession) -> str:
+        parts = []
+        for booking in self._student_overlap_bookings(student, session):
+            local = timezone.localtime(booking.scheduled_at)
+            parts.append(f"«{booking.lab_work.title}» {local:%d.%m.%Y} в {local:%H:%M}")
+        joined = "; ".join(parts)
+        return (
+            f"У студента уже есть запись на пересекающееся время: {joined}. "
+            "Согласуйте время со студентом."
+        )
+
+    def _student_overlap_booked(self, student: User, session: LabSession) -> bool:
+        return self._student_overlap_bookings(student, session).exists()
 
     def _lock_session_rows(self, session_ids: list[int] | set[int]):
         unique_sorted = sorted(set(session_ids))
@@ -202,6 +239,7 @@ class BookingService:
         manual: bool = False,
         skip_student_rules: bool = False,
     ) -> Booking:
+        self.booking_warnings = []
         last_deadlock: OperationalError | None = None
         for attempt in range(DEADLOCK_MAX_ATTEMPTS):
             try:
@@ -236,13 +274,19 @@ class BookingService:
         lab_work_id: int,
         discipline_id: int | None,
         *,
-        skip_student_rules: bool,
+        manual: bool = False,
+        skip_student_rules: bool = False,
     ) -> Discipline:
         discipline_qs = Discipline.objects.filter(lab_works=lab_work_id)
         if discipline_id is not None:
             discipline = discipline_qs.filter(pk=discipline_id).first()
             if discipline is None:
                 raise BookingError("Дисциплина недоступна для этой лабораторной работы.")
+            if student.role == UserRole.STUDENT and not skip_student_rules:
+                from apps.academics.querysets import student_disciplines_qs
+
+                if not student_disciplines_qs(student).filter(pk=discipline_id).exists():
+                    raise BookingError("Дисциплина недоступна для этой лабораторной работы.")
             return discipline
 
         if skip_student_rules:
@@ -283,17 +327,27 @@ class BookingService:
             student,
             session.lab_work_id,
             discipline_id,
-            skip_student_rules=skip_student_rules or manual,
+            manual=manual,
+            skip_student_rules=skip_student_rules,
         )
         self._lock_for_booking(session)
-        skip_rules = skip_student_rules or manual
-        self._validate_booking_window(session, skip_student_rules=skip_rules)
-        if not skip_rules and student.role == UserRole.STUDENT:
+        if manual:
+            self._validate_manual_booking_window(session)
+        else:
+            self._validate_booking_window(session, skip_student_rules=skip_student_rules)
+
+        if student.role == UserRole.STUDENT and not skip_student_rules:
             from apps.academics.querysets import student_can_access_lab_work
 
             if not student_can_access_lab_work(student, session.lab_work_id):
                 raise BookingError("Лабораторная работа недоступна для вашей группы.")
-        if not skip_rules:
+
+        if manual:
+            if self._stand_blocked_by_other_lab_work(session):
+                raise BookingError("Стенд уже занят на это время. Выберите другой интервал.")
+            if self._student_overlap_booked(student, session):
+                self.booking_warnings.append(self._overlap_warning_message(student, session))
+        elif not skip_student_rules:
             self._check_discipline_limit(
                 student,
                 booking_discipline.pk,
@@ -303,9 +357,9 @@ class BookingService:
                 raise BookingError("У вас уже есть запись на пересекающееся время.")
 
         booked_count = session.bookings.filter(current_status=BookingStatus.BOOKED).count()
-        if not skip_rules and booked_count >= session.capacity:
-            raise BookingError("Нет свободных мест.")
-        if not skip_rules:
+        if not manual and not skip_student_rules:
+            if booked_count >= session.capacity:
+                raise BookingError("Нет свободных мест.")
             if lab_work_capacity_would_be_exceeded(session):
                 raise BookingError(
                     "Лимит мест для этой лабораторной работы исчерпан на выбранный интервал. "

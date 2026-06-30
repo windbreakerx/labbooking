@@ -237,7 +237,6 @@ def own_booking(staff_with_lab, student, own_session):
         student,
         own_session.pk,
         manual=True,
-        skip_student_rules=True,
     )
 
 
@@ -247,7 +246,6 @@ def foreign_booking(staff_with_lab, student, foreign_session):
         student,
         foreign_session.pk,
         manual=True,
-        skip_student_rules=True,
     )
 
 
@@ -776,7 +774,6 @@ def booking_a(staff_lab_a, student, session_a):
         student,
         session_a.pk,
         manual=True,
-        skip_student_rules=True,
     )
 
 
@@ -786,7 +783,6 @@ def booking_b(staff_lab_a, student, session_b):
         student,
         session_b.pk,
         manual=True,
-        skip_student_rules=True,
     )
 
 
@@ -975,7 +971,6 @@ class TestStaffLaboratoryScopeRegression:
             student,
             session_a_unassigned.pk,
             manual=True,
-            skip_student_rules=True,
         )
         client = Client()
         client.force_login(staff_lab_a)
