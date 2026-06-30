@@ -4,7 +4,7 @@ from datetime import datetime, time, timedelta
 from django.test import Client
 from django.utils import timezone
 
-from apps.bookings.tests.conftest import create_lab_work
+from apps.bookings.tests.conftest import create_lab_work, next_open_weekday_pair
 from apps.academics.models import Discipline
 from apps.bookings.services import BookingError, BookingService, search_students_for_staff
 from apps.bookings.services.session_availability import (
@@ -250,12 +250,13 @@ class TestManualBookingRules:
             is_published=True,
         )
         foreign_lab.training_centers.add(session.room.training_center)
+        foreign_starts = next_open_weekday_pair(days_ahead=9)
         foreign_session = LabSession.objects.create(
             lab_work=foreign_lab,
             room=session.room,
             semester=semester,
-            starts_at=session.starts_at,
-            ends_at=session.ends_at,
+            starts_at=foreign_starts,
+            ends_at=foreign_starts + timedelta(minutes=90),
             capacity=5,
             status=LabSessionStatus.OPEN,
         )

@@ -710,12 +710,15 @@ def test_staff_bookings_sort_by_student(staff, student, session, student_group, 
         role=UserRole.STUDENT,
     )
     other.profile.group_name = "ГР-2"
+    other.profile.student_group = student_group
     other.profile.training_center = session.room.training_center
-    other.profile.save(update_fields=["group_name", "training_center"])
+    other.profile.save(update_fields=["group_name", "student_group", "training_center"])
 
     BookingService(actor=staff).create_booking(student, session.pk, manual=True)
 
-    starts2 = session.starts_at + timezone.timedelta(days=1)
+    starts2 = session.starts_at + timezone.timedelta(days=7)
+    while timezone.localtime(starts2).weekday() >= 5:
+        starts2 += timezone.timedelta(days=1)
     session2 = LabSession.objects.create(
         lab_work=session.lab_work,
         room=session.room,
@@ -765,7 +768,9 @@ def test_my_bookings_sort_by_date(student, session, discipline, room, semester, 
 
     BookingService(actor=student).create_booking(student, session.pk)
 
-    starts2 = session.starts_at + timezone.timedelta(days=2)
+    starts2 = session.starts_at + timezone.timedelta(days=7)
+    while timezone.localtime(starts2).weekday() >= 5:
+        starts2 += timezone.timedelta(days=1)
     session2 = LabSession.objects.create(
         lab_work=lab_work2,
         room=room,

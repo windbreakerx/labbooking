@@ -51,6 +51,24 @@ def far_open_weekday_pair(min_days_ahead: int = 20, hour: int = 10, minute: int 
     return next_open_weekday_pair(days_ahead=min_days_ahead, hour=hour, minute=minute)
 
 
+def seed_manual_booking(*, actor, student, session):
+    """Создаёт запись для scope/UI-тестов без прохождения правил ручной записи."""
+    from apps.bookings.models import Booking, BookingStatus, RegistrationType
+
+    discipline = session.lab_work.disciplines.order_by("title").first()
+    return Booking.objects.create(
+        student=student,
+        lab_session=session,
+        lab_work=session.lab_work,
+        discipline=discipline,
+        room=session.room,
+        scheduled_at=session.starts_at,
+        current_status=BookingStatus.BOOKED,
+        registration_type=RegistrationType.MANUAL,
+        registered_by=actor,
+    )
+
+
 @pytest.fixture
 def inactive_discipline(db):
     old_sem = Semester.objects.create(

@@ -323,6 +323,11 @@ class BookingService:
             .prefetch_related("lab_work__disciplines")
             .get(pk=session_id)
         )
+        if student.role == UserRole.STUDENT and not skip_student_rules:
+            from apps.academics.querysets import student_can_access_lab_work
+
+            if not student_can_access_lab_work(student, session.lab_work_id):
+                raise BookingError("Лабораторная работа недоступна для вашей группы.")
         booking_discipline = self._resolve_booking_discipline(
             student,
             session.lab_work_id,
@@ -335,12 +340,6 @@ class BookingService:
             self._validate_manual_booking_window(session)
         else:
             self._validate_booking_window(session, skip_student_rules=skip_student_rules)
-
-        if student.role == UserRole.STUDENT and not skip_student_rules:
-            from apps.academics.querysets import student_can_access_lab_work
-
-            if not student_can_access_lab_work(student, session.lab_work_id):
-                raise BookingError("Лабораторная работа недоступна для вашей группы.")
 
         if manual:
             if self._stand_blocked_by_other_lab_work(session):

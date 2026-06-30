@@ -1,12 +1,11 @@
 import pytest
-from datetime import datetime
 
 from django.test import Client
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
-from apps.bookings.tests.conftest import create_lab_work
+from apps.bookings.tests.conftest import create_lab_work, next_open_weekday_pair, seed_manual_booking
 from apps.academics.querysets import (
     staff_disciplines_qs,
     staff_lab_works_qs,
@@ -203,8 +202,7 @@ def foreign_room(foreign_tc):
 
 @pytest.fixture
 def own_session(own_lab_work, own_room, semester):
-    tz = timezone.get_current_timezone()
-    starts = timezone.make_aware(datetime(2026, 7, 8, 10, 35), tz)
+    starts = next_open_weekday_pair(days_ahead=7)
     return LabSession.objects.create(
         lab_work=own_lab_work,
         room=own_room,
@@ -218,8 +216,7 @@ def own_session(own_lab_work, own_room, semester):
 
 @pytest.fixture
 def foreign_session(foreign_lab_work, foreign_room, semester):
-    tz = timezone.get_current_timezone()
-    starts = timezone.make_aware(datetime(2026, 7, 9, 10, 35), tz)
+    starts = next_open_weekday_pair(days_ahead=8)
     return LabSession.objects.create(
         lab_work=foreign_lab_work,
         room=foreign_room,
@@ -242,11 +239,7 @@ def own_booking(staff_with_lab, student, own_session):
 
 @pytest.fixture
 def foreign_booking(staff_with_lab, student, foreign_session):
-    return BookingService(actor=staff_with_lab).create_booking(
-        student,
-        foreign_session.pk,
-        manual=True,
-    )
+    return seed_manual_booking(actor=staff_with_lab, student=student, session=foreign_session)
 
 
 @pytest.fixture
@@ -740,8 +733,7 @@ def room_b(shared_tc, lab_b):
 
 @pytest.fixture
 def session_a(lab_a_lab_work, room_a, semester):
-    tz = timezone.get_current_timezone()
-    starts = timezone.make_aware(datetime(2026, 8, 4, 10, 35), tz)
+    starts = next_open_weekday_pair(days_ahead=7)
     return LabSession.objects.create(
         lab_work=lab_a_lab_work,
         room=room_a,
@@ -755,8 +747,7 @@ def session_a(lab_a_lab_work, room_a, semester):
 
 @pytest.fixture
 def session_b(lab_b_lab_work, room_b, semester):
-    tz = timezone.get_current_timezone()
-    starts = timezone.make_aware(datetime(2026, 8, 5, 10, 35), tz)
+    starts = next_open_weekday_pair(days_ahead=8)
     return LabSession.objects.create(
         lab_work=lab_b_lab_work,
         room=room_b,
@@ -770,20 +761,12 @@ def session_b(lab_b_lab_work, room_b, semester):
 
 @pytest.fixture
 def booking_a(staff_lab_a, student, session_a):
-    return BookingService(actor=staff_lab_a).create_booking(
-        student,
-        session_a.pk,
-        manual=True,
-    )
+    return seed_manual_booking(actor=staff_lab_a, student=student, session=session_a)
 
 
 @pytest.fixture
 def booking_b(staff_lab_a, student, session_b):
-    return BookingService(actor=staff_lab_a).create_booking(
-        student,
-        session_b.pk,
-        manual=True,
-    )
+    return seed_manual_booking(actor=staff_lab_a, student=student, session=session_b)
 
 
 @pytest.mark.django_db
@@ -925,8 +908,7 @@ def room_a_unassigned(shared_tc):
 
 @pytest.fixture
 def session_a_unassigned(lab_a_lab_work, room_a_unassigned, semester):
-    tz = timezone.get_current_timezone()
-    starts = timezone.make_aware(datetime(2026, 8, 6, 10, 35), tz)
+    starts = next_open_weekday_pair(days_ahead=9)
     return LabSession.objects.create(
         lab_work=lab_a_lab_work,
         room=room_a_unassigned,
@@ -967,10 +949,10 @@ class TestStaffLaboratoryScopeRegression:
         student,
         session_a_unassigned,
     ):
-        booking = BookingService(actor=staff_lab_a).create_booking(
-            student,
-            session_a_unassigned.pk,
-            manual=True,
+        booking = seed_manual_booking(
+            actor=staff_lab_a,
+            student=student,
+            session=session_a_unassigned,
         )
         client = Client()
         client.force_login(staff_lab_a)
