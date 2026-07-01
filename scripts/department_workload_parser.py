@@ -201,10 +201,14 @@ def parse_duration(raw) -> str:
     minutes = int(value)
     if minutes <= 0:
         return ""
-    allowed = (45, 90, 135, 180, 270, 360)
+    # Синхронизировать с apps.academics.models.ALLOWED_LAB_DURATIONS
+    allowed = (30, 45, 60, 90)
     if minutes in allowed:
         return str(minutes)
-    return str(min(allowed, key=lambda item: abs(item - minutes)))
+    for duration in allowed:
+        if duration >= minutes:
+            return str(duration)
+    return str(allowed[-1])
 
 
 def normalize_teacher_name(raw: str) -> str:

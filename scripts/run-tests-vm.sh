@@ -15,6 +15,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 PILOT_TESTS=(
+  apps/academics/tests/test_lab_duration_normalize.py
   apps/academics/tests/test_lab_work_dedupe.py
   apps/academics/tests/test_import_curated_catalog.py
   apps/bookings/tests/test_booking.py
@@ -26,6 +27,7 @@ PILOT_TESTS=(
 )
 
 CATALOG_TESTS=(
+  apps/academics/tests/test_lab_duration_normalize.py
   apps/academics/tests/test_lab_work_dedupe.py
   apps/academics/tests/test_import_curated_catalog.py
 )

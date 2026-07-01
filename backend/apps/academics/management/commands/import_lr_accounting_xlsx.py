@@ -10,8 +10,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils.text import slugify
 
-from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, Semester, StudentGroup
-from apps.academics.services.catalog_normalize import lab_work_match_key, normalize_lab_title
+from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
+from apps.academics.services.catalog_normalize import lab_work_match_key, normalize_lab_duration, normalize_lab_title
 from apps.bookings.models import Booking
 from apps.integrations.lr_accounting.names import DisplayName, shuffle_student_display_names
 from apps.integrations.lr_accounting.parser import ParsedLabWork, ParsedStudent, ParsedWorkbook, parse_workbook
@@ -255,7 +255,18 @@ class Command(BaseCommand):
                 if lab_work.default_room_id != room.id:
                     lab_work.default_room = room
                     changed = True
-                normalized_duration = self._normalize_duration(parsed_lab.duration_minutes)
+                normalized_duration = normalize_lab_duration(parsed_lab.duration_minutes)
+                if (
+                    parsed_lab.duration_minutes
+                    and normalized_duration
+                    and parsed_lab.duration_minutes != normalized_duration
+                ):
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"Длительность {parsed_lab.duration_minutes} мин округлена вверх "
+                            f"до {normalized_duration} мин."
+                        )
+                    )
                 if normalized_duration and lab_work.duration_minutes != normalized_duration:
                     lab_work.duration_minutes = normalized_duration
                     changed = True
@@ -287,7 +298,7 @@ class Command(BaseCommand):
                 lab_work = LabWork.objects.create(
                     number=parsed_lab.catalog_number or next_number,
                     title=parsed_lab.title,
-                    duration_minutes=self._normalize_duration(parsed_lab.duration_minutes) or 90,
+                    duration_minutes=normalize_lab_duration(parsed_lab.duration_minutes) or 90,
                     capacity=min(default_capacity, room.capacity),
                     default_room=room,
                     is_published=True,
@@ -434,16 +445,3 @@ class Command(BaseCommand):
         slug = slugify(title, allow_unicode=False)
         slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-")
         return (slug[:24] or "discipline").upper()
-
-    def _normalize_duration(self, duration: int | None) -> int | None:
-        if duration is None:
-            return None
-        if duration in ALLOWED_LAB_DURATIONS:
-            return duration
-        nearest = min(ALLOWED_LAB_DURATIONS, key=lambda value: abs(value - duration))
-        self.stdout.write(
-            self.style.WARNING(
-                f"Длительность {duration} мин заменена на допустимое значение {nearest} мин."
-            )
-        )
-        return nearest

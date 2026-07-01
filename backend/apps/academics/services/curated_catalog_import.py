@@ -7,7 +7,8 @@ from pathlib import Path
 
 from django.db import transaction
 
-from apps.academics.models import ALLOWED_LAB_DURATIONS, Department, Discipline, Faculty, LabWork, Semester, StudentGroup
+from apps.academics.models import Department, Discipline, Faculty, LabWork, Semester, StudentGroup
+from apps.academics.services.catalog_normalize import normalize_lab_duration
 from apps.academics.services.catalog_normalize import lab_work_match_key, normalize_lab_title
 from apps.scheduling.models import Laboratory, Room, TrainingCenter
 
@@ -46,11 +47,7 @@ def _parse_int(value: str) -> int | None:
 
 def _normalize_duration(value: str) -> int:
     minutes = _parse_int(value)
-    if not minutes:
-        return 90
-    if minutes in ALLOWED_LAB_DURATIONS:
-        return minutes
-    return min(ALLOWED_LAB_DURATIONS, key=lambda item: abs(item - minutes))
+    return normalize_lab_duration(minutes, default=90) or 90
 
 
 def _load_department_lab_map(studlab_dir: Path) -> dict[str, Laboratory]:
