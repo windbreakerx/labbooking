@@ -11,57 +11,48 @@
     </div>
     {% if user.is_authenticated %}
     <nav class="staff-pill-nav container" aria-label="Навигация сотрудника">
-        {% if user.role == 'LAB_ADMIN' or user.role == 'TEACHER' or user.role == 'SYS_ADMIN' %}
-        <div class="staff-pill-nav__group">
-            <span class="staff-pill-nav__label">Студенты</span>
-            <div class="staff-pill-nav__links">
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-bookings' %} pill-nav__link--current{% endif %}" href="{% url 'staff-bookings' %}">Записавшиеся</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-students' %} pill-nav__link--current{% endif %}" href="{% url 'staff-students' %}">Студенты</a>
+        <div class="staff-pill-nav__group staff-pill-nav__group--main">
+            <div class="staff-pill-nav__links staff-pill-nav__links--main">
+                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-bookings' %} pill-nav__link--current{% endif %}" href="{% url 'staff-bookings' %}">Записи</a>
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-support' %} pill-nav__link--current{% endif %}" href="{% url 'staff-support' %}">Обращения</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-reports' %} pill-nav__link--current{% endif %}" href="{% url 'staff-reports' %}">Отчёты</a>
-            </div>
-        </div>
-        <div class="staff-pill-nav__group">
-            <span class="staff-pill-nav__label">Лаборатория</span>
-            <div class="staff-pill-nav__links">
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-disciplines' %} pill-nav__link--current{% endif %}" href="{% url 'staff-disciplines' %}">Дисциплины</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-lab-works' %} pill-nav__link--current{% endif %}" href="{% url 'staff-lab-works' %}">Лаб. работы</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-rooms' %} pill-nav__link--current{% endif %}" href="{% url 'staff-rooms' %}">Аудитории</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-stands' %} pill-nav__link--current{% endif %}" href="{% url 'staff-stands' %}">Стенды</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-schedule' %} pill-nav__link--current{% endif %}" href="{% url 'staff-schedule' %}">Расписание</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-people' %} pill-nav__link--current{% endif %}" href="{% url 'staff-people' %}">Сотрудники</a>
-            </div>
-        </div>
-        {% endif %}
-        {% if user.role == 'LAB_HEAD' %}
-        <div class="staff-pill-nav__group">
-            <span class="staff-pill-nav__label">Студенты</span>
-            <div class="staff-pill-nav__links">
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-bookings' %} pill-nav__link--current{% endif %}" href="{% url 'staff-bookings' %}">Записавшиеся</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-students' %} pill-nav__link--current{% endif %}" href="{% url 'staff-students' %}">Студенты</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-support' %} pill-nav__link--current{% endif %}" href="{% url 'staff-support' %}">Обращения</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-reports' %} pill-nav__link--current{% endif %}" href="{% url 'staff-reports' %}">Отчёты</a>
-            </div>
-        </div>
-        <div class="staff-pill-nav__group">
-            <span class="staff-pill-nav__label">Кабинет завлаба</span>
-            <div class="staff-pill-nav__links">
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'lab-head-people' %} pill-nav__link--current{% endif %}" href="{% url 'lab-head-people' %}">Сотрудники</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'lab-head-bindings' %} pill-nav__link--current{% endif %}" href="{% url 'lab-head-bindings' %}">Дисциплины</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'lab-head-lab-works' %} pill-nav__link--current{% endif %}" href="{% url 'lab-head-lab-works' %}">Лаб. работы</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'lab-head-rooms' %} pill-nav__link--current{% endif %}" href="{% url 'lab-head-rooms' %}">Аудитории</a>
-                <a class="pill-nav__link{% if request.resolver_match.url_name == 'lab-head-stands' %} pill-nav__link--current{% endif %}" href="{% url 'lab-head-stands' %}">Стенды</a>
+                {% if user.role == 'LAB_HEAD' %}
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'lab-head-schedule' %} pill-nav__link--current{% endif %}" href="{% url 'lab-head-schedule' %}">Расписание</a>
+                {% else %}
+                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-schedule' %} pill-nav__link--current{% endif %}" href="{% url 'staff-schedule' %}">Расписание</a>
+                {% endif %}
+                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-reports' %} pill-nav__link--current{% endif %}" href="{% url 'staff-reports' %}">Отчёты</a>
+                <div class="staff-mega" aria-label="Кабинет завлаба">
+                    <button type="button" class="staff-mega__trigger">
+                        Кабинет завлаба
+                        <span class="staff-mega__caret" aria-hidden="true">▾</span>
+                    </button>
+                    <div class="staff-mega__menu" role="menu" aria-label="Разделы кабинета завлаба">
+                        {% if user.role == 'LAB_HEAD' %}
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-students' %} staff-mega__item--current{% endif %}" href="{% url 'staff-students' %}">Студенты</a>
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-people' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-people' %}">Сотрудники</a>
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-rooms' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-rooms' %}">Аудитории</a>
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-stands' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-stands' %}">Стенды</a>
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-bindings' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-bindings' %}">Дисциплины</a>
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-lab-works' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-lab-works' %}">Лаб. работы</a>
+                        {% else %}
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-students' %} staff-mega__item--current{% endif %}" href="{% url 'staff-students' %}">Студенты</a>
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-people' %} staff-mega__item--current{% endif %}" href="{% url 'staff-people' %}">Сотрудники</a>
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-rooms' %} staff-mega__item--current{% endif %}" href="{% url 'staff-rooms' %}">Аудитории</a>
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-stands' %} staff-mega__item--current{% endif %}" href="{% url 'staff-stands' %}">Стенды</a>
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-disciplines' %} staff-mega__item--current{% endif %}" href="{% url 'staff-disciplines' %}">Дисциплины</a>
+                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-lab-works' %} staff-mega__item--current{% endif %}" href="{% url 'staff-lab-works' %}">Лаб. работы</a>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
-        {% endif %}
         <div class="staff-pill-nav__group staff-pill-nav__group--end">
             <div class="staff-pill-nav__tools">
                 <div class="staff-user-chip">
                     <span class="staff-user-chip__name">{% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}</span>
                     <form method="post" action="{% url 'logout' %}" class="staff-user-chip__logout">
                         {% csrf_token %}
-                        <button type="submit" class="button button--ghost button--sm">Выход</button>
+                        <button type="submit" class="button button--ghost button--sm staff-user-chip__logout-btn">Выход</button>
                     </form>
                 </div>
                 {% if patch_notes_enabled %}
