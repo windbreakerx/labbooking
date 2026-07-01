@@ -3,8 +3,8 @@
 # Запуск из корня репозитория: bash scripts/run-tests-vm.sh
 #
 # Примеры:
-#   bash scripts/run-tests-vm.sh              # все test_*.py (~176)
-#   bash scripts/run-tests-vm.sh --pilot      # быстрый pilot-набор (~141)
+#   bash scripts/run-tests-vm.sh --pilot      # быстрый pilot-набор
+#   bash scripts/run-tests-vm.sh --catalog    # импорт каталога и дедупликация ЛР
 #   bash scripts/run-tests-vm.sh --manual-booking  # правила ручной записи (~25)
 #   bash scripts/run-tests-vm.sh apps/bookings/tests/test_staff_scope.py -v
 #   bash scripts/run-tests-vm.sh --full       # то же, что без аргументов (совместимость)
@@ -15,12 +15,19 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 PILOT_TESTS=(
+  apps/academics/tests/test_lab_work_dedupe.py
+  apps/academics/tests/test_import_curated_catalog.py
   apps/bookings/tests/test_booking.py
   apps/bookings/tests/test_student_scope.py
   apps/bookings/tests/test_staff_scope.py
   apps/bookings/tests/test_manual_booking.py
   apps/bookings/tests/test_lab_head_ui.py
   apps/bookings/tests/test_pilot_visibility.py
+)
+
+CATALOG_TESTS=(
+  apps/academics/tests/test_lab_work_dedupe.py
+  apps/academics/tests/test_import_curated_catalog.py
 )
 
 # Регрессия правил ручной записи (сотрудник/завлаб): окно дат, лимиты, стенд, пересечения.
@@ -96,6 +103,9 @@ collect_all_tests ALL_TESTS
 if [[ "${1:-}" == "--pilot" ]]; then
   shift
   run_pytest -v "${PILOT_TESTS[@]}" "$@"
+elif [[ "${1:-}" == "--catalog" ]]; then
+  shift
+  run_pytest -v "${CATALOG_TESTS[@]}" "$@"
 elif [[ "${1:-}" == "--manual-booking" ]]; then
   shift
   run_pytest -v "${MANUAL_BOOKING_TESTS[@]}" "$@"
