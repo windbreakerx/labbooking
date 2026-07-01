@@ -30,6 +30,7 @@ CATALOG_TESTS=(
   apps/academics/tests/test_lab_duration_normalize.py
   apps/academics/tests/test_lab_work_dedupe.py
   apps/academics/tests/test_import_curated_catalog.py
+  apps/academics/tests/test_workload_students.py
 )
 
 # Регрессия правил ручной записи (сотрудник/завлаб): окно дат, лимиты, стенд, пересечения.

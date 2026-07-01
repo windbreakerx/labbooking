@@ -84,7 +84,10 @@ echo "==> Дедупликация ЛР (после импорта)..."
 run dedupe_lab_works
 
 echo "==> Студенты по численности групп (новые кафедры)..."
-run generate_workload_students --templates-dir "$CONTAINER_TEMPLATES_DIR"
+run generate_workload_students \
+  --templates-dir "$CONTAINER_TEMPLATES_DIR" \
+  --academic-year "2025-2026" \
+  --max-per-group 40
 
 if [[ -f "$TEMPLATES_DIR/pilot_staff.csv" ]]; then
   echo "==> Staff НГФ (pilot_staff.csv)..."

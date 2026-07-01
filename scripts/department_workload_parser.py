@@ -354,7 +354,12 @@ def parse_sheet(ws, sheet_name: str, profile: DepartmentProfile) -> list[ParsedR
             if not col:
                 continue
             raw = ws.cell(row_idx, col).value
-            value = parse_int(raw) if key != "semester_dates" else norm(raw)
+            if key == "semester_dates":
+                value = norm(raw)
+            else:
+                value = parse_int(raw)
+                if key == "student_count" and value and value > 50:
+                    value = min(value, 40)
             if value:
                 carry[key] = value
 
