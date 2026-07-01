@@ -100,6 +100,29 @@ NGF_DEPARTMENT_RULES: list[tuple[list[str], str, str]] = [
     ),
 ]
 
+# Ручные правки после ревью (ошибки studlab / межкафедральные аудитории).
+ROOM_PURPOSE_OVERRIDES: dict[tuple[str, str], str] = {
+    (
+        "НГФ",
+        "2113",
+    ): (
+        "изучение бурового оборудования и инструмента; "
+        "закрепление и углубление знаний студентов по технологиям бурения скважин."
+    ),
+}
+
+ROOM_REVIEW_COMMENTS: dict[tuple[str, str], str] = {
+    ("НГФ", "3428"): "ТХНГ+РНГМ: межкафедральная программа, привязку уточнить вручную",
+}
+
+NGF_LAB_HEAD_EMAILS = frozenset(
+    {
+        "ngflab@spmi.ru",
+        "golikov_ts@pers.spmi.ru",
+        "skachkov_ri@pers.spmi.ru",
+    }
+)
+
 
 def read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(encoding="utf-8-sig", newline="") as handle:
@@ -174,6 +197,18 @@ def suggest_ngf_department(text: str) -> tuple[str, str]:
         if any(keyword in lowered for keyword in keywords):
             return code, title
     return "", ""
+
+
+def suggest_staff_role(position: str, email: str, is_head: bool) -> str:
+    position_lower = position.lower()
+    email_lower = email.lower()
+    if is_head:
+        return "LAB_HEAD"
+    if "заведующий кафедрой" in position_lower or "заведующий кафедры" in position_lower:
+        return "LAB_HEAD"
+    if email_lower in NGF_LAB_HEAD_EMAILS:
+        return "LAB_HEAD"
+    return "LAB_ADMIN"
 
 
 def split_full_name(full_name: str) -> tuple[str, str, str]:
@@ -357,21 +392,24 @@ def normalize_rooms(rows: list[dict[str, str]], laboratories: list[dict[str, str
         if faculty_code == "НГФ" and not department_title:
             department_code, department_title = suggest_ngf_department(room_name)
             department_code = department_code_for_title(department_title, department_code)
+        room_number = row.get("room_number", "").strip()
+        room_key = (faculty_code, room_number)
+        purpose = ROOM_PURPOSE_OVERRIDES.get(room_key) or truncate(row.get("purpose", ""))
         normalized.append(
             {
                 "faculty_code": faculty_code,
                 "training_center_number": row.get("training_center_number", "").strip(),
-                "room_number": row.get("room_number", "").strip(),
+                "room_number": room_number,
                 "room_name": room_name,
                 "room_name_short": short_lab_name(room_name, max_len=64),
                 "laboratory_studlab_id": lab_id,
                 "laboratory_name_short": lab.get("lab_name_short", short_lab_name(row.get("laboratory_name", ""))),
                 "department_code_suggested": department_code,
                 "department_title": department_title,
-                "purpose_short": truncate(row.get("purpose", "")),
+                "purpose_short": purpose,
                 "studlab_url": row.get("source_url", "").strip(),
                 "check_ok": "",
-                "review_comment": "",
+                "review_comment": ROOM_REVIEW_COMMENTS.get(room_key, ""),
             }
         )
     normalized.sort(
@@ -393,6 +431,9 @@ def normalize_staff(rows: list[dict[str, str]], laboratories: list[dict[str, str
         lab = lab_by_id.get(lab_id, {})
         phone, internal = normalize_phone(row.get("phone", ""))
         is_head = row.get("is_head", "").strip() in {"1", "true", "True", "yes"}
+        position = row.get("position", "").strip()
+        email = row.get("email", "").strip()
+        role = suggest_staff_role(position, email, is_head)
         normalized.append(
             {
                 "faculty_code": faculty_code,
@@ -411,14 +452,14 @@ def normalize_staff(rows: list[dict[str, str]], laboratories: list[dict[str, str
                     ]
                     if part
                 ),
-                "position": row.get("position", "").strip(),
-                "email": row.get("email", "").strip(),
+                "position": position,
+                "email": email,
                 "phone": phone,
                 "internal_phone": internal,
                 "room_number": row.get("room_number", "").strip(),
                 "training_center_numbers": row.get("training_center_numbers", "").strip(),
-                "is_head": "да" if is_head else "нет",
-                "role_suggested": "LAB_HEAD" if is_head else "LAB_ADMIN",
+                "is_head": "да" if role == "LAB_HEAD" else "нет",
+                "role_suggested": role,
                 "studlab_url": row.get("source_url", "").strip(),
                 "check_ok": "",
                 "review_comment": "",
@@ -633,7 +674,8 @@ def main() -> int:
                 "",
                 "- `department_code_suggested` — справочник `KNOWN_DEPARTMENT_CODES` (НГФ + все кафедры из studlab);",
                 "  для НГФ без подсказки — по ключевым словам в названии лаборатории/аудитории",
-                "- `role_suggested` — LAB_HEAD / LAB_ADMIN",
+                "- `role_suggested` — LAB_HEAD: руководитель с сайта, завкафедрой, или КУЛ НГФ (ngflab@, Golikov, Skachkov)",
+                "- `ROOM_PURPOSE_OVERRIDES` — ручные правки описаний аудиторий (напр. 2113 без ГДИ)",
                 "- `phone` и `internal_phone` разделены из строки вида `8 (812) ... (14-83)`",
                 "",
                 "## Перегенерация",
