@@ -113,13 +113,15 @@
 }
 
 .staff-mega__trigger--cabinet {
-    min-height: 2.5rem;
-    padding: 0.35rem 1rem;
-    border-radius: var(--radius-pill);
+    min-height: 2.75rem;
+    padding: 0.35rem 1.05rem;
+    border-radius: 9999px !important;
     border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
     background: linear-gradient(180deg, #edf4ff 0%, #e6f0ff 100%);
     color: var(--color-primary);
     font-weight: var(--font-weight-semibold);
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .staff-mega__caret {
