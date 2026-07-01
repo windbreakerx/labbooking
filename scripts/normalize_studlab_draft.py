@@ -27,6 +27,37 @@ LAB_TYPE_RU = {
     "INTERDEPT": "Межкафедральная",
 }
 
+# Коды кафедр: подтверждённые вручную (НГФ) и по почтовым ящикам spmi.ru/sveden/struct.
+KNOWN_DEPARTMENT_CODES = {
+    # НГФ
+    "Кафедра бурения скважин": "БС",
+    "Кафедра разработки и эксплуатации нефтяных и газовых месторождений": "РНГМ",
+    "Кафедра транспорта и хранения нефти и газа": "ТХНГ",
+    # ГФ
+    "Кафедра безопасности производств": "БП",
+    # ГРФ
+    "Кафедра геологии и разведки месторождений полезных ископаемых": "ГРМПИ",
+    "Кафедра геологии нефти и газа": "ГНГ",
+    "Кафедра геофизики": "ГЕОФ",
+    "Кафедра гидрогеологии и инженерной геологии": "ГИГ",
+    "Кафедра исторической и динамической геологии": "ИДГ",
+    "Кафедра минералогии, кристаллографии и петрографии": "МКП",
+    # ФПМС
+    "Кафедра автоматизации технологических процессов и производств": "АТПП",
+    # ММФ
+    "Кафедра материаловедения и технологии художественных изделий": "МТХИ",
+    "Кафедра машиностроения": "МАШ",
+    "Кафедра метрологии, приборостроения и управления качеством": "МЕТРО",
+    "Кафедра транспортно-технологических процессов и машин": "ТТПМ",
+    # СФ
+    "Кафедра механики": "МЕХ",
+    # ЭФ
+    "Кафедра общей электротехники": "ОЭ",
+    "Кафедра теплотехники и теплоэнергетики": "ТТЭ",
+    "Кафедра электронных систем": "ЭС",
+    "Кафедра электроэнергетики и электромеханики": "ЭЭМ",
+}
+
 NGF_DEPARTMENT_RULES: list[tuple[list[str], str, str]] = [
     (
         [
@@ -39,7 +70,7 @@ NGF_DEPARTMENT_RULES: list[tuple[list[str], str, str]] = [
             "газогенератор",
             "трубопровод",
         ],
-        "ТНГ",
+        "ТХНГ",
         "Кафедра транспорта и хранения нефти и газа",
     ),
     (
@@ -52,7 +83,7 @@ NGF_DEPARTMENT_RULES: list[tuple[list[str], str, str]] = [
             "ремонт скважин",
             "породоразруша",
         ],
-        "БУР",
+        "БС",
         "Кафедра бурения скважин",
     ),
     (
@@ -90,6 +121,51 @@ def normalize_department_title(hint: str) -> str:
     if hint.lower().startswith("кафедра "):
         return hint
     return f"Кафедра {hint}"
+
+
+def department_code_for_title(title: str, suggested: str = "") -> str:
+    return KNOWN_DEPARTMENT_CODES.get(title.strip(), suggested)
+
+
+def infer_department_from_text(*texts: str) -> tuple[str, str]:
+    combined = " ".join(text for text in texts if text).lower()
+    if not combined:
+        return "", ""
+    matches: list[tuple[int, str, str]] = []
+    for title, code in KNOWN_DEPARTMENT_CODES.items():
+        fragment = title.removeprefix("Кафедра ").lower()
+        if _department_fragment_matches(fragment, combined):
+            matches.append((len(fragment), title, code))
+    if not matches:
+        return "", ""
+    matches.sort(key=lambda item: item[0], reverse=True)
+    _, title, code = matches[0]
+    return title, code
+
+
+def _department_fragment_matches(fragment: str, text: str) -> bool:
+    start = 0
+    while True:
+        idx = text.find(fragment, start)
+        if idx == -1:
+            return False
+        before_ok = idx == 0 or not text[idx - 1].isalpha()
+        after_idx = idx + len(fragment)
+        after_ok = after_idx >= len(text) or not text[after_idx].isalpha()
+        if before_ok and after_ok:
+            return True
+        start = idx + 1
+
+
+def resolve_department(faculty_code: str, hint: str, lab_name: str = "") -> tuple[str, str]:
+    department_title = normalize_department_title(hint)
+    department_code = department_code_for_title(department_title)
+    if not department_title:
+        department_title, department_code = infer_department_from_text(hint, lab_name)
+    if faculty_code == "НГФ" and not department_title:
+        department_code, department_title = suggest_ngf_department(lab_name or hint)
+        department_code = department_code_for_title(department_title, department_code)
+    return department_title, department_code
 
 
 def suggest_ngf_department(text: str) -> tuple[str, str]:
@@ -222,10 +298,11 @@ def normalize_laboratories(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     normalized = []
     for row in rows:
         faculty_code = row.get("faculty_code", "").strip()
-        department_title = normalize_department_title(row.get("department_hint", ""))
-        department_code = ""
-        if faculty_code == "НГФ" and not department_title:
-            department_code, department_title = suggest_ngf_department(row.get("name", ""))
+        department_title, department_code = resolve_department(
+            faculty_code,
+            row.get("department_hint", ""),
+            row.get("name", ""),
+        )
         head_last, head_first, head_middle = split_full_name(row.get("head_full_name", ""))
         phone, internal = normalize_phone(row.get("head_phone", ""))
         lab_type = row.get("lab_type", "").strip()
@@ -272,11 +349,14 @@ def normalize_rooms(rows: list[dict[str, str]], laboratories: list[dict[str, str
         faculty_code = row.get("faculty_code", "").strip()
         lab_id = row.get("laboratory_studlab_id", "").strip()
         lab = lab_by_id.get(lab_id, {})
-        department_title = normalize_department_title(row.get("department_hint", "") or lab.get("department_title", ""))
-        department_code = lab.get("department_code_suggested", "")
         room_name = row.get("room_name", "").strip()
+        department_title = normalize_department_title(
+            row.get("department_hint", "") or lab.get("department_title", "")
+        )
+        department_code = department_code_for_title(department_title, lab.get("department_code_suggested", ""))
         if faculty_code == "НГФ" and not department_title:
             department_code, department_title = suggest_ngf_department(room_name)
+            department_code = department_code_for_title(department_title, department_code)
         normalized.append(
             {
                 "faculty_code": faculty_code,
@@ -369,14 +449,14 @@ def build_departments(laboratories: list[dict[str, str]], rooms: list[dict[str, 
             if key not in seen:
                 seen[key] = {
                     "faculty_code": faculty_code,
-                    "department_code_suggested": code,
+                    "department_code_suggested": department_code_for_title(title, code),
                     "department_title": title,
                     "source": "studlab_hint",
                     "check_ok": "",
                     "review_comment": "",
                 }
             elif code and not seen[key]["department_code_suggested"]:
-                seen[key]["department_code_suggested"] = code
+                seen[key]["department_code_suggested"] = department_code_for_title(title, code)
     rows = list(seen.values())
     rows.sort(key=lambda item: (FACULTY_ORDER.get(item["faculty_code"], 99), item["department_title"]))
     return rows
@@ -551,7 +631,8 @@ def main() -> int:
                 "",
                 "## Эвристики (проверить вручную)",
                 "",
-                "- `department_code_suggested` для НГФ — по ключевым словам в названии аудитории",
+                "- `department_code_suggested` — справочник `KNOWN_DEPARTMENT_CODES` (НГФ + все кафедры из studlab);",
+                "  для НГФ без подсказки — по ключевым словам в названии лаборатории/аудитории",
                 "- `role_suggested` — LAB_HEAD / LAB_ADMIN",
                 "- `phone` и `internal_phone` разделены из строки вида `8 (812) ... (14-83)`",
                 "",

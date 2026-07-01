@@ -18,7 +18,8 @@
 
 ## Эвристики (проверить вручную)
 
-- `department_code_suggested` для НГФ — по ключевым словам в названии аудитории
+- `department_code_suggested` — справочник `KNOWN_DEPARTMENT_CODES` (НГФ + все кафедры из studlab);
+  для НГФ без подсказки — по ключевым словам в названии лаборатории/аудитории
 - `role_suggested` — LAB_HEAD / LAB_ADMIN
 - `phone` и `internal_phone` разделены из строки вида `8 (812) ... (14-83)`
 
