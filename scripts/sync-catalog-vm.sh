@@ -50,6 +50,8 @@ fi
 
 STUDLAB_DIR="docs/csv_templates/studlab_draft"
 TEMPLATES_DIR="docs/csv_templates"
+CONTAINER_TEMPLATES_DIR="/tmp/csv_templates"
+CONTAINER_STUDLAB_DIR="/tmp/csv_templates/studlab_draft"
 SEMESTER="Весна 2025/2026"
 
 if [[ ! -d "$TEMPLATES_DIR/studlab_draft" ]]; then
@@ -58,8 +60,8 @@ if [[ ! -d "$TEMPLATES_DIR/studlab_draft" ]]; then
 fi
 
 echo "==> Копирование CSV-каталогов в контейнер..."
-$COMPOSE exec -T web mkdir -p /app/docs/csv_templates
-$COMPOSE cp "${TEMPLATES_DIR}/." web:/app/docs/csv_templates/
+$COMPOSE exec -T web mkdir -p "$CONTAINER_TEMPLATES_DIR"
+$COMPOSE cp "${TEMPLATES_DIR}/." "web:${CONTAINER_TEMPLATES_DIR}/"
 
 run() {
   echo "==> $*"
@@ -67,23 +69,26 @@ run() {
 }
 
 echo "==> Оргструктура studlab..."
-run import_studlab_org "$STUDLAB_DIR"
+run import_studlab_org "$CONTAINER_STUDLAB_DIR"
 
 echo "==> Дедупликация ЛР (до импорта каталога)..."
 run dedupe_lab_works
 
 echo "==> Каталоги кафедр из workload drafts..."
-run import_curated_catalog --templates-dir "$TEMPLATES_DIR" --studlab-dir "$STUDLAB_DIR" --semester "$SEMESTER"
+run import_curated_catalog \
+  --templates-dir "$CONTAINER_TEMPLATES_DIR" \
+  --studlab-dir "$CONTAINER_STUDLAB_DIR" \
+  --semester "$SEMESTER"
 
 echo "==> Дедупликация ЛР (после импорта)..."
 run dedupe_lab_works
 
 echo "==> Студенты по численности групп (новые кафедры)..."
-run generate_workload_students --templates-dir "$TEMPLATES_DIR"
+run generate_workload_students --templates-dir "$CONTAINER_TEMPLATES_DIR"
 
 if [[ -f "$TEMPLATES_DIR/pilot_staff.csv" ]]; then
   echo "==> Staff НГФ (pilot_staff.csv)..."
-  run import_dekanat_csv "$TEMPLATES_DIR/pilot_staff.csv" --type staff --default-password pilot123
+  run import_dekanat_csv "${CONTAINER_TEMPLATES_DIR}/pilot_staff.csv" --type staff --default-password pilot123
 fi
 
 if [[ "$GENERATE_SESSIONS" -eq 1 ]]; then
