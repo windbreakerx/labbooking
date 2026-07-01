@@ -2359,6 +2359,20 @@ dialog[open].app-dialog--scrollable {
     display: none;
 }
 
+.staff-students-table {
+    width: 100%;
+}
+
+.student-bookings-list {
+    margin: var(--space-2) 0 0;
+    padding-left: 1.25rem;
+    list-style: disc;
+}
+
+.student-bookings-list li + li {
+    margin-top: var(--space-1);
+}
+
 .staff-booking-card {
     padding: var(--space-4);
     border: 1px solid var(--color-border);

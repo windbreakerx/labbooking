@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 from django.db import transaction
+from django.db.models import Q
 from django.db.utils import OperationalError
 from django.utils import timezone
 
@@ -688,6 +689,16 @@ BOOKING_SORT_FIELDS: dict[str, tuple[list[str], str]] = {
 }
 
 
+STUDENT_SORT_FIELDS: dict[str, tuple[list[str], str]] = {
+    "name": (["last_name", "first_name", "email"], "asc"),
+    "email": (["email"], "asc"),
+    "group": (
+        ["profile__student_group__name", "profile__group_name", "last_name", "first_name"],
+        "asc",
+    ),
+}
+
+
 def order_bookings_queryset(qs, params):
     sort_key = params.get("sort")
     if not sort_key or sort_key not in BOOKING_SORT_FIELDS:
@@ -705,9 +716,24 @@ def order_bookings_queryset(qs, params):
     return qs.order_by(*order_fields)
 
 
-def filter_staff_bookings(qs, params):
-    from django.db.models import Q
+def order_students_queryset(qs, params):
+    sort_key = params.get("sort")
+    if not sort_key or sort_key not in STUDENT_SORT_FIELDS:
+        return qs.order_by("last_name", "first_name", "email")
 
+    fields, default_dir = STUDENT_SORT_FIELDS[sort_key]
+    direction = params.get("dir", default_dir)
+    if direction not in {"asc", "desc"}:
+        direction = default_dir
+
+    if direction == "desc":
+        order_fields = [f"-{field}" for field in fields]
+    else:
+        order_fields = list(fields)
+    return qs.order_by(*order_fields)
+
+
+def filter_staff_bookings(qs, params):
     if status_val := params.get("status"):
         qs = qs.filter(current_status=status_val)
     if discipline_id := params.get("discipline"):
@@ -722,8 +748,6 @@ def filter_staff_bookings(qs, params):
 
 
 def _student_search_q(query: str, *, prefix: str = ""):
-    from django.db.models import Q
-
     query = query.strip()
     parts = query.split()
     if len(parts) >= 2:
@@ -743,8 +767,6 @@ def _student_search_q(query: str, *, prefix: str = ""):
 
 
 def search_students_for_staff(query: str, limit: int = 15):
-    from django.db.models import Q
-
     query = (query or "").strip()
     if len(query) < 2:
         return User.objects.none()

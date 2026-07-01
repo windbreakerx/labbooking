@@ -1,4 +1,5 @@
 {% extends "base_staff.html" %}
+{% load table_sort %}
 {% block title %}Студенты — staff{% endblock %}
 {% block content %}
 <header class="page-header">
@@ -29,21 +30,21 @@
 </section>
 
 <div class="table-wrap">
-    <table class="table table--compact table--sticky responsive-table staff-table">
+    <table class="table table--compact table--sticky staff-students-table">
         <thead>
             <tr>
-                <th>ФИО</th>
-                <th>Email</th>
-                <th>Группа</th>
-                <th>Записи</th>
+                {% sortable_th "name" "ФИО" %}
+                {% sortable_th "email" "Email" %}
+                {% sortable_th "group" "Группа" %}
+                <th scope="col">Записи</th>
             </tr>
         </thead>
         <tbody>
             {% for student in students %}
             <tr>
-                <td data-label="ФИО"><strong>{{ student.full_name }}</strong></td>
-                <td data-label="Email"><span class="muted">{{ student.email }}</span></td>
-                <td data-label="Группа">
+                <td><strong>{{ student.full_name }}</strong></td>
+                <td><span class="muted">{{ student.email }}</span></td>
+                <td>
                     {% if student.profile.student_group %}
                     {{ student.profile.student_group.name }}
                     {% elif student.profile.group_name %}
@@ -52,7 +53,7 @@
                     <span class="muted">—</span>
                     {% endif %}
                 </td>
-                <td data-label="Записи">
+                <td>
                     {% if student.scoped_bookings %}
                     <details class="row-actions">
                         <summary>{{ student.scoped_bookings|length }} {% if student.scoped_bookings|length == 1 %}запись{% elif student.scoped_bookings|length >= 2 and student.scoped_bookings|length <= 4 %}записи{% else %}записей{% endif %}</summary>
@@ -93,11 +94,11 @@
 {% if is_paginated %}
 <nav class="pagination" aria-label="Страницы">
     {% if page_obj.has_previous %}
-    <a class="button button--secondary button--sm" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if group_query %}&amp;group={{ group_query|urlencode }}{% endif %}">Назад</a>
+    <a class="button button--secondary button--sm" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if group_query %}&amp;group={{ group_query|urlencode }}{% endif %}{% if request.GET.sort %}&amp;sort={{ request.GET.sort|urlencode }}&amp;dir={{ request.GET.dir|urlencode }}{% endif %}">Назад</a>
     {% endif %}
     <span class="muted">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
-    <a class="button button--secondary button--sm" href="?page={{ page_obj.next_page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if group_query %}&amp;group={{ group_query|urlencode }}{% endif %}">Вперёд</a>
+    <a class="button button--secondary button--sm" href="?page={{ page_obj.next_page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if group_query %}&amp;group={{ group_query|urlencode }}{% endif %}{% if request.GET.sort %}&amp;sort={{ request.GET.sort|urlencode }}&amp;dir={{ request.GET.dir|urlencode }}{% endif %}">Вперёд</a>
     {% endif %}
 </nav>
 {% endif %}

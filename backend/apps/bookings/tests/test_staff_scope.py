@@ -466,6 +466,31 @@ class TestStaffScopeWeb:
         ids = set(staff_students_qs(staff_with_lab).values_list("pk", flat=True))
         assert foreign_student.pk not in ids
 
+    def test_staff_students_filter_by_group(self, staff_with_lab, student, student_group):
+        client = Client()
+        client.force_login(staff_with_lab)
+        response = client.get("/staff/students/", {"group": student_group.name})
+        assert response.status_code == 200
+        assert student.email.encode() in response.content
+
+    def test_staff_students_sort_by_email(self, staff_with_lab, student, student_group):
+        other = User.objects.create_user(
+            email="aaa-student@stud.spmi.ru",
+            password="pass",
+            first_name="А",
+            last_name="Яя",
+            role=UserRole.STUDENT,
+        )
+        other.profile.student_group = student_group
+        other.profile.save(update_fields=["student_group"])
+
+        client = Client()
+        client.force_login(staff_with_lab)
+        response = client.get("/staff/students/", {"sort": "email", "dir": "asc"})
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert content.index("aaa-student@stud.spmi.ru") < content.index(student.email)
+
     def test_staff_no_lab_empty_pages(self, staff_no_lab, own_discipline, foreign_discipline, own_ticket):
         client = Client()
         client.force_login(staff_no_lab)

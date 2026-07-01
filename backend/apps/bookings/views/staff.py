@@ -14,7 +14,7 @@ from apps.academics.querysets import (
 )
 from apps.bookings.models import Booking, SupportMessage, SupportTicket
 from apps.bookings.reports import generate_report
-from apps.bookings.services import filter_staff_students, is_staff_user, staff_lab_filter
+from apps.bookings.services import filter_staff_students, is_staff_user, order_students_queryset, staff_lab_filter
 from apps.bookings.services.methodics import delete_lab_work_methodics, upload_lab_work_methodics
 from apps.scheduling.models import LabStand, ScheduleEntry
 from apps.users.models import UserRole
@@ -168,12 +168,16 @@ class StaffStudentsView(StaffRequiredMixin, ListView):
         qs = staff_students_qs(self.request.user).prefetch_related(
             Prefetch("bookings", queryset=scoped_bookings, to_attr="scoped_bookings"),
         )
-        return filter_staff_students(qs, self.request.GET)
+        qs = filter_staff_students(qs, self.request.GET)
+        return order_students_queryset(qs, self.request.GET)
 
     def get_context_data(self, **kwargs):
+        from apps.bookings.services.booking import STUDENT_SORT_FIELDS
+
         ctx = super().get_context_data(**kwargs)
         ctx["search_query"] = self.request.GET.get("q", "").strip()
         ctx["group_query"] = self.request.GET.get("group", "").strip()
+        ctx["sort_fields"] = STUDENT_SORT_FIELDS
         return ctx
 
 
