@@ -18,3 +18,7 @@ class EmailAuthenticationForm(AuthenticationForm):
             }
         )
         self.fields["password"].widget.attrs.update({"autocomplete": "current-password"})
+
+    def clean_username(self):
+        username = self.cleaned_data["username"]
+        return username.strip().lower()
