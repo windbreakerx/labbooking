@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+from django.contrib.auth.hashers import make_password
 from django.db import transaction
 
 from apps.academics.models import Department, Faculty
@@ -63,7 +64,7 @@ def _upsert_department(
 
 
 @transaction.atomic
-def import_studlab_draft(draft_dir: Path) -> dict[str, int]:
+def import_studlab_draft(draft_dir: Path, *, default_password: str = "changeme123") -> dict[str, int]:
     stats = {
         "faculties": 0,
         "training_centers": 0,
@@ -73,6 +74,7 @@ def import_studlab_draft(draft_dir: Path) -> dict[str, int]:
         "staff": 0,
     }
     lab_by_studlab_id: dict[str, Laboratory] = {}
+    password_hash = make_password(default_password)
 
     for row in _read_csv(draft_dir / "01_faculties.csv"):
         code = _clean(row, "faculty_code")
@@ -180,8 +182,12 @@ def import_studlab_draft(draft_dir: Path) -> dict[str, int]:
                 "last_name": _clean(row, "last_name"),
                 "role": role,
                 "is_staff": True,
+                "password": password_hash,
             },
         )
+        if not created:
+            user.set_password(default_password)
+            user.save(update_fields=["password"])
         studlab_lab_id = _clean(row, "laboratory_studlab_id")
         laboratory = lab_by_studlab_id.get(studlab_lab_id)
         tc_numbers = [part for part in _clean(row, "training_center_numbers").split("|") if part.isdigit()]

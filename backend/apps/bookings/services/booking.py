@@ -754,3 +754,16 @@ def search_students_for_staff(query: str, limit: int = 15):
         .filter(_student_search_q(query))
         .order_by("last_name", "first_name", "email")[:limit]
     )
+
+
+def filter_staff_students(qs, params):
+    query = (params.get("q") or params.get("student") or "").strip()
+    group = (params.get("group") or "").strip()
+    if query:
+        qs = qs.filter(_student_search_q(query))
+    if group:
+        qs = qs.filter(
+            Q(profile__student_group__name__icontains=group)
+            | Q(profile__group_name__icontains=group)
+        )
+    return qs.distinct()

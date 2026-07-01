@@ -38,6 +38,7 @@ from apps.bookings.services.lab_head import (
     lab_head_training_center_in_scope,
     lab_head_training_centers_qs,
     lab_head_create_lab_work,
+    lab_head_delete_lab_work,
     lab_head_departments_for_disciplines,
     lab_head_department_folders_qs,
     lab_head_create_department_folder,
@@ -489,6 +490,24 @@ class LabHeadLabWorkUpdateView(LabHeadRequiredMixin, View):
             return redirect("lab-head-lab-works")
 
         messages.success(request, f"Лабораторная работа «{lab_work.title}» обновлена.")
+        return redirect("lab-head-lab-works")
+
+
+class LabHeadLabWorkDeleteView(LabHeadRequiredMixin, View):
+    def post(self, request, pk):
+        lab_work = lab_head_lab_work_in_scope(request.user, pk)
+        if not lab_work:
+            messages.error(request, "Лабораторная работа недоступна.")
+            return redirect("lab-head-lab-works")
+
+        lab_work_title = lab_work.title
+        try:
+            lab_head_delete_lab_work(request.user, lab_work)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("lab-head-lab-works")
+
+        messages.success(request, f"Лабораторная работа «{lab_work_title}» удалена.")
         return redirect("lab-head-lab-works")
 
 

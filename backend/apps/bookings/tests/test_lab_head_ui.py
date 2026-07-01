@@ -321,6 +321,21 @@ class TestLabHeadBindings:
         lab_work.refresh_from_db()
         assert lab_work.is_published is False
 
+    def test_delete_lab_work(self, client_logged_in, own_laboratory, own_discipline):
+        lab_work = create_lab_work(
+            own_discipline,
+            number=6,
+            title="ЛР для удаления",
+            duration_minutes=90,
+            capacity=10,
+            is_published=True,
+        )
+        lab_work.laboratories.add(own_laboratory)
+        lab_work_id = lab_work.pk
+        response = client_logged_in.post(reverse("lab-head-lab-work-delete", kwargs={"pk": lab_work_id}))
+        assert response.status_code == 302
+        assert not LabWork.objects.filter(pk=lab_work_id).exists()
+
     def test_unpublish_lab_work_with_same_number_in_another_discipline(
         self,
         client_logged_in,
@@ -360,6 +375,66 @@ class TestLabHeadBindings:
         assert response.status_code == 302
         first_lab_work.refresh_from_db()
         assert first_lab_work.is_published is False
+
+    def test_delete_lab_work(self, client_logged_in, own_laboratory, own_discipline):
+        from apps.academics.models import LabWork
+
+        lab_work = create_lab_work(
+            own_discipline,
+            number=5,
+            title="ЛР для удаления",
+            duration_minutes=90,
+            capacity=10,
+            is_published=True,
+        )
+        lab_work.laboratories.add(own_laboratory)
+        lab_work_id = lab_work.pk
+        response = client_logged_in.post(reverse("lab-head-lab-work-delete", kwargs={"pk": lab_work_id}))
+        assert response.status_code == 302
+        assert not LabWork.objects.filter(pk=lab_work_id).exists()
+
+    def test_delete_lab_work_blocked_with_active_booking(
+        self,
+        client_logged_in,
+        own_laboratory,
+        own_discipline,
+        own_room,
+        lab_head,
+    ):
+        from apps.academics.models import LabWork
+        from apps.bookings.models import Booking, BookingStatus
+
+        lab_work = create_lab_work(
+            own_discipline,
+            number=6,
+            title="ЛР с записью",
+            duration_minutes=90,
+            capacity=10,
+            is_published=True,
+        )
+        lab_work.laboratories.add(own_laboratory)
+        starts = timezone.now() + timezone.timedelta(days=2)
+        session = LabSession.objects.create(
+            lab_work=lab_work,
+            room=own_room,
+            semester=own_discipline.semester,
+            starts_at=starts,
+            ends_at=starts + timezone.timedelta(minutes=90),
+            capacity=10,
+            status=LabSessionStatus.OPEN,
+        )
+        Booking.objects.create(
+            student=lab_head,
+            lab_session=session,
+            lab_work=lab_work,
+            discipline=own_discipline,
+            room=own_room,
+            scheduled_at=session.starts_at,
+            current_status=BookingStatus.BOOKED,
+        )
+        response = client_logged_in.post(reverse("lab-head-lab-work-delete", kwargs={"pk": lab_work.pk}))
+        assert response.status_code == 302
+        assert LabWork.objects.filter(pk=lab_work.pk).exists()
 
     def test_update_duration_updates_only_free_open_sessions(
         self,

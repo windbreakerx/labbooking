@@ -40,6 +40,7 @@
                 <span class="lab-work-item__number">№{{ lw.number }}</span>
                 {% if lw.code %}<span class="badge badge--muted">{{ lw.code }}</span>{% endif %}
                 <span class="lab-work-item__title">{{ lw.title }}</span>
+                {% if lw.default_room %}<span class="badge badge--muted">ауд. {{ lw.default_room.number }}</span>{% endif %}
                 {% if lw.is_published %}
                 <span class="status-badge status-badge--with-dot status-badge--visited lab-work-item__status">Опубликовано</span>
                 {% else %}
@@ -262,6 +263,10 @@
             <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
         </div>
     </form>
+    <form method="post" action="" class="lab-work-delete-form" id="lab-work-delete-form">
+        {% csrf_token %}
+        <button type="submit" class="button button--danger button--sm">Удалить лабораторную работу</button>
+    </form>
 </dialog>
 
 <script>
@@ -269,6 +274,7 @@
     var createDialog = document.getElementById('lab-work-create-dialog');
     var editDialog = document.getElementById('lab-work-edit-dialog');
     var editForm = document.getElementById('lab-work-edit-form');
+    var deleteForm = document.getElementById('lab-work-delete-form');
     var editSubtitle = document.getElementById('lab-work-edit-subtitle');
     var createOpenBtn = document.getElementById('lab-work-create-open');
 
@@ -302,6 +308,9 @@
         }
         var labWorkId = source.getAttribute('data-lab-work-id');
         editForm.action = '{% url "lab-head-lab-work-update" pk=0 %}'.replace('/0/', '/' + labWorkId + '/');
+        if (deleteForm) {
+            deleteForm.action = '{% url "lab-head-lab-work-delete" pk=0 %}'.replace('/0/', '/' + labWorkId + '/');
+        }
         document.getElementById('lab-work-edit-title-input').value = source.getAttribute('data-title') || '';
         document.getElementById('lab-work-edit-number').value = source.getAttribute('data-number') || '';
         document.getElementById('lab-work-edit-code').value = source.getAttribute('data-code') || '';
@@ -372,6 +381,13 @@
             }
         });
     });
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', function (e) {
+            if (!confirm('Удалить лабораторную работу безвозвратно? Связанные слоты и отменённые записи тоже будут удалены.')) {
+                e.preventDefault();
+            }
+        });
+    }
     document.querySelectorAll('.methodics-upload-form, .methodics-upload-form *').forEach(function (el) {
         el.addEventListener('click', function (e) {
             e.stopPropagation();

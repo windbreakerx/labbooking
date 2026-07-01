@@ -11,6 +11,7 @@ from apps.academics.querysets import (
     staff_managed_lab_works_qs,
     staff_people_qs,
 )
+from apps.bookings.models import Booking, BookingStatus
 from apps.scheduling.models import LabStand, Laboratory, Room, ScheduleEntry, TrainingCenter
 from apps.users.models import User, UserRole
 
@@ -521,6 +522,20 @@ def lab_head_create_lab_work(
         default_room=default_room,
         primary_stand=primary_stand,
     )
+
+
+def lab_head_delete_lab_work(user: User, lab_work: LabWork) -> None:
+    if not lab_head_lab_work_in_scope(user, lab_work.pk):
+        raise ValueError("Лабораторная работа недоступна.")
+    active_bookings = Booking.objects.filter(lab_work=lab_work).exclude(
+        current_status=BookingStatus.CANCELLED,
+    ).count()
+    if active_bookings:
+        raise ValueError(
+            f"Нельзя удалить: у лабораторной работы есть {active_bookings} "
+            "активных записей студентов. Отмените записи или снимите ЛР с публикации."
+        )
+    lab_work.delete()
 
 
 def lab_head_update_room(

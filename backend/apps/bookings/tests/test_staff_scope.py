@@ -10,6 +10,7 @@ from apps.academics.querysets import (
     staff_disciplines_qs,
     staff_lab_works_qs,
     staff_managed_disciplines_qs,
+    staff_students_qs,
 )
 from apps.bookings.models import Booking, BookingStatus, SupportTicket
 from apps.bookings.services import BookingService, staff_lab_filter
@@ -402,6 +403,69 @@ class TestStaffScopeWeb:
         assert own_teacher.email.encode() in response.content
         assert foreign_staff.email.encode() not in response.content
 
+    def test_staff_students_shows_group_and_booking(
+        self,
+        staff_with_lab,
+        student,
+        student_group,
+        own_booking,
+    ):
+        client = Client()
+        client.force_login(staff_with_lab)
+        response = client.get("/staff/students/")
+        assert response.status_code == 200
+        assert student.email.encode() in response.content
+        assert student_group.name.encode() in response.content
+        assert own_booking.lab_work.title.encode() in response.content
+
+    def test_staff_students_hides_foreign_group(
+        self,
+        staff_with_lab,
+        foreign_discipline,
+        semester,
+    ):
+        foreign_group = StudentGroup.objects.create(name="FOREIGN-GROUP-24")
+        foreign_group.disciplines.add(foreign_discipline)
+        foreign_student = User.objects.create_user(
+            email="foreign-student@stud.spmi.ru",
+            password="pass",
+            first_name="Foreign",
+            last_name="Student",
+            role=UserRole.STUDENT,
+        )
+        foreign_student.profile.student_group = foreign_group
+        foreign_student.profile.save(update_fields=["student_group"])
+
+        client = Client()
+        client.force_login(staff_with_lab)
+        response = client.get("/staff/students/")
+        assert response.status_code == 200
+        assert foreign_student.email.encode() not in response.content
+
+    def test_staff_students_scoped_queryset(
+        self,
+        staff_with_lab,
+        student,
+        foreign_discipline,
+        semester,
+    ):
+        ids = set(staff_students_qs(staff_with_lab).values_list("pk", flat=True))
+        assert student.pk in ids
+
+        foreign_group = StudentGroup.objects.create(name="FOREIGN-QS-24")
+        foreign_group.disciplines.add(foreign_discipline)
+        foreign_student = User.objects.create_user(
+            email="foreign-qs@stud.spmi.ru",
+            password="pass",
+            first_name="Foreign",
+            last_name="QS",
+            role=UserRole.STUDENT,
+        )
+        foreign_student.profile.student_group = foreign_group
+        foreign_student.profile.save(update_fields=["student_group"])
+        ids = set(staff_students_qs(staff_with_lab).values_list("pk", flat=True))
+        assert foreign_student.pk not in ids
+
     def test_staff_no_lab_empty_pages(self, staff_no_lab, own_discipline, foreign_discipline, own_ticket):
         client = Client()
         client.force_login(staff_no_lab)
@@ -413,6 +477,7 @@ class TestStaffScopeWeb:
             "/staff/stands/",
             "/staff/schedule/",
             "/staff/people/",
+            "/staff/students/",
         ):
             response = client.get(url)
             assert response.status_code == 200

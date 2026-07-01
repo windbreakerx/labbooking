@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
@@ -9,10 +10,11 @@ from apps.academics.querysets import (
     staff_managed_disciplines_qs,
     staff_managed_lab_works_qs,
     staff_people_qs,
+    staff_students_qs,
 )
-from apps.bookings.models import SupportMessage, SupportTicket
+from apps.bookings.models import Booking, SupportMessage, SupportTicket
 from apps.bookings.reports import generate_report
-from apps.bookings.services import is_staff_user, staff_lab_filter
+from apps.bookings.services import filter_staff_students, is_staff_user, staff_lab_filter
 from apps.bookings.services.methodics import delete_lab_work_methodics, upload_lab_work_methodics
 from apps.scheduling.models import LabStand, ScheduleEntry
 from apps.users.models import UserRole
@@ -151,6 +153,28 @@ class StaffPeopleView(StaffRequiredMixin, ListView):
 
     def get_queryset(self):
         return staff_people_qs(self.request.user)
+
+
+class StaffStudentsView(StaffRequiredMixin, ListView):
+    template_name = "bookings/staff/students.html"
+    context_object_name = "students"
+    paginate_by = 50
+
+    def get_queryset(self):
+        scoped_bookings = staff_lab_filter(
+            Booking.objects.select_related("lab_work", "discipline", "room").order_by("-scheduled_at"),
+            self.request.user,
+        )
+        qs = staff_students_qs(self.request.user).prefetch_related(
+            Prefetch("bookings", queryset=scoped_bookings, to_attr="scoped_bookings"),
+        )
+        return filter_staff_students(qs, self.request.GET)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["search_query"] = self.request.GET.get("q", "").strip()
+        ctx["group_query"] = self.request.GET.get("group", "").strip()
+        return ctx
 
 
 class StaffSupportView(StaffRequiredMixin, ListView):

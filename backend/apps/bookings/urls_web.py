@@ -11,6 +11,7 @@ from apps.bookings.views.lab_head import (
     LabHeadHomeView,
     LabHeadLabWorkBindView,
     LabHeadLabWorkCreateView,
+    LabHeadLabWorkDeleteView,
     LabHeadLabWorkMethodicsDeleteView,
     LabHeadLabWorkMethodicsUploadView,
     LabHeadLabWorkUnbindView,
@@ -41,6 +42,7 @@ from apps.bookings.views.staff import (
     StaffScheduleView,
     StaffStandCreateView,
     StaffStandsView,
+    StaffStudentsView,
     StaffSupportReplyView,
     StaffSupportView,
 )
@@ -127,6 +129,7 @@ urlpatterns = [
     path("staff/stands/create/", StaffStandCreateView.as_view(), name="staff-stand-create"),
     path("staff/schedule/", StaffScheduleView.as_view(), name="staff-schedule"),
     path("staff/people/", StaffPeopleView.as_view(), name="staff-people"),
+    path("staff/students/", StaffStudentsView.as_view(), name="staff-students"),
     path("staff/support/", StaffSupportView.as_view(), name="staff-support"),
     path("staff/support/<int:pk>/reply/", StaffSupportReplyView.as_view(), name="staff-support-reply"),
     path("staff/reports/", StaffReportsView.as_view(), name="staff-reports"),
@@ -195,6 +198,11 @@ urlpatterns = [
         "lab-head/lab-works/<int:pk>/update/",
         LabHeadLabWorkUpdateView.as_view(),
         name="lab-head-lab-work-update",
+    ),
+    path(
+        "lab-head/lab-works/<int:pk>/delete/",
+        LabHeadLabWorkDeleteView.as_view(),
+        name="lab-head-lab-work-delete",
     ),
     path(
         "lab-head/lab-works/<int:pk>/methodics/upload/",

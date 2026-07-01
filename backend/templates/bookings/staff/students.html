@@ -1,0 +1,104 @@
+{% extends "base_staff.html" %}
+{% block title %}Студенты — staff{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div class="page-header__content">
+        <p class="page-eyebrow">Сотрудник</p>
+        <h1 class="page-title">Студенты</h1>
+        <p class="page-description">Студенты учебных групп вашей лаборатории и их записи на лабораторные работы.</p>
+    </div>
+</header>
+
+<section class="card card--form filter-panel">
+    <form method="get" class="form-grid filter-panel__form">
+        <label>
+            Поиск
+            <input type="search" name="q" value="{{ search_query }}" placeholder="ФИО или email">
+        </label>
+        <label>
+            Группа
+            <input type="search" name="group" value="{{ group_query }}" placeholder="Шифр группы">
+        </label>
+        <div class="form-actions form-grid__full">
+            <button type="submit">Найти</button>
+            {% if search_query or group_query %}
+            <a class="button button--secondary" href="{% url 'staff-students' %}">Сбросить</a>
+            {% endif %}
+        </div>
+    </form>
+</section>
+
+<div class="table-wrap">
+    <table class="table table--compact table--sticky responsive-table staff-table">
+        <thead>
+            <tr>
+                <th>ФИО</th>
+                <th>Email</th>
+                <th>Группа</th>
+                <th>Записи</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr>
+                <td data-label="ФИО"><strong>{{ student.full_name }}</strong></td>
+                <td data-label="Email"><span class="muted">{{ student.email }}</span></td>
+                <td data-label="Группа">
+                    {% if student.profile.student_group %}
+                    {{ student.profile.student_group.name }}
+                    {% elif student.profile.group_name %}
+                    {{ student.profile.group_name }}
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
+                <td data-label="Записи">
+                    {% if student.scoped_bookings %}
+                    <details class="row-actions">
+                        <summary>{{ student.scoped_bookings|length }} {% if student.scoped_bookings|length == 1 %}запись{% elif student.scoped_bookings|length >= 2 and student.scoped_bookings|length <= 4 %}записи{% else %}записей{% endif %}</summary>
+                        <ul class="student-bookings-list">
+                            {% for booking in student.scoped_bookings %}
+                            <li>
+                                <span class="badge badge--muted">{{ booking.get_current_status_display }}</span>
+                                {{ booking.scheduled_at|date:"d.m.Y H:i" }} —
+                                {{ booking.lab_work.title }}
+                                ({{ booking.discipline.title }}, ауд. {{ booking.room.number }})
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                    {% else %}
+                    <span class="muted">Нет записей</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">
+                    <div class="empty-state empty-state--icon">
+                        {% if search_query or group_query %}
+                        <p>По заданным фильтрам студентов не найдено.</p>
+                        {% else %}
+                        <p>Нет студентов в зоне вашей лаборатории.</p>
+                        <p class="muted">Студенты появятся после импорта учебных групп и учебных планов.</p>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if is_paginated %}
+<nav class="pagination" aria-label="Страницы">
+    {% if page_obj.has_previous %}
+    <a class="button button--secondary button--sm" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if group_query %}&amp;group={{ group_query|urlencode }}{% endif %}">Назад</a>
+    {% endif %}
+    <span class="muted">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a class="button button--secondary button--sm" href="?page={{ page_obj.next_page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if group_query %}&amp;group={{ group_query|urlencode }}{% endif %}">Вперёд</a>
+    {% endif %}
+</nav>
+{% endif %}
+{% endblock %}

@@ -243,6 +243,38 @@ def staff_managed_lab_works_qs(user: User) -> QuerySet[LabWork]:
     return qs.filter(training_centers=tc).order_by("number", "title")
 
 
+def staff_students_qs(user: User) -> QuerySet[User]:
+    """Студенты, чей учебный план пересекается с дисциплинами лаборатории сотрудника."""
+    qs = User.objects.filter(role=UserRole.STUDENT).select_related(
+        "profile",
+        "profile__student_group",
+    )
+    if user.role == UserRole.SYS_ADMIN:
+        return qs.order_by("last_name", "first_name", "email")
+
+    discipline_ids = staff_managed_disciplines_qs(user).values_list("pk", flat=True)
+    if not discipline_ids:
+        return User.objects.none()
+
+    from apps.bookings.models import Booking
+    from apps.bookings.services.booking import staff_lab_filter
+
+    scoped_booking_student_ids = staff_lab_filter(
+        Booking.objects.all(),
+        user,
+    ).values_list("student_id", flat=True)
+
+    return (
+        qs.filter(
+            Q(profile__student_group__disciplines__in=discipline_ids)
+            | Q(profile__student_group__lab_works__disciplines__in=discipline_ids)
+            | Q(pk__in=scoped_booking_student_ids)
+        )
+        .distinct()
+        .order_by("last_name", "first_name", "email")
+    )
+
+
 def staff_can_access_discipline(user: User, discipline_id: int) -> bool:
     if user.role == UserRole.STUDENT:
         return student_can_access_discipline(user, discipline_id)

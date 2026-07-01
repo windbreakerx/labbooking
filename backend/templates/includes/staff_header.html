@@ -25,6 +25,7 @@
             <span class="staff-pill-nav__label">Студенты</span>
             <div class="staff-pill-nav__links">
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-bookings' %} pill-nav__link--current{% endif %}" href="{% url 'staff-bookings' %}">Записавшиеся</a>
+                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-students' %} pill-nav__link--current{% endif %}" href="{% url 'staff-students' %}">Студенты</a>
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-support' %} pill-nav__link--current{% endif %}" href="{% url 'staff-support' %}">Обращения</a>
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-reports' %} pill-nav__link--current{% endif %}" href="{% url 'staff-reports' %}">Отчёты</a>
             </div>
@@ -46,6 +47,7 @@
             <span class="staff-pill-nav__label">Студенты</span>
             <div class="staff-pill-nav__links">
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-bookings' %} pill-nav__link--current{% endif %}" href="{% url 'staff-bookings' %}">Записавшиеся</a>
+                <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-students' %} pill-nav__link--current{% endif %}" href="{% url 'staff-students' %}">Студенты</a>
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-support' %} pill-nav__link--current{% endif %}" href="{% url 'staff-support' %}">Обращения</a>
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-reports' %} pill-nav__link--current{% endif %}" href="{% url 'staff-reports' %}">Отчёты</a>
             </div>
