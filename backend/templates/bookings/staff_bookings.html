@@ -10,6 +10,7 @@
     </div>
 </header>
 
+<div x-data="staffBookingsPage()" x-init="init()" @htmx:after-swap.window="handleAfterSwap($event)">
 <div class="staff-results-bar">
     <div>
         <h2 class="card__title">Результаты</h2>
@@ -22,20 +23,26 @@
         </p>
     </div>
     {% if can_modify_bookings %}
-    <button type="button" class="button button--secondary" id="manual-booking-open">Ручная запись</button>
+    <button type="button" class="button button--secondary" id="manual-booking-open" @click="openManualDialog">Ручная запись</button>
     {% endif %}
 </div>
 
 {% if can_modify_bookings %}
-<dialog id="manual-booking-dialog" class="app-dialog app-dialog--wide" aria-labelledby="manual-booking-title">
+<dialog
+    id="manual-booking-dialog"
+    class="app-dialog app-dialog--wide"
+    aria-labelledby="manual-booking-title"
+    x-ref="manualDialog"
+    @click="handleDialogBackdrop($event)"
+>
     <div class="app-dialog__header">
         <h2 class="card__title" id="manual-booking-title">Ручная запись</h2>
         <p class="muted">Поиск студента, выбор лабораторной работы и слота в календаре.</p>
     </div>
     <form method="post" action="{% url 'staff-booking-manual' %}" class="form-grid manual-booking__form" id="manual-booking-form">
         {% csrf_token %}
-        <input type="hidden" name="student_id" id="manual-student-id" value="">
-        <input type="hidden" name="discipline_id" id="manual-discipline-id" value="">
+        <input type="hidden" name="student_id" id="manual-student-id" x-model="manual.studentId">
+        <input type="hidden" name="discipline_id" id="manual-discipline-id" x-model="manual.disciplineId">
 
         <div class="manual-booking__section">
             <label for="manual-student-query">Студент</label>
@@ -49,19 +56,20 @@
                 hx-trigger="input changed delay:300ms, search"
                 hx-target="#manual-student-results"
                 hx-swap="innerHTML"
+                x-ref="manualStudentQuery"
             >
-            <div id="manual-student-results" class="manual-student-search"></div>
-            <div id="manual-selected-student" class="manual-student-selected" hidden>
+            <div id="manual-student-results" class="manual-student-search" x-ref="manualStudentResults" @click="handleStudentResultsClick($event)"></div>
+            <div id="manual-selected-student" class="manual-student-selected" hidden :hidden="!manual.hasStudent">
                 <span class="manual-student-selected__label">Выбран:</span>
-                <strong id="manual-selected-student-name"></strong>
-                <span class="muted" id="manual-selected-student-meta"></span>
-                <button type="button" class="btn-link" id="manual-student-clear">Изменить</button>
+                <strong id="manual-selected-student-name" x-text="manual.studentName"></strong>
+                <span class="muted" id="manual-selected-student-meta" x-text="manual.studentMeta"></span>
+                <button type="button" class="btn-link" id="manual-student-clear" @click="clearStudentSelection">Изменить</button>
             </div>
         </div>
 
         <div class="manual-booking__section">
             <label for="manual-lab-work">Лабораторная работа</label>
-            <select id="manual-lab-work" disabled>
+            <select id="manual-lab-work" x-ref="manualLabWork" x-model="manual.labWorkId" :disabled="!manual.hasStudent" @change="handleLabWorkChange($event)">
                 <option value="">— сначала выберите студента —</option>
                 {% for item in manual_lab_works %}
                 <option value="{{ item.lab_work.pk }}" data-discipline-id="{{ item.discipline.pk }}">{{ item.discipline.title }} — {{ item.lab_work.title }}</option>
@@ -69,12 +77,12 @@
             </select>
         </div>
 
-        <div id="manual-filter-chain" class="manual-booking__calendar"></div>
-        <div id="manual-session-slot"></div>
+        <div id="manual-filter-chain" class="manual-booking__calendar" x-ref="manualFilterChain"></div>
+        <div id="manual-session-slot" x-ref="manualSessionSlot" @change="handleManualSessionChange($event)"></div>
 
         <div class="app-dialog__actions manual-booking__actions">
-            <button type="submit" id="manual-book-btn" disabled>Записать</button>
-            <button type="button" class="button button--secondary" data-dialog-close>Отмена</button>
+            <button type="submit" id="manual-book-btn" :disabled="!manual.canSubmit">Записать</button>
+            <button type="button" class="button button--secondary" data-dialog-close @click="closeManualDialog">Отмена</button>
         </div>
     </form>
     <div class="admin-note muted">
@@ -183,14 +191,18 @@
                     {% sortable_th "date" "Дата" %}
                 </tr>
             </thead>
-            <tbody>
+            <tbody x-data="{ expandedRow: null }">
                 {% for b in bookings %}
                 <tr
                     class="staff-booking-row"
                     data-booking-row
-                    aria-expanded="false"
+                    :class="{ 'is-expanded': expandedRow === '{{ b.pk }}' }"
+                    :aria-expanded="expandedRow === '{{ b.pk }}' ? 'true' : 'false'"
                     tabindex="0"
                     aria-controls="staff-booking-detail-{{ b.pk }}"
+                    @click="if (!$event.target.closest('a, button, select, input, textarea, label')) { expandedRow = expandedRow === '{{ b.pk }}' ? null : '{{ b.pk }}'; }"
+                    @keydown.enter.prevent="expandedRow = expandedRow === '{{ b.pk }}' ? null : '{{ b.pk }}'"
+                    @keydown.space.prevent="expandedRow = expandedRow === '{{ b.pk }}' ? null : '{{ b.pk }}'"
                 >
                     <td class="cell-student">
                         <span class="cell-student__name">{{ b.student.full_name }}</span>
@@ -200,7 +212,7 @@
                     <td class="cell-truncate" title="{{ b.lab_work.title }}">{{ b.lab_work.title }}</td>
                     <td class="cell-nowrap">{{ b.scheduled_at|date:"d.m.Y H:i" }}</td>
                 </tr>
-                <tr class="staff-booking-detail" id="staff-booking-detail-{{ b.pk }}" hidden>
+                <tr class="staff-booking-detail" id="staff-booking-detail-{{ b.pk }}" :hidden="expandedRow !== '{{ b.pk }}'">
                     <td colspan="4">
                         {% include "bookings/partials/staff_booking_detail.html" with booking=b %}
                     </td>
@@ -216,259 +228,186 @@
     </div>
     {% endif %}
 </section>
+</div>
 
 <script>
-(function () {
-    function closeBookingRows(exceptRow) {
-        document.querySelectorAll('[data-booking-row]').forEach(function (row) {
-            if (row === exceptRow) {
+function staffBookingsPage() {
+    return {
+        manual: {
+            studentId: '',
+            studentName: '',
+            studentMeta: '',
+            disciplineId: '',
+            labWorkId: '',
+            canSubmit: false,
+            hasStudent: false,
+        },
+        init: function () {
+            this.bindStatusConfirmHandlers();
+        },
+        openManualDialog: function () {
+            if (this.$refs.manualDialog && typeof this.$refs.manualDialog.showModal === 'function') {
+                this.$refs.manualDialog.showModal();
+            }
+        },
+        closeManualDialog: function () {
+            if (this.$refs.manualDialog) {
+                this.$refs.manualDialog.close();
+            }
+        },
+        handleDialogBackdrop: function (event) {
+            if (event.target === this.$refs.manualDialog) {
+                this.closeManualDialog();
+            }
+        },
+        handleStudentResultsClick: function (event) {
+            var button = event.target.closest('.manual-student-search__item');
+            if (!button) {
                 return;
             }
-            row.classList.remove('is-expanded');
-            row.setAttribute('aria-expanded', 'false');
-            var detailId = row.getAttribute('aria-controls');
-            if (detailId) {
-                var detail = document.getElementById(detailId);
-                if (detail) {
-                    detail.hidden = true;
-                }
-            }
-        });
-    }
-
-    function toggleBookingRow(row) {
-        var detailId = row.getAttribute('aria-controls');
-        if (!detailId) {
-            return;
-        }
-        var detail = document.getElementById(detailId);
-        if (!detail) {
-            return;
-        }
-        var willOpen = detail.hidden;
-        closeBookingRows(willOpen ? row : null);
-        detail.hidden = !willOpen;
-        row.classList.toggle('is-expanded', willOpen);
-        row.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-    }
-
-    document.querySelectorAll('[data-booking-row]').forEach(function (row) {
-        row.addEventListener('click', function (e) {
-            if (e.target.closest('a, button, select, input, textarea, label')) {
-                return;
-            }
-            toggleBookingRow(row);
-        });
-        row.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                toggleBookingRow(row);
-            }
-        });
-    });
-})();
-{% if can_modify_bookings %}
-(function () {
-    var dialog = document.getElementById('manual-booking-dialog');
-    var openBtn = document.getElementById('manual-booking-open');
-    var studentIdInput = document.getElementById('manual-student-id');
-    var studentQuery = document.getElementById('manual-student-query');
-    var studentResults = document.getElementById('manual-student-results');
-    var selectedStudent = document.getElementById('manual-selected-student');
-    var selectedStudentName = document.getElementById('manual-selected-student-name');
-    var selectedStudentMeta = document.getElementById('manual-selected-student-meta');
-    var studentClearBtn = document.getElementById('manual-student-clear');
-    var labWorkSelect = document.getElementById('manual-lab-work');
-    var disciplineIdInput = document.getElementById('manual-discipline-id');
-    var filterChain = document.getElementById('manual-filter-chain');
-    var sessionSlot = document.getElementById('manual-session-slot');
-    var bookBtn = document.getElementById('manual-book-btn');
-
-    function resetManualSlotSelection() {
-        if (sessionSlot) {
-            sessionSlot.innerHTML = '';
-        }
-        if (bookBtn) {
-            bookBtn.disabled = true;
-        }
-    }
-
-    function resetManualCalendar() {
-        if (filterChain) {
-            filterChain.innerHTML = '';
-        }
-        resetManualSlotSelection();
-    }
-
-    function updateManualBookButton() {
-        if (!bookBtn) {
-            return;
-        }
-        var hiddenSession = sessionSlot && sessionSlot.querySelector('input[name=session_id][type=hidden]');
-        var selectSession = sessionSlot && sessionSlot.querySelector('select[name=session_id]');
-        if (hiddenSession) {
-            bookBtn.disabled = false;
-        } else if (selectSession) {
-            bookBtn.disabled = !selectSession.value;
-        } else {
-            bookBtn.disabled = true;
-        }
-    }
-
-    function loadManualCalendar(labWorkId) {
-        if (!labWorkId || !filterChain || typeof htmx === 'undefined') {
-            resetManualCalendar();
-            return;
-        }
-        resetManualSlotSelection();
-        htmx.ajax('GET', '/staff/bookings/manual/filter/' + labWorkId + '/', {
-            target: '#manual-filter-chain',
-            swap: 'innerHTML',
-        });
-    }
-
-    function selectStudent(button) {
-        if (!button || !studentIdInput) {
-            return;
-        }
-        studentIdInput.value = button.getAttribute('data-student-id') || '';
-        if (selectedStudentName) {
-            selectedStudentName.textContent = button.getAttribute('data-student-name') || '';
-        }
-        if (selectedStudentMeta) {
-            var meta = button.getAttribute('data-student-email') || '';
+            this.selectStudent(button);
+        },
+        selectStudent: function (button) {
+            this.manual.studentId = button.getAttribute('data-student-id') || '';
+            this.manual.studentName = button.getAttribute('data-student-name') || '';
+            var email = button.getAttribute('data-student-email') || '';
             var group = button.getAttribute('data-student-group') || '';
-            selectedStudentMeta.textContent = group ? meta + ' · гр. ' + group : meta;
-        }
-        if (selectedStudent) {
-            selectedStudent.hidden = false;
-        }
-        if (studentQuery) {
-            studentQuery.value = '';
-        }
-        if (studentResults) {
-            studentResults.innerHTML = '';
-        }
-        if (labWorkSelect) {
-            labWorkSelect.disabled = false;
-            if (labWorkSelect.options.length > 0) {
-                labWorkSelect.options[0].textContent = '— выберите лабораторную работу —';
+            this.manual.studentMeta = group ? email + ' · гр. ' + group : email;
+            this.manual.hasStudent = Boolean(this.manual.studentId);
+            this.manual.disciplineId = '';
+            this.manual.labWorkId = '';
+            this.manual.canSubmit = false;
+
+            if (this.$refs.manualStudentQuery) {
+                this.$refs.manualStudentQuery.value = '';
             }
-            if (labWorkSelect.options.length === 2) {
-                labWorkSelect.selectedIndex = 1;
-                var option = labWorkSelect.options[1];
-                if (disciplineIdInput && option) {
-                    disciplineIdInput.value = option.getAttribute('data-discipline-id') || '';
-                }
-                loadManualCalendar(labWorkSelect.value);
-            } else {
-                labWorkSelect.selectedIndex = 0;
+            if (this.$refs.manualStudentResults) {
+                this.$refs.manualStudentResults.innerHTML = '';
             }
-        }
-    }
+            this.setManualLabWorkPrompt(this.manual.hasStudent ? '— выберите лабораторную работу —' : '— сначала выберите студента —');
+            this.resetManualCalendar();
 
-    function clearStudentSelection() {
-        if (studentIdInput) {
-            studentIdInput.value = '';
-        }
-        if (selectedStudent) {
-            selectedStudent.hidden = true;
-        }
-        if (labWorkSelect) {
-            labWorkSelect.disabled = true;
-            labWorkSelect.selectedIndex = 0;
-            if (labWorkSelect.options.length > 0) {
-                labWorkSelect.options[0].textContent = '— сначала выберите студента —';
+            var options = this.getManualLabWorkOptions();
+            if (options.length === 1) {
+                this.manual.labWorkId = options[0].value;
+                this.manual.disciplineId = options[0].getAttribute('data-discipline-id') || '';
+                this.loadManualCalendar(this.manual.labWorkId);
             }
-        }
-        resetManualCalendar();
-    }
-
-    if (dialog && openBtn) {
-        openBtn.addEventListener('click', function () {
-            dialog.showModal();
-        });
-
-        dialog.addEventListener('click', function (e) {
-            if (e.target === dialog) {
-                dialog.close();
-            }
-        });
-
-        dialog.querySelectorAll('[data-dialog-close]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                dialog.close();
-            });
-        });
-    }
-
-    if (studentResults) {
-        studentResults.addEventListener('click', function (e) {
-            var button = e.target.closest('.manual-student-search__item');
-            if (button) {
-                selectStudent(button);
-            }
-        });
-    }
-
-    if (studentClearBtn) {
-        studentClearBtn.addEventListener('click', clearStudentSelection);
-    }
-
-    if (labWorkSelect) {
-        labWorkSelect.addEventListener('change', function () {
-            var option = labWorkSelect.options[labWorkSelect.selectedIndex];
-            if (disciplineIdInput && option) {
-                disciplineIdInput.value = option.getAttribute('data-discipline-id') || '';
-            }
-            loadManualCalendar(this.value);
-        });
-    }
-
-    document.body.addEventListener('htmx:afterSwap', function (evt) {
-        if (!evt.detail.target) {
-            return;
-        }
-        if (evt.detail.target.id === 'manual-filter-chain') {
-            resetManualSlotSelection();
-        }
-        if (evt.detail.target.id === 'manual-session-slot') {
-            updateManualBookButton();
-            var sel = sessionSlot && sessionSlot.querySelector('select[name=session_id]');
-            if (sel) {
-                sel.addEventListener('change', updateManualBookButton);
-            }
-        }
-    });
-
-    document.querySelectorAll('.status-select-form--confirm').forEach(function (form) {
-        var select = form.querySelector('select[name="status"]');
-        if (!select) {
-            return;
-        }
-
-        select.addEventListener('change', function () {
-            var initial = select.getAttribute('data-initial') || select.value;
-            var newValue = select.value;
-
-            if (newValue === initial) {
+        },
+        clearStudentSelection: function () {
+            this.manual.studentId = '';
+            this.manual.studentName = '';
+            this.manual.studentMeta = '';
+            this.manual.disciplineId = '';
+            this.manual.labWorkId = '';
+            this.manual.hasStudent = false;
+            this.manual.canSubmit = false;
+            this.setManualLabWorkPrompt('— сначала выберите студента —');
+            this.resetManualCalendar();
+        },
+        handleLabWorkChange: function (event) {
+            var option = event.target.options[event.target.selectedIndex];
+            this.manual.disciplineId = option ? option.getAttribute('data-discipline-id') || '' : '';
+            this.loadManualCalendar(this.manual.labWorkId);
+        },
+        handleAfterSwap: function (event) {
+            if (!event.detail || !event.detail.target) {
                 return;
             }
-
-            var actionLabel = select.options[select.selectedIndex].text;
-            var studentLabel = select.getAttribute('aria-label') || 'студента';
-            var confirmed = window.confirm(
-                'Подтвердите действие: «' + actionLabel + '» для ' + studentLabel.replace('Новый статус для ', '') + '?'
-            );
-
-            if (confirmed) {
-                form.submit();
-            } else {
-                select.value = initial;
+            if (event.detail.target.id === 'manual-filter-chain') {
+                this.resetManualSessionSlot();
+            } else if (event.detail.target.id === 'manual-session-slot') {
+                this.updateManualBookButton();
             }
-        });
-    });
-})();
-{% endif %}
+        },
+        handleManualSessionChange: function (event) {
+            if (event.target && event.target.name === 'session_id') {
+                this.updateManualBookButton();
+            }
+        },
+        loadManualCalendar: function (labWorkId) {
+            if (!labWorkId || !this.$refs.manualFilterChain || typeof htmx === 'undefined') {
+                this.resetManualCalendar();
+                return;
+            }
+            this.resetManualSessionSlot();
+            htmx.ajax('GET', '/staff/bookings/manual/filter/' + labWorkId + '/', {
+                target: '#manual-filter-chain',
+                swap: 'innerHTML',
+            });
+        },
+        resetManualSessionSlot: function () {
+            if (this.$refs.manualSessionSlot) {
+                this.$refs.manualSessionSlot.innerHTML = '';
+            }
+            this.manual.canSubmit = false;
+        },
+        resetManualCalendar: function () {
+            if (this.$refs.manualFilterChain) {
+                this.$refs.manualFilterChain.innerHTML = '';
+            }
+            this.resetManualSessionSlot();
+        },
+        updateManualBookButton: function () {
+            var slot = this.$refs.manualSessionSlot;
+            if (!slot) {
+                this.manual.canSubmit = false;
+                return;
+            }
+            var hiddenSession = slot.querySelector('input[name=session_id][type=hidden]');
+            var selectSession = slot.querySelector('select[name=session_id]');
+            if (hiddenSession) {
+                this.manual.canSubmit = true;
+            } else if (selectSession) {
+                this.manual.canSubmit = Boolean(selectSession.value);
+            } else {
+                this.manual.canSubmit = false;
+            }
+        },
+        getManualLabWorkOptions: function () {
+            if (!this.$refs.manualLabWork) {
+                return [];
+            }
+            return Array.from(this.$refs.manualLabWork.options).filter(function (option) {
+                return option.value;
+            });
+        },
+        setManualLabWorkPrompt: function (text) {
+            if (this.$refs.manualLabWork && this.$refs.manualLabWork.options.length > 0) {
+                this.$refs.manualLabWork.options[0].textContent = text;
+            }
+        },
+        bindStatusConfirmHandlers: function () {
+            if (this._statusConfirmBound) {
+                return;
+            }
+            this._statusConfirmBound = true;
+            document.addEventListener('change', function (event) {
+                var select = event.target.closest('.status-select-form--confirm select[name="status"]');
+                if (!select) {
+                    return;
+                }
+                var initial = select.getAttribute('data-initial') || select.value;
+                var newValue = select.value;
+                if (newValue === initial) {
+                    return;
+                }
+                var actionLabel = select.options[select.selectedIndex].text;
+                var studentLabel = select.getAttribute('aria-label') || 'студента';
+                var confirmed = window.confirm(
+                    'Подтвердите действие: «' + actionLabel + '» для ' + studentLabel.replace('Новый статус для ', '') + '?'
+                );
+                if (confirmed) {
+                    select.form.submit();
+                } else {
+                    select.value = initial;
+                }
+            });
+        },
+    };
+}
+document.addEventListener('alpine:init', function () {
+    Alpine.data('staffBookingsPage', staffBookingsPage);
+});
 </script>
 {% endblock %}
