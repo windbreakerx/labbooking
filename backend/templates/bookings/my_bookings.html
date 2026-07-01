@@ -43,7 +43,7 @@
             {% if b.current_status == 'BOOKED' %}
         <form method="post" action="{% url 'cancel-booking' b.pk %}" onsubmit="return confirm('Отменить запись на эту лабораторную работу?');">
                 {% csrf_token %}
-                <button type="submit" class="button button--ghost button--sm">Отменить</button>
+                <button type="submit" class="button button--secondary button--sm booking-card__cancel">Отменить</button>
             </form>
             {% endif %}
         </div>

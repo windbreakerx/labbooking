@@ -522,6 +522,32 @@
     box-shadow: 0 18px 32px rgba(11, 79, 156, 0.12);
 }
 
+.student-layout .booking-card__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+}
+
+.student-layout .booking-card__actions form {
+    display: contents;
+}
+
+.student-layout .booking-card__actions .button {
+    width: 100%;
+    justify-content: center;
+}
+
+.student-layout .booking-card__cancel {
+    border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
+    color: var(--color-danger);
+}
+
+.student-layout .booking-card__cancel:hover {
+    border-color: color-mix(in srgb, var(--color-danger) 55%, var(--color-border));
+    background: var(--color-danger-soft);
+    color: #8f1d13;
+}
+
 .student-layout .status-badge {
     font-weight: var(--font-weight-semibold);
 }
@@ -573,6 +599,10 @@
 
     .student-layout .booking-ticket__quick-links .button {
         width: 100%;
+    }
+
+    .student-layout .booking-card__actions {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -668,6 +698,14 @@
 
 .student-layout .calendar-grid {
     gap: 0.45rem;
+}
+
+.student-layout .calendar-month .calendar-grid:not(.calendar-grid--header) {
+    margin-bottom: 0.45rem;
+}
+
+.student-layout .calendar-month .calendar-grid:last-child {
+    margin-bottom: 0;
 }
 
 .student-layout .calendar-cell {
