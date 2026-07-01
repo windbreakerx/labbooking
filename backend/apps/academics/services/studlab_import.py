@@ -28,6 +28,35 @@ def _lab_type(value: str) -> str:
     return LaboratoryType.REGULAR
 
 
+def _upsert_department(
+    *,
+    code: str,
+    title: str,
+    faculty: Faculty | None,
+) -> tuple[Department, bool]:
+    """Сопоставить по short_code или title — title уникален в БД."""
+    department = Department.objects.filter(short_code=code).first()
+    if department is None:
+        department = Department.objects.filter(title=title).first()
+    if department is None:
+        return Department.objects.create(
+            short_code=code,
+            title=title,
+            faculty=faculty,
+        ), True
+
+    update_fields: list[str] = []
+    if code and department.short_code != code:
+        department.short_code = code
+        update_fields.append("short_code")
+    if faculty is not None and department.faculty_id != faculty.pk:
+        department.faculty = faculty
+        update_fields.append("faculty")
+    if update_fields:
+        department.save(update_fields=update_fields)
+    return department, False
+
+
 @transaction.atomic
 def import_studlab_draft(draft_dir: Path) -> dict[str, int]:
     stats = {
@@ -75,13 +104,7 @@ def import_studlab_draft(draft_dir: Path) -> dict[str, int]:
         if not code or not title:
             continue
         faculty = faculty_by_code.get(faculty_code)
-        _, created = Department.objects.update_or_create(
-            short_code=code,
-            defaults={
-                "title": title,
-                "faculty": faculty,
-            },
-        )
+        _, created = _upsert_department(code=code, title=title, faculty=faculty)
         if created:
             stats["departments"] += 1
 
@@ -112,7 +135,11 @@ def import_studlab_draft(draft_dir: Path) -> dict[str, int]:
 
         dept_code = _clean(row, "department_code_suggested")
         if dept_code:
-            Department.objects.filter(short_code=dept_code).update(title=_clean(row, "department_title") or name)
+            _upsert_department(
+                code=dept_code,
+                title=_clean(row, "department_title") or name,
+                faculty=faculty,
+            )
 
     for row in _read_csv(draft_dir / "05_rooms.csv"):
         room_number = _clean(row, "room_number")

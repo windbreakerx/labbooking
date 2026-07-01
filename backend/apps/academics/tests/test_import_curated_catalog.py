@@ -3,8 +3,9 @@ from pathlib import Path
 import pytest
 from django.core.management import call_command
 
-from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
+from apps.academics.models import Department, Discipline, Faculty, LabWork, Semester, StudentGroup
 from apps.academics.services.curated_catalog_import import import_department_draft
+from apps.academics.services.studlab_import import import_studlab_draft
 from apps.scheduling.models import Laboratory, TrainingCenter
 
 
@@ -42,3 +43,20 @@ def test_import_metallurgy_draft_creates_curriculum(semester, studlab_and_lab):
         assert group.lab_works.exists() or group.disciplines.exists()
 
     assert TrainingCenter.objects.filter(number=1).exists()
+
+
+@pytest.mark.django_db
+def test_studlab_import_updates_existing_department_by_title():
+    repo_root = Path(__file__).resolve().parents[4]
+    studlab_dir = repo_root / "docs" / "csv_templates" / "studlab_draft"
+    if not (studlab_dir / "03_departments.csv").is_file():
+        pytest.skip("studlab_draft not present")
+
+    faculty = Faculty.objects.create(code="НГФ", title="Нефтегазовый факультет")
+    Department.objects.create(title="Кафедра бурения скважин", faculty=faculty)
+
+    import_studlab_draft(studlab_dir)
+
+    department = Department.objects.get(title="Кафедра бурения скважин")
+    assert department.short_code == "БС"
+    assert Department.objects.filter(title="Кафедра бурения скважин").count() == 1
