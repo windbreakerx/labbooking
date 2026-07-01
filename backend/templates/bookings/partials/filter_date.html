@@ -5,7 +5,8 @@
                 hx-get="{% url 'book-filter' lab_work_id %}"
                 hx-target="#filter-chain"
                 hx-swap="innerHTML"
-                hx-include="#filter-chain">
+                hx-include="#filter-chain"
+                hx-indicator=".htmx-booking-indicator">
             <option value="">—</option>
             {% for opt in options %}
             <option value="{{ opt.value }}">{{ opt.label }}</option>

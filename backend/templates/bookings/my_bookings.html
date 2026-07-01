@@ -41,7 +41,7 @@
         <div class="booking-card__actions">
             <a class="button button--secondary button--sm" href="{% url 'booking-detail' b.pk %}">Подробнее</a>
             {% if b.current_status == 'BOOKED' %}
-        <form method="post" action="{% url 'cancel-booking' b.pk %}" onsubmit="return confirm('Отменить запису на эту лабораторную работу?');">
+        <form method="post" action="{% url 'cancel-booking' b.pk %}" onsubmit="return confirm('Отменить запись на эту лабораторную работу?');">
                 {% csrf_token %}
                 <button type="submit" class="button button--ghost button--sm">Отменить</button>
             </form>
@@ -95,7 +95,7 @@
                         <div class="row-actions__menu">
                             <a href="{% url 'booking-detail' b.pk %}" class="row-actions__item">Просмотреть</a>
                             {% if b.current_status == 'BOOKED' %}
-                        <form method="post" action="{% url 'cancel-booking' b.pk %}" onsubmit="return confirm('Отменить запису на эту лабораторную работу?');">
+                        <form method="post" action="{% url 'cancel-booking' b.pk %}" onsubmit="return confirm('Отменить запись на эту лабораторную работу?');">
                                 {% csrf_token %}
                                 <button type="submit" class="row-actions__item row-actions__item--button">Отменить запись</button>
                             </form>
@@ -114,6 +114,7 @@
 <div class="empty-state empty-state--icon">
     <p>Записей пока нет.</p>
     <p class="muted"><a href="{% url 'disciplines' %}">Выберите дисциплину</a>, чтобы записаться на лабораторную работу.</p>
+    <a href="{% url 'disciplines' %}" class="button button--secondary">Перейти к дисциплинам</a>
 </div>
 {% endif %}
 {% endblock %}

@@ -18,7 +18,9 @@
         name="discipline_search"
         placeholder="Например: физика, геология…"
         autocomplete="off"
+        aria-describedby="discipline-search-hint"
     >
+    <p id="discipline-search-hint" class="muted">Введите название дисциплины, чтобы быстро сузить каталог.</p>
 </div>
 <div class="catalog-tree" id="discipline-catalog">
     {% for group in department_groups %}
@@ -70,6 +72,7 @@
 <div class="empty-state empty-state--icon">
     <p>Нет доступных дисциплин.</p>
     <p class="muted">Обратитесь к сотруднику лаборатории, если дисциплина должна быть доступна.</p>
+    <a href="{% url 'support' %}" class="button button--secondary">Написать в поддержку</a>
 </div>
 {% endif %}
 {% endblock %}

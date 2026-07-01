@@ -25,6 +25,9 @@
     --color-danger-soft: #fdecea;
     --color-info: #0b5cad;
     --color-info-soft: #e8f1ff;
+    --color-focus-ring: rgba(11, 79, 156, 0.28);
+    --color-skeleton: #d8e0ea;
+    --color-skeleton-shimmer: #eef3f9;
 
     /* Legacy aliases (child templates) */
     --bg: var(--color-bg);
@@ -77,7 +80,7 @@
     --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08);
     --shadow-md: 0 10px 24px rgba(15, 76, 129, 0.1);
     --shadow-lg: 0 18px 40px rgba(15, 76, 129, 0.12);
-    --shadow-focus: 0 0 0 3px rgba(11, 79, 156, 0.18);
+    --shadow-focus: 0 0 0 3px var(--color-focus-ring);
 
     /* Layout */
     --container-max: 1200px;
@@ -94,6 +97,8 @@
     --transition-fast: 0.12s ease;
     --transition-base: 0.16s ease;
     --transition-slow: 0.24s ease;
+    --motion-duration-base: 0.16s;
+    --tap-min-size: 44px;
 
     /* Breakpoints (reference for media queries) */
     --bp-xl: 1280px;
@@ -187,7 +192,9 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
-summary:focus-visible {
+summary:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus);
 }
@@ -650,7 +657,7 @@ button:not(.row-actions__item--button):not(.nav-logout button):not(.header__logo
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
-    min-height: 2.5rem;
+    min-height: var(--tap-min-size);
     padding: 0.55rem 1.15rem;
     border: 1px solid transparent;
     border-radius: var(--radius-md);
@@ -697,7 +704,7 @@ button.button--ghost,
 a.button--ghost,
 .button--ghost,
 .btn-link {
-    min-height: auto;
+    min-height: var(--tap-min-size);
     padding: 0.35rem 0.65rem;
     border: none;
     background: transparent;
@@ -825,7 +832,7 @@ select,
 textarea {
     width: 100%;
     margin-top: var(--space-1);
-    min-height: 2.5rem;
+    min-height: var(--tap-min-size);
     padding: 0.55rem 0.75rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -1020,6 +1027,22 @@ label:has(.field-error) textarea {
     border-color: rgba(11, 92, 173, 0.18);
     background: var(--color-info-soft);
     color: var(--color-info);
+}
+
+/* Generic loading helpers */
+
+.is-loading {
+    opacity: 0.62;
+    pointer-events: none;
+}
+
+.htmx-indicator {
+    display: none;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    display: inline-flex;
 }
 
 /* Badges & status */
@@ -2802,6 +2825,17 @@ a.report-card--link:focus-visible {
 .error-page .auth-form__actions .button {
     width: auto;
     min-width: 12rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 /* Utilities */

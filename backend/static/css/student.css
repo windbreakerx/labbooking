@@ -69,7 +69,7 @@
 
 .student-search-bar input[type="search"] {
     width: 100%;
-    min-height: 2.75rem;
+    min-height: var(--tap-min-size);
 }
 
 /* HTMX loading */
@@ -110,9 +110,9 @@
     border-radius: var(--radius-pill);
     background: linear-gradient(
         90deg,
-        var(--color-border) 0%,
-        var(--color-surface-muted) 50%,
-        var(--color-border) 100%
+        var(--color-skeleton) 0%,
+        var(--color-skeleton-shimmer) 50%,
+        var(--color-skeleton) 100%
     );
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.2s ease-in-out infinite;
@@ -152,6 +152,10 @@
 .catalog-discipline.is-filter-hidden,
 .catalog-dept.is-filter-hidden {
     display: none;
+}
+
+.catalog-empty {
+    margin: 0;
 }
 
 /* My bookings — cards first on all student widths */
@@ -302,4 +306,22 @@
 .booking-ticket__methodics {
     padding: var(--space-4) var(--space-5);
     border-top: 1px solid var(--color-border);
+}
+
+.login-card form {
+    margin-top: var(--space-5);
+}
+
+.booking-actions {
+    align-items: flex-start;
+}
+
+.booking-actions > .button,
+.booking-actions > button {
+    min-width: min(100%, 14rem);
+}
+
+.support-form .form-actions .button,
+.reply-form .form-actions .button {
+    min-width: min(100%, 14rem);
 }

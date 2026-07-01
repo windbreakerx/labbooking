@@ -14,7 +14,7 @@
         {% csrf_token %}
         <h2 class="card__title">Новое обращение</h2>
         <label>Учебная лаборатория
-            <select name="training_center" required>
+            <select id="id_training_center" name="training_center" required>
                 <option value="">—</option>
                 {% for tc in training_centers %}
                 <option value="{{ tc.pk }}">УЦ №{{ tc.number }}{% if tc.name %} — {{ tc.name }}{% endif %}</option>
@@ -28,7 +28,7 @@
             <textarea name="body" rows="4" required placeholder="Подробности обращения"></textarea>
         </label>
         <div class="form-actions">
-            <button type="submit">Отправить обращение</button>
+            <button type="submit" class="button">Отправить обращение</button>
         </div>
     </form>
 
@@ -59,6 +59,7 @@
             <div class="empty-state empty-state--icon">
                 <p>Обращений пока нет.</p>
                 <p class="muted">Заполните форму слева, чтобы задать вопрос сотрудникам лаборатории.</p>
+                <a href="#id_training_center" class="button button--secondary">Создать первое обращение</a>
             </div>
             {% endfor %}
         </div>

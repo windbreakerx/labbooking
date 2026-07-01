@@ -47,10 +47,10 @@
     {% csrf_token %}
     <h2 class="card__title">Дополнить обращение</h2>
     <label>Дополнительное сообщение
-        <textarea name="body" rows="3" placeholder="Добавьте уточнение или новый вопрос"></textarea>
+        <textarea name="body" rows="3" required placeholder="Добавьте уточнение или новый вопрос"></textarea>
     </label>
     <div class="form-actions">
-        <button type="submit">Отправить</button>
+        <button type="submit" class="button">Отправить</button>
     </div>
 </form>
 <p class="page-actions">

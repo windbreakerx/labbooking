@@ -6,7 +6,8 @@
                 class="btn-link"
                 hx-get="{% url filter_route|default:'book-filter' lab_work_id %}"
                 hx-target="{{ filter_chain_selector|default:'#filter-chain' }}"
-                hx-swap="innerHTML">← Выбрать другой день</button>
+                hx-swap="innerHTML"
+                hx-indicator=".htmx-booking-indicator">← Выбрать другой день</button>
     </div>
     <p class="selected-value"><span>Выбранный день</span> {{ date }}</p>
     <label>Пара
@@ -15,7 +16,8 @@
                 hx-get="{% url filter_route|default:'book-filter' lab_work_id %}"
                 hx-target="{{ session_slot_selector|default:'#session-slot' }}"
                 hx-swap="innerHTML"
-                hx-include="{{ filter_chain_selector|default:'#filter-chain' }}">
+                hx-include="{{ filter_chain_selector|default:'#filter-chain' }}"
+                hx-indicator=".htmx-booking-indicator">
             <option value="">—</option>
             {% for opt in options %}
             <option value="{{ opt.value }}">{{ opt.label }}</option>

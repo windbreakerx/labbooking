@@ -17,7 +17,7 @@
     </ul>
     {% endif %}
 
-    <form method="post" action="{% url 'login' %}">
+    <form method="post" action="{% url 'login' %}" class="login-form" novalidate>
         {% csrf_token %}
         <label for="{{ form.username.id_for_label }}">
             <span class="field-label">
@@ -38,7 +38,9 @@
             <span class="field-error">{{ form.password.errors|join:", " }}</span>
             {% endif %}
         </label>
-        <button type="submit">Войти</button>
+        <div class="form-actions">
+            <button type="submit" class="button">Войти</button>
+        </div>
     </form>
 </div>
 </div>
