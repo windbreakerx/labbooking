@@ -1,6 +1,6 @@
 {% load static %}
 <header class="header header--staff">
-    <div class="container header__inner header__inner--staff">
+    <div class="container staff-header-row">
         <a href="{% url 'home' %}" class="header__brand logo">
             <img src="{% static 'img/spmi-logo.png' %}" alt="" class="header__brand-logo" width="40" height="40">
             <span class="header__brand-text">
@@ -8,10 +8,9 @@
                 <span class="header__brand-subtitle">Горный университет</span>
             </span>
         </a>
-    </div>
-    {% if user.is_authenticated %}
-    <nav class="staff-pill-nav container" aria-label="Навигация сотрудника">
-        <div class="staff-pill-nav__group staff-pill-nav__group--main">
+
+        {% if user.is_authenticated %}
+        <nav class="staff-pill-nav" aria-label="Навигация сотрудника">
             <div class="staff-pill-nav__links staff-pill-nav__links--main">
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-bookings' %} pill-nav__link--current{% endif %}" href="{% url 'staff-bookings' %}">Записи</a>
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-support' %} pill-nav__link--current{% endif %}" href="{% url 'staff-support' %}">Обращения</a>
@@ -22,8 +21,9 @@
                 {% endif %}
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-reports' %} pill-nav__link--current{% endif %}" href="{% url 'staff-reports' %}">Отчёты</a>
             </div>
-        </div>
-        <div class="staff-pill-nav__group staff-pill-nav__group--end">
+        </nav>
+
+        <div class="staff-header-tools">
             <div class="staff-pill-nav__tools">
                 <div class="staff-user-chip">
                     <span class="staff-user-chip__name">{% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}</span>
@@ -57,6 +57,6 @@
                 </form>
             </div>
         </div>
-    </nav>
-    {% endif %}
+        {% endif %}
+    </div>
 </header>
