@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# Слияние studlab + department catalog drafts с уже импортированными данными НГФ на VM.
+# Слияние studlab + department catalog drafts с данными НГФ.
 #
-# Не удаляет существующие дисциплины/ЛР/студентов НГФ из ЛР_учет.
-# Запускать из корня репозитория на VM после git pull:
-#   bash scripts/sync-catalog-vm.sh
+# Вызывается из deploy-vm.sh --import-data или вручную после git pull:
+#   bash scripts/sync-catalog-vm.sh --generate-sessions
 #
-# Опции:
-#   --generate-sessions   Догенерировать слоты на 2 недели
+# Без --import-data не удаляет НГФ из ЛР_учет (только добавляет/обновляет).
 
 set -euo pipefail
 

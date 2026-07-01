@@ -4,7 +4,7 @@
 # Обычный деплой (код + миграции, БД не трогаем):
 #   bash scripts/deploy-vm.sh
 #
-# Полный деплой с Excel (дисциплины, ЛР, студенты из data/import/xls/):
+# Полный деплой с Excel (НГФ + studlab + каталоги кафедр + студенты + слоты):
 #   bash scripts/deploy-vm.sh --import-data
 #
 # Только догенерировать слоты:
@@ -27,13 +27,14 @@ for arg in "$@"; do
 Использование: bash scripts/deploy-vm.sh [опции]
 
   (без опций)           Обновить код и миграции. Данные в БД не меняются.
-  --import-data         seed_demo (завлаб/сотрудники) + Excel + generate_sessions
+  --import-data         Полный импорт: НГФ (ЛР_учет) + studlab + каталоги кафедр + слоты
   --generate-sessions   Только generate_sessions --weeks 2
   -h, --help            Эта справка
 
 Excel-файлы: data/import/xls/ЛР_учет*.xlsx
-Завлаб/сотрудники: zavlab.pilot@spmi.ru, operator1.pilot@spmi.ru / pilot123
-Студенты после импорта: s<номер_зачётки>@stud.spmi.ru / student123
+Каталоги кафедр: docs/csv_templates/*_draft (в репозитории)
+Студенты НГФ: s<номер_зачётки>@stud.spmi.ru / student123
+Staff НГФ: ngflab@spmi.ru и др. из pilot_staff.csv / pilot123
 EOF
       exit 0
       ;;
@@ -116,7 +117,9 @@ if [[ "$IMPORT_DATA" -eq 1 ]]; then
   $COMPOSE exec -T web mkdir -p /tmp/labs
   $COMPOSE cp "${XLS_DIR}/." web:/tmp/labs/
   $COMPOSE exec -T web python manage.py import_lr_accounting_xlsx /tmp/labs --clear-existing
-  GENERATE_SESSIONS=1
+
+  echo "==> Studlab, каталоги кафедр, студенты, staff..."
+  bash scripts/sync-catalog-vm.sh --generate-sessions
 fi
 
 if [[ "$GENERATE_SESSIONS" -eq 1 ]]; then
@@ -171,6 +174,6 @@ else
   echo "HTTPS: bash scripts/setup-https-ycm.sh <DOMAIN> ...  затем USE_HTTPS=1 в .env"
 fi
 echo "Студенты: s<номер_зачётки>@stud.spmi.ru / student123"
-echo "Завлаб/сотрудники: zavlab.pilot@spmi.ru, operator1.pilot@spmi.ru / pilot123"
-echo "Импорт Excel: bash scripts/deploy-vm.sh --import-data"
-echo "Слияние каталога (studlab + workload drafts): bash scripts/sync-catalog-vm.sh --generate-sessions"
+echo "Staff НГФ: см. docs/csv_templates/pilot_staff.csv / pilot123"
+echo "Полный импорт: bash scripts/deploy-vm.sh --import-data"
+echo "Догрузить каталог без пересоздания НГФ: bash scripts/sync-catalog-vm.sh --generate-sessions"
