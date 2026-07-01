@@ -325,3 +325,246 @@
 .reply-form .form-actions .button {
     min-width: min(100%, 14rem);
 }
+
+/* Student wow polish */
+
+.student-layout .page-header {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: var(--space-5);
+    padding: var(--space-5);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+    border-radius: var(--radius-xl);
+    background:
+        radial-gradient(circle at 100% 0%, rgba(184, 134, 11, 0.17), transparent 45%),
+        radial-gradient(circle at 0% 100%, rgba(22, 121, 76, 0.14), transparent 52%),
+        linear-gradient(145deg, #ffffff 0%, #f5f9ff 68%, #fffaf0 100%);
+    box-shadow: 0 20px 44px rgba(11, 79, 156, 0.12);
+}
+
+.student-layout .page-title {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    letter-spacing: -0.02em;
+}
+
+.student-layout .page-description {
+    max-width: 56ch;
+    color: var(--color-text-secondary);
+}
+
+.student-layout .student-top-nav {
+    gap: var(--space-3);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-4);
+}
+
+.student-layout .pill-nav__link {
+    min-height: 3rem;
+    padding: 0.65rem 0.95rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.65);
+    box-shadow: var(--shadow-xs);
+}
+
+.student-layout .pill-nav__link:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+    transform: translateY(-1px);
+}
+
+.student-layout .pill-nav__link--current {
+    border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border));
+    background: linear-gradient(180deg, #eef5ff 0%, #e4efff 100%);
+    box-shadow: var(--shadow-sm);
+}
+
+.student-layout .login-card {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+    border-radius: var(--radius-xl);
+    background:
+        radial-gradient(circle at 15% 0%, rgba(11, 79, 156, 0.08), transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(184, 134, 11, 0.12), transparent 62%),
+        #fff;
+}
+
+.student-layout .login-logo {
+    filter: drop-shadow(0 8px 14px rgba(11, 79, 156, 0.24));
+}
+
+.student-layout .student-search-bar {
+    position: sticky;
+    top: var(--space-3);
+    z-index: 8;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+    border-radius: var(--radius-lg);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96));
+    box-shadow: var(--shadow-sm);
+}
+
+.student-layout .student-search-bar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-success), var(--color-accent));
+}
+
+.student-layout .catalog-dept,
+.student-layout .catalog-discipline {
+    border-width: 1px;
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
+    box-shadow: 0 10px 24px rgba(11, 79, 156, 0.06);
+}
+
+.student-layout .catalog-dept__summary {
+    padding-top: var(--space-5);
+    padding-bottom: var(--space-5);
+}
+
+.student-layout .catalog-discipline__summary {
+    border-left: 3px solid transparent;
+}
+
+.student-layout .catalog-discipline[open] > .catalog-discipline__summary {
+    border-left-color: var(--color-primary);
+}
+
+.student-layout .catalog-lab-work {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border));
+    border-radius: var(--radius-md);
+    background: #fff;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.student-layout .catalog-lab-work:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
+    box-shadow: var(--shadow-sm);
+}
+
+.student-layout .booking-wizard {
+    border-width: 1px;
+    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+    box-shadow: 0 18px 36px rgba(11, 79, 156, 0.12);
+}
+
+.student-layout .booking-stepper {
+    gap: var(--space-3);
+}
+
+.student-layout .booking-step {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: #fff;
+    box-shadow: var(--shadow-xs);
+}
+
+.student-layout .booking-step--active {
+    border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border));
+    background: linear-gradient(180deg, #eff5ff 0%, #e8f0ff 100%);
+    box-shadow: var(--shadow-sm);
+}
+
+.student-layout .booking-step--done {
+    border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border));
+    background: linear-gradient(180deg, #eef9f2 0%, #e6f5ec 100%);
+}
+
+.student-layout .booking-step__num {
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: var(--radius-pill);
+    background: #fff;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+    box-shadow: inset 0 -1px 0 rgba(11, 79, 156, 0.08);
+}
+
+.student-layout .booking-step--done .booking-step__num {
+    border-color: color-mix(in srgb, var(--color-success) 38%, var(--color-border));
+    color: var(--color-success);
+}
+
+.student-layout .booking-actions {
+    position: sticky;
+    bottom: var(--space-2);
+    z-index: 12;
+    margin-top: var(--space-5);
+    padding: var(--space-4);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(6px);
+}
+
+.student-layout .booking-actions__hint {
+    color: var(--color-text-secondary);
+}
+
+.student-layout .booking-card,
+.student-layout .ticket-card,
+.student-layout .reply-form,
+.student-layout .support-form {
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
+    box-shadow: 0 12px 26px rgba(11, 79, 156, 0.08);
+}
+
+.student-layout .booking-card {
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.student-layout .booking-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 32px rgba(11, 79, 156, 0.12);
+}
+
+.student-layout .status-badge {
+    font-weight: var(--font-weight-semibold);
+}
+
+.student-layout .thread {
+    gap: var(--space-4);
+}
+
+.student-layout .thread__message {
+    border-width: 1px;
+    border-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border));
+}
+
+.student-layout .thread__message--own {
+    border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border));
+    box-shadow: 0 10px 20px rgba(11, 79, 156, 0.1);
+}
+
+@media (max-width: 768px) {
+    .student-layout .page-header {
+        padding: var(--space-4);
+    }
+
+    .student-layout .student-search-bar {
+        position: static;
+    }
+
+    .student-layout .booking-actions {
+        bottom: 0;
+        margin-left: calc(var(--space-4) * -1);
+        margin-right: calc(var(--space-4) * -1);
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .student-layout .pill-nav__link,
+    .student-layout .catalog-lab-work,
+    .student-layout .booking-card {
+        transform: none !important;
+    }
+}
