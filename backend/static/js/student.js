@@ -9,12 +9,18 @@
         if (!tree) {
             return;
         }
+        var countNode = document.getElementById('discipline-search-count');
+        var emptyState = document.getElementById('discipline-search-empty');
+        var visibleDisciplines = 0;
 
         tree.querySelectorAll('.catalog-discipline').forEach(function (discipline) {
             var title = discipline.querySelector('.catalog-discipline__title');
             var text = normalize(title && title.textContent);
             var match = !query || text.indexOf(query) !== -1;
             discipline.classList.toggle('is-filter-hidden', !match);
+            if (match) {
+                visibleDisciplines += 1;
+            }
         });
 
         tree.querySelectorAll('.catalog-dept').forEach(function (dept) {
@@ -24,6 +30,14 @@
                 dept.setAttribute('open', 'open');
             }
         });
+
+        if (countNode) {
+            countNode.textContent = String(visibleDisciplines);
+        }
+
+        if (emptyState) {
+            emptyState.hidden = visibleDisciplines > 0;
+        }
     }
 
     document.addEventListener('input', function (event) {

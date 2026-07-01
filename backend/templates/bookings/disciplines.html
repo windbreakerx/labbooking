@@ -6,6 +6,11 @@
         <p class="page-eyebrow">Студент</p>
         <h1 class="page-title">Учебные дисциплины</h1>
         <p class="page-description">Найдите дисциплину по названию или откройте кафедру в каталоге.</p>
+        <div class="student-flow-strip" aria-label="Маршрут записи">
+            <span class="student-flow-strip__item student-flow-strip__item--active">1. Дисциплина</span>
+            <span class="student-flow-strip__item">2. Слот</span>
+            <span class="student-flow-strip__item">3. Подтверждение</span>
+        </div>
     </div>
 </header>
 
@@ -21,6 +26,9 @@
         aria-describedby="discipline-search-hint"
     >
     <p id="discipline-search-hint" class="muted">Введите название дисциплины, чтобы быстро сузить каталог.</p>
+    <p class="student-search-bar__meta" aria-live="polite">
+        Найдено: <strong id="discipline-search-count">{{ disciplines|length }}</strong>
+    </p>
 </div>
 <div class="catalog-tree" id="discipline-catalog">
     {% for group in department_groups %}
@@ -67,6 +75,10 @@
         </div>
     </details>
     {% endfor %}
+</div>
+<div id="discipline-search-empty" class="empty-state empty-state--icon" hidden>
+    <p>По вашему запросу дисциплины не найдены.</p>
+    <p class="muted">Измените формулировку или очистите поиск, чтобы увидеть весь каталог.</p>
 </div>
 {% else %}
 <div class="empty-state empty-state--icon">

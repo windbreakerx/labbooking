@@ -4,7 +4,21 @@
 <section class="hero-card hero-card--student">
     <p class="page-eyebrow">Личный кабинет</p>
     <h1>Добро пожаловать, {{ user.first_name }}</h1>
-    <p>Выберите дисциплину, запишитесь на лабораторную работу или проверьте свои активные записи.</p>
+    <p>Записывайтесь на лабораторные в три шага: дисциплина, слот, подтверждение. Все обращения и статусы записей собраны в одном месте.</p>
+    <div class="student-hero-metrics" aria-label="Ключевые действия">
+        <a href="{% url 'disciplines' %}" class="student-hero-metric">
+            <span class="student-hero-metric__label">Шаг 1</span>
+            <strong class="student-hero-metric__value">Выбрать дисциплину</strong>
+        </a>
+        <a href="{% url 'my-bookings' %}" class="student-hero-metric">
+            <span class="student-hero-metric__label">Шаг 2</span>
+            <strong class="student-hero-metric__value">Проверить запись</strong>
+        </a>
+        <a href="{% url 'support' %}" class="student-hero-metric">
+            <span class="student-hero-metric__label">Шаг 3</span>
+            <strong class="student-hero-metric__value">Получить помощь</strong>
+        </a>
+    </div>
 </section>
 
 <div class="quick-actions quick-actions--student">
@@ -27,4 +41,31 @@
         <span class="action-card__cta">Написать вопрос</span>
     </a>
 </div>
+
+<section class="card student-roadmap" aria-label="Как быстро записаться">
+    <h2 class="card__title">Маршрут записи</h2>
+    <ol class="student-roadmap__list">
+        <li class="student-roadmap__item">
+            <span class="student-roadmap__step" aria-hidden="true">01</span>
+            <div>
+                <h3>Откройте дисциплины</h3>
+                <p class="muted">Найдите нужную дисциплину и лабораторную работу через каталог.</p>
+            </div>
+        </li>
+        <li class="student-roadmap__item">
+            <span class="student-roadmap__step" aria-hidden="true">02</span>
+            <div>
+                <h3>Выберите слот</h3>
+                <p class="muted">Укажите дату и пару. Система покажет доступные места.</p>
+            </div>
+        </li>
+        <li class="student-roadmap__item">
+            <span class="student-roadmap__step" aria-hidden="true">03</span>
+            <div>
+                <h3>Подтвердите запись</h3>
+                <p class="muted">Проверьте детали в разделе «Мои записи» и при необходимости отмените в срок.</p>
+            </div>
+        </li>
+    </ol>
+</section>
 {% endblock %}

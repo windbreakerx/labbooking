@@ -13,6 +13,11 @@
         <p class="page-eyebrow">Лабораторные работы</p>
         <h1 class="page-title">{{ discipline.title }}</h1>
         <p class="page-description">Выберите лабораторную работу, чтобы открыть календарь записи.</p>
+        <div class="student-flow-strip" aria-label="Маршрут записи">
+            <span class="student-flow-strip__item student-flow-strip__item--active">1. Лабораторная работа</span>
+            <span class="student-flow-strip__item">2. Слот</span>
+            <span class="student-flow-strip__item">3. Подтверждение</span>
+        </div>
     </div>
 </header>
 
@@ -39,6 +44,8 @@
 {% else %}
 <div class="empty-state empty-state--icon">
     <p>Лабораторные работы не добавлены.</p>
+    <p class="muted">Вернитесь в каталог дисциплин или обратитесь в поддержку для уточнения.</p>
+    <a href="{% url 'disciplines' %}" class="button button--secondary">К дисциплинам</a>
 </div>
 {% endif %}
 {% endblock %}
