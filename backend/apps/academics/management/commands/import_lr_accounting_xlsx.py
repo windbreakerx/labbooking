@@ -6,6 +6,7 @@ import re
 from datetime import date
 from pathlib import Path
 
+from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils.text import slugify
@@ -91,6 +92,12 @@ class Command(BaseCommand):
             default=3,
             help="Емкость ЛР по умолчанию при импорте (по умолчанию: 3)",
         )
+        parser.add_argument(
+            "--max-students-per-group",
+            type=int,
+            default=5,
+            help="Сколько студентов импортировать из Excel на каждую группу (пилот: 5)",
+        )
 
     def handle(self, *args, **options):
         labs_dir = Path(options["labs_dir"] or "").expanduser()
@@ -103,7 +110,7 @@ class Command(BaseCommand):
 
         workbooks = [parse_workbook(path) for path in files]
         if options["dry_run"]:
-            self._print_dry_run(workbooks)
+            self._print_dry_run(workbooks, max_students_per_group=options["max_students_per_group"])
             return
 
         with transaction.atomic():
@@ -123,15 +130,18 @@ class Command(BaseCommand):
                 shuffle_names=not options["no_shuffle_names"],
                 shuffle_seed=options["shuffle_seed"],
                 default_capacity=options["default_capacity"],
+                max_students_per_group=options["max_students_per_group"],
             )
 
         self.stdout.write(self.style.SUCCESS("Импорт завершён."))
         for key, value in stats.items():
             self.stdout.write(f"{key}: {value}")
 
-    def _print_dry_run(self, workbooks: list[ParsedWorkbook]):
+    def _print_dry_run(self, workbooks: list[ParsedWorkbook], *, max_students_per_group: int):
         for workbook in workbooks:
-            students = sum(len(group.students) for group in workbook.group_sheets)
+            students = sum(
+                min(len(group.students), max_students_per_group) for group in workbook.group_sheets
+            )
             self.stdout.write(
                 f"{workbook.source_file} -> ауд. {workbook.room_number}: "
                 f"{len(workbook.group_sheets)} групп, {students} студентов, "
@@ -200,6 +210,7 @@ class Command(BaseCommand):
         shuffle_names: bool = True,
         shuffle_seed: int | None = None,
         default_capacity: int = 3,
+        max_students_per_group: int = 5,
     ) -> dict[str, int]:
         stats = {
             "disciplines": 0,
@@ -216,7 +227,9 @@ class Command(BaseCommand):
             workbooks,
             shuffle_names=shuffle_names,
             shuffle_seed=shuffle_seed,
+            max_students_per_group=max_students_per_group,
         )
+        password_hash = make_password(default_password)
         def get_discipline(title: str) -> Discipline | None:
             title = title.strip()
             if not title:
@@ -343,7 +356,7 @@ class Command(BaseCommand):
                             student_group.disciplines.add(discipline)
                         student_group.lab_works.add(lab_work)
 
-                for student in group_sheet.students:
+                for student in group_sheet.students[:max_students_per_group]:
                     record_id = allocate_student_id(group_sheet.name, year_counters)
                     email = student_email(record_id)
                     display_name = display_name_map[(group_sheet.name, student.number)]
@@ -354,10 +367,9 @@ class Command(BaseCommand):
                             "last_name": display_name.last_name,
                             "role": UserRole.STUDENT,
                             "is_staff": False,
+                            "password": password_hash,
                         },
                     )
-                    user.set_password(default_password)
-                    user.save(update_fields=["password"])
                     UserProfile.objects.filter(user=user).update(
                         group_name=group_sheet.name,
                         student_group=student_group,
@@ -400,11 +412,12 @@ class Command(BaseCommand):
         *,
         shuffle_names: bool,
         shuffle_seed: int | None,
+        max_students_per_group: int,
     ) -> dict[tuple[str, int], DisplayName]:
         entries: list[tuple[str, ParsedStudent]] = []
         for workbook in workbooks:
             for group_sheet in workbook.group_sheets:
-                for student in group_sheet.students:
+                for student in group_sheet.students[:max_students_per_group]:
                     entries.append((group_sheet.name, student))
 
         if shuffle_names:

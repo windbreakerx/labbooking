@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import csv
 import logging
-import re
-from collections import defaultdict
 from pathlib import Path
 
 from django.contrib.auth.hashers import make_password
@@ -19,7 +17,9 @@ from apps.users.models import User, UserProfile, UserRole
 logger = logging.getLogger(__name__)
 
 DEFAULT_ACADEMIC_YEAR = "2025-2026"
-DEFAULT_MAX_STUDENTS_PER_GROUP = 40
+DEFAULT_STUDENTS_PER_GROUP = 5
+# Нормальная численность в Excel; значения вроде 285 — ошибка парсера/ячейки.
+SANE_STUDENT_COUNT_MAX = 28
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -31,14 +31,12 @@ def _clean(row: dict[str, str], key: str) -> str:
     return (row.get(key) or "").strip()
 
 
-def _parse_count(value: str) -> int:
-    if not value or not value.strip().isdigit():
-        return 0
-    return max(0, int(value.strip()))
-
-
-def normalize_student_count(count: int, *, max_per_group: int = DEFAULT_MAX_STUDENTS_PER_GROUP) -> int:
-    """Ограничить численность группы разумным потолком (в Excel бывают 285 и т.п.)."""
+def normalize_student_count(
+    count: int,
+    *,
+    max_per_group: int = SANE_STUDENT_COUNT_MAX,
+) -> int:
+    """Ограничить численность из Excel разумным диапазоном (16–28 в норме)."""
     if count <= 0:
         return 0
     return min(count, max_per_group)
@@ -48,9 +46,10 @@ def collect_group_targets(
     templates_dir: Path,
     *,
     academic_year: str | None = DEFAULT_ACADEMIC_YEAR,
-    max_per_group: int = DEFAULT_MAX_STUDENTS_PER_GROUP,
+    students_per_group: int = DEFAULT_STUDENTS_PER_GROUP,
 ) -> dict[str, int]:
-    targets: dict[str, int] = defaultdict(int)
+    """Одна учебная группа (шифр) = одна когорта людей, независимо от года в CSV."""
+    group_names: set[str] = set()
     for draft_name in KNOWN_DRAFTS:
         groups_path = templates_dir / draft_name / "03_groups.csv"
         if not groups_path.is_file():
@@ -60,13 +59,9 @@ def collect_group_targets(
             source_sheets = _clean(row, "source_sheets")
             if academic_year and academic_year not in source_sheets:
                 continue
-            count = normalize_student_count(
-                _parse_count(_clean(row, "student_count_suggested")),
-                max_per_group=max_per_group,
-            )
-            if group_name and count:
-                targets[group_name] = max(targets[group_name], count)
-    return dict(targets)
+            if group_name:
+                group_names.add(group_name)
+    return {name: students_per_group for name in sorted(group_names)}
 
 
 def _existing_student_count(group: StudentGroup) -> int:
@@ -80,7 +75,7 @@ def generate_workload_students(
     skip_existing_groups: bool = True,
     email_domain: str = "stud.spmi.ru",
     academic_year: str | None = DEFAULT_ACADEMIC_YEAR,
-    max_per_group: int = DEFAULT_MAX_STUDENTS_PER_GROUP,
+    students_per_group: int = DEFAULT_STUDENTS_PER_GROUP,
 ) -> dict[str, int]:
     stats = {
         "groups_processed": 0,
@@ -92,7 +87,7 @@ def generate_workload_students(
     targets = collect_group_targets(
         templates_dir,
         academic_year=academic_year,
-        max_per_group=max_per_group,
+        students_per_group=students_per_group,
     )
     stats["target_students"] = sum(targets.values())
     year_counters = new_year_counters()

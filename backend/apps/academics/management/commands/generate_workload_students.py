@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from apps.academics.services.workload_students import (
     DEFAULT_ACADEMIC_YEAR,
-    DEFAULT_MAX_STUDENTS_PER_GROUP,
+    DEFAULT_STUDENTS_PER_GROUP,
     collect_group_targets,
     generate_workload_students,
 )
@@ -32,13 +32,13 @@ class Command(BaseCommand):
         parser.add_argument(
             "--academic-year",
             default=DEFAULT_ACADEMIC_YEAR,
-            help="Брать только группы из листов с этим учебным годом (пусто — все годы)",
+            help="Брать группы из листов с этим учебным годом (пусто — все годы)",
         )
         parser.add_argument(
-            "--max-per-group",
+            "--students-per-group",
             type=int,
-            default=DEFAULT_MAX_STUDENTS_PER_GROUP,
-            help="Потолок численности группы (в Excel иногда попадают 285 и др.)",
+            default=DEFAULT_STUDENTS_PER_GROUP,
+            help="Сколько тестовых аккаунтов создать на каждую группу",
         )
         parser.add_argument(
             "--dry-run",
@@ -52,13 +52,13 @@ class Command(BaseCommand):
             raise CommandError(f"Каталог не найден: {templates_dir}")
 
         academic_year = options["academic_year"] or None
-        max_per_group = options["max_per_group"]
+        students_per_group = options["students_per_group"]
 
         if options["dry_run"]:
             targets = collect_group_targets(
                 templates_dir,
                 academic_year=academic_year,
-                max_per_group=max_per_group,
+                students_per_group=students_per_group,
             )
             self.stdout.write(f"groups: {len(targets)}")
             self.stdout.write(f"target_students: {sum(targets.values())}")
@@ -69,7 +69,7 @@ class Command(BaseCommand):
             default_password=options["default_password"],
             skip_existing_groups=not options["include_existing_groups"],
             academic_year=academic_year,
-            max_per_group=max_per_group,
+            students_per_group=students_per_group,
         )
         self.stdout.write(self.style.SUCCESS("Генерация студентов завершена."))
         for key, value in stats.items():

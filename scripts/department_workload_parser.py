@@ -358,8 +358,8 @@ def parse_sheet(ws, sheet_name: str, profile: DepartmentProfile) -> list[ParsedR
                 value = norm(raw)
             else:
                 value = parse_int(raw)
-                if key == "student_count" and value and value > 50:
-                    value = min(value, 40)
+                if key == "student_count" and value and value > 28:
+                    value = ""
             if value:
                 carry[key] = value
 
