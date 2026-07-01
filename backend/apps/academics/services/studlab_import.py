@@ -158,13 +158,15 @@ def import_studlab_draft(draft_dir: Path, *, default_password: str = "changeme12
             continue
         studlab_lab_id = _clean(row, "laboratory_studlab_id")
         laboratory = lab_by_studlab_id.get(studlab_lab_id)
+        room_defaults = {
+            "name": _clean(row, "room_name_short") or _clean(row, "room_name"),
+        }
+        if laboratory is not None:
+            room_defaults["laboratory"] = laboratory
         _, created = Room.objects.update_or_create(
             training_center=training_center,
             number=room_number,
-            defaults={
-                "name": _clean(row, "room_name_short") or _clean(row, "room_name"),
-                "laboratory": laboratory,
-            },
+            defaults=room_defaults,
         )
         if created:
             stats["rooms"] += 1

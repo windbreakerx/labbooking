@@ -257,9 +257,9 @@ def staff_students_qs(user: User) -> QuerySet[User]:
         return User.objects.none()
 
     from apps.bookings.models import Booking
-    from apps.bookings.services.booking import staff_lab_filter
+    from apps.bookings.services.booking import staff_booking_filter
 
-    scoped_booking_student_ids = staff_lab_filter(
+    scoped_booking_student_ids = staff_booking_filter(
         Booking.objects.all(),
         user,
     ).values_list("student_id", flat=True)

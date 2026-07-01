@@ -31,6 +31,8 @@ from apps.bookings.services import (
     is_staff_user,
     order_bookings_queryset,
     search_students_for_staff,
+    staff_booking_filter,
+    staff_can_access_booking,
     staff_can_access_scoped_object,
     staff_can_modify_bookings,
     staff_lab_filter,
@@ -604,7 +606,7 @@ class StaffBookingsWebView(LoginRequiredMixin, ListView):
             "room__training_center",
             "registered_by",
         )
-        qs = staff_lab_filter(qs, self.request.user)
+        qs = staff_booking_filter(qs, self.request.user)
         qs = filter_staff_bookings(qs, self.request.GET)
         return order_bookings_queryset(qs, self.request.GET)
 
@@ -719,8 +721,7 @@ class StaffStatusUpdateWebView(LoginRequiredMixin, View):
         if not staff_can_modify_bookings(request.user):
             return HttpResponseForbidden()
         booking = get_object_or_404(Booking, pk=pk)
-        scoped = staff_lab_filter(Booking.objects.filter(pk=booking.pk), request.user)
-        if not scoped.exists():
+        if not staff_can_access_booking(request.user, Booking.objects.filter(pk=booking.pk)):
             messages.error(request, "Запись недоступна для вашей лаборатории.")
             return redirect("staff-bookings")
         new_status = request.POST.get("status")

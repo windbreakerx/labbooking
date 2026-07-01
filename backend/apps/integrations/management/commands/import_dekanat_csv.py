@@ -4,7 +4,7 @@ import re
 from django.core.management.base import BaseCommand
 
 from apps.academics.models import Discipline, LabWork, Semester, StudentGroup
-from apps.scheduling.models import TrainingCenter
+from apps.scheduling.models import Laboratory, TrainingCenter
 from apps.users.models import User, UserProfile, UserRole
 
 
@@ -102,6 +102,17 @@ class Command(BaseCommand):
         training_center = TrainingCenter.objects.filter(number=int(training_center_number)).first()
         if training_center:
             obj.training_centers.add(training_center)
+
+    def _bind_staff_laboratory(self, profile: UserProfile, training_center: TrainingCenter):
+        if profile.laboratory_id:
+            return
+        laboratory = Laboratory.objects.filter(
+            training_center=training_center,
+            name="Комплексная учебная лаборатория нефтегазового факультета",
+        ).first()
+        if laboratory:
+            profile.laboratory = laboratory
+            profile.save(update_fields=["laboratory"])
 
     def _resolve_email(self, row, *, role):
         explicit = self._clean(row, "email").lower()
@@ -249,6 +260,7 @@ class Command(BaseCommand):
             if training_center:
                 user.profile.training_center = training_center
                 user.profile.save(update_fields=["training_center"])
+                self._bind_staff_laboratory(user.profile, training_center)
         self._bind_teacher_disciplines(user, self._clean(row, "discipline_codes"))
         return int(created), int(not created)
 

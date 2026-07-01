@@ -13,7 +13,7 @@ from apps.academics.querysets import (
     staff_students_qs,
 )
 from apps.bookings.models import Booking, BookingStatus, SupportTicket
-from apps.bookings.services import BookingService, staff_lab_filter
+from apps.bookings.services import BookingService, staff_booking_filter, staff_lab_filter
 from apps.scheduling.models import (
     LabSession,
     LabSessionStatus,
@@ -870,6 +870,31 @@ class TestStaffLaboratoryIsolation:
         ids = set(staff_lab_filter(Booking.objects.all(), staff_lab_a).values_list("pk", flat=True))
         assert booking_a.pk in ids
         assert booking_b.pk not in ids
+
+    def test_staff_booking_filter_keeps_lab_work_when_room_laboratory_differs(
+        self,
+        staff_lab_a,
+        student,
+        lab_a_lab_work,
+        lab_a_discipline,
+        room_b,
+        semester,
+    ):
+        starts = next_open_weekday_pair(days_ahead=10)
+        session = LabSession.objects.create(
+            lab_work=lab_a_lab_work,
+            room=room_b,
+            semester=semester,
+            starts_at=starts,
+            ends_at=starts + timezone.timedelta(minutes=90),
+            capacity=5,
+            status=LabSessionStatus.OPEN,
+        )
+        booking = seed_manual_booking(actor=staff_lab_a, student=student, session=session)
+        ids = set(staff_booking_filter(Booking.objects.all(), staff_lab_a).values_list("pk", flat=True))
+        assert booking.pk in ids
+        strict_ids = set(staff_lab_filter(Booking.objects.all(), staff_lab_a).values_list("pk", flat=True))
+        assert booking.pk not in strict_ids
 
     def test_staff_bookings_web_hides_sibling_laboratory(
         self,

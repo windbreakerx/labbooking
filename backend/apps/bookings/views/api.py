@@ -37,6 +37,8 @@ from apps.bookings.services import (
     BookingError,
     BookingService,
     is_staff_user,
+    staff_booking_filter,
+    staff_can_access_booking,
     staff_can_access_scoped_object,
     staff_can_modify_bookings,
     staff_lab_filter,
@@ -240,7 +242,7 @@ class BookingCancelView(APIView):
 
         if booking.student_id != request.user.id and not IsLabStaff().has_permission(request, self):
             return Response({"detail": "Нет доступа."}, status=status.HTTP_403_FORBIDDEN)
-        if booking.student_id != request.user.id and not staff_can_access_scoped_object(
+        if booking.student_id != request.user.id and not staff_can_access_booking(
             request.user,
             Booking.objects.filter(pk=booking.pk),
         ):
@@ -367,7 +369,7 @@ class AdminBookingListView(generics.ListAPIView):
                 Q(student__email__icontains=student)
                 | Q(student__last_name__icontains=student)
             )
-        return staff_lab_filter(qs, self.request.user).order_by("-scheduled_at")
+        return staff_booking_filter(qs, self.request.user).order_by("-scheduled_at")
 
 
 class BookingStatusUpdateView(APIView):
@@ -383,7 +385,7 @@ class BookingStatusUpdateView(APIView):
         except Booking.DoesNotExist:
             return Response({"detail": "Не найдено."}, status=status.HTTP_404_NOT_FOUND)
 
-        if not staff_can_access_scoped_object(
+        if not staff_can_access_booking(
             request.user,
             Booking.objects.filter(pk=booking.pk),
         ):

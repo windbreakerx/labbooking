@@ -31,9 +31,9 @@ def generate_report(
     if discipline_id:
         qs = qs.filter(discipline_id=discipline_id)
     if staff_user is not None:
-        from apps.bookings.services import staff_lab_filter
+        from apps.bookings.services import staff_booking_filter
 
-        qs = staff_lab_filter(qs, staff_user)
+        qs = staff_booking_filter(qs, staff_user)
 
     if report_type == "bookings":
         ws.title = "Записи"

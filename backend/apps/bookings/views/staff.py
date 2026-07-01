@@ -14,7 +14,7 @@ from apps.academics.querysets import (
 )
 from apps.bookings.models import Booking, SupportMessage, SupportTicket
 from apps.bookings.reports import generate_report
-from apps.bookings.services import filter_staff_students, is_staff_user, order_students_queryset, staff_lab_filter
+from apps.bookings.services import filter_staff_students, is_staff_user, order_students_queryset, staff_booking_filter, staff_lab_filter
 from apps.bookings.services.methodics import delete_lab_work_methodics, upload_lab_work_methodics
 from apps.scheduling.models import LabStand, ScheduleEntry
 from apps.users.models import UserRole
@@ -161,7 +161,7 @@ class StaffStudentsView(StaffRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        scoped_bookings = staff_lab_filter(
+        scoped_bookings = staff_booking_filter(
             Booking.objects.select_related("lab_work", "discipline", "room").order_by("-scheduled_at"),
             self.request.user,
         )

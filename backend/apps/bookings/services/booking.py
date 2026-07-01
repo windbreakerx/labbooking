@@ -655,6 +655,32 @@ def staff_lab_filter(
     return qs.filter(**{training_center_lookup: lookup_value})
 
 
+def staff_booking_filter(qs, user):
+    """Booking list scope: room lab filter plus lab_work/discipline ownership.
+
+    After catalog imports, room.laboratory may disagree with the lab_work that
+    was booked while the room had no laboratory; keep those bookings visible.
+    """
+    scoped = staff_lab_filter(qs, user)
+    if user.role == UserRole.SYS_ADMIN:
+        return scoped
+    try:
+        profile = user.profile
+    except (AttributeError, ObjectDoesNotExist):
+        profile = None
+    if not profile or not profile.laboratory_id:
+        return scoped
+
+    laboratory = profile.laboratory
+    by_lab_work = qs.filter(lab_work__laboratories=laboratory)
+    by_discipline = qs.filter(discipline__laboratories=laboratory)
+    return (scoped | by_lab_work | by_discipline).distinct()
+
+
+def staff_can_access_booking(user: User, qs) -> bool:
+    return staff_booking_filter(qs, user).exists()
+
+
 def staff_can_access_scoped_object(
     user: User,
     qs,
