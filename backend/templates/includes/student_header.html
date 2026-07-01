@@ -40,7 +40,6 @@
         <div class="student-header-tools">
             <div class="student-user-chip">
                 <span class="student-user-chip__name">{% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}</span>
-                <span class="student-user-chip__cabinet">Кабинет</span>
             </div>
             <form method="post" action="{% url 'logout' %}" class="student-user-logout">
                 {% csrf_token %}

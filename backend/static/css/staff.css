@@ -195,6 +195,10 @@
     box-shadow: var(--shadow-xs);
 }
 
+.staff-user-chip .staff-mega {
+    margin-left: var(--space-1);
+}
+
 .staff-user-chip__name {
     max-width: 12rem;
     overflow: hidden;
