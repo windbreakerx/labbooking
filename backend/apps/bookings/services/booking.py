@@ -660,6 +660,9 @@ def staff_booking_filter(qs, user):
 
     After catalog imports, room.laboratory may disagree with the lab_work that
     was booked while the room had no laboratory; keep those bookings visible.
+
+    Uses pk__in instead of queryset OR/distinct so ordering and Prefetch stay
+    valid on PostgreSQL.
     """
     scoped = staff_lab_filter(qs, user)
     if user.role == UserRole.SYS_ADMIN:
@@ -672,9 +675,16 @@ def staff_booking_filter(qs, user):
         return scoped
 
     laboratory = profile.laboratory
-    by_lab_work = qs.filter(lab_work__laboratories=laboratory)
-    by_discipline = qs.filter(discipline__laboratories=laboratory)
-    return (scoped | by_lab_work | by_discipline).distinct()
+    booking_ids = set(scoped.values_list("pk", flat=True))
+    booking_ids.update(
+        qs.filter(lab_work__laboratories=laboratory).values_list("pk", flat=True),
+    )
+    booking_ids.update(
+        qs.filter(discipline__laboratories=laboratory).values_list("pk", flat=True),
+    )
+    if not booking_ids:
+        return qs.none()
+    return qs.filter(pk__in=booking_ids)
 
 
 def staff_can_access_booking(user: User, qs) -> bool:

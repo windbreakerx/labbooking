@@ -896,6 +896,56 @@ class TestStaffLaboratoryIsolation:
         strict_ids = set(staff_lab_filter(Booking.objects.all(), staff_lab_a).values_list("pk", flat=True))
         assert booking.pk not in strict_ids
 
+    def test_staff_students_page_with_lab_work_room_mismatch(
+        self,
+        staff_lab_a,
+        student,
+        lab_a_lab_work,
+        room_b,
+        semester,
+    ):
+        starts = next_open_weekday_pair(days_ahead=11)
+        session = LabSession.objects.create(
+            lab_work=lab_a_lab_work,
+            room=room_b,
+            semester=semester,
+            starts_at=starts,
+            ends_at=starts + timezone.timedelta(minutes=90),
+            capacity=5,
+            status=LabSessionStatus.OPEN,
+        )
+        seed_manual_booking(actor=staff_lab_a, student=student, session=session)
+        client = Client()
+        client.force_login(staff_lab_a)
+        response = client.get("/staff/students/")
+        assert response.status_code == 200
+        assert student.email.encode() in response.content
+
+    def test_staff_bookings_page_orders_after_lab_work_scope_fallback(
+        self,
+        staff_lab_a,
+        student,
+        lab_a_lab_work,
+        room_b,
+        semester,
+    ):
+        starts = next_open_weekday_pair(days_ahead=12)
+        session = LabSession.objects.create(
+            lab_work=lab_a_lab_work,
+            room=room_b,
+            semester=semester,
+            starts_at=starts,
+            ends_at=starts + timezone.timedelta(minutes=90),
+            capacity=5,
+            status=LabSessionStatus.OPEN,
+        )
+        seed_manual_booking(actor=staff_lab_a, student=student, session=session)
+        client = Client()
+        client.force_login(staff_lab_a)
+        response = client.get("/staff/bookings/", {"sort": "student", "dir": "asc"})
+        assert response.status_code == 200
+        assert student.last_name.encode() in response.content
+
     def test_staff_bookings_web_hides_sibling_laboratory(
         self,
         staff_lab_a,
