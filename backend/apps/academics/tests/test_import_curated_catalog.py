@@ -74,3 +74,22 @@ def test_studlab_import_truncates_long_lab_short_name():
     for laboratory in Laboratory.objects.all():
         assert len(laboratory.short_name) <= 64
         assert len(laboratory.name) <= 256
+
+
+@pytest.mark.django_db
+def test_import_otf_draft_truncates_long_lab_titles(semester):
+    repo_root = Path(__file__).resolve().parents[4]
+    draft_dir = repo_root / "docs" / "csv_templates" / "otf_draft"
+    if not (draft_dir / "07_lab_works_unique.csv").is_file():
+        pytest.skip("otf_draft not present")
+
+    import_department_draft(
+        draft_dir,
+        semester=semester,
+        studlab_dir=repo_root / "docs" / "csv_templates" / "studlab_draft",
+    )
+
+    for lab_work in LabWork.objects.all():
+        assert len(lab_work.title) <= 256
+    for discipline in Discipline.objects.all():
+        assert len(discipline.title) <= 256

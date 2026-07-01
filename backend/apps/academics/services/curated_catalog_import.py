@@ -8,7 +8,7 @@ from pathlib import Path
 from django.db import transaction
 
 from apps.academics.models import Department, Discipline, Faculty, LabWork, Semester, StudentGroup
-from apps.academics.services.catalog_normalize import normalize_lab_duration
+from apps.academics.services.catalog_normalize import normalize_lab_duration, truncate_field
 from apps.academics.services.catalog_normalize import lab_work_match_key, normalize_lab_title
 from apps.scheduling.models import Laboratory, Room, TrainingCenter
 
@@ -139,7 +139,7 @@ def import_department_draft(
     discipline_by_title: dict[str, Discipline] = {}
     for row in _read_csv(draft_dir / "02_disciplines.csv"):
         code = _clean(row, "discipline_code_suggested")
-        title = _clean(row, "discipline_title")
+        title = truncate_field(_clean(row, "discipline_title"), 256)
         if not code or not title:
             continue
         discipline, created = Discipline.objects.update_or_create(
@@ -161,8 +161,8 @@ def import_department_draft(
 
     lab_by_key: dict[tuple[str, int | None], LabWork] = {}
     for row in _read_csv(draft_dir / "07_lab_works_unique.csv"):
-        title = _clean(row, "lab_title")
-        discipline_title = _clean(row, "discipline_title")
+        title = truncate_field(_clean(row, "lab_title"), 256)
+        discipline_title = truncate_field(_clean(row, "discipline_title"), 256)
         if not title or not discipline_title:
             continue
         discipline = discipline_by_title.get(discipline_title)
@@ -220,7 +220,7 @@ def import_department_draft(
 
     group_cache: dict[str, StudentGroup] = {}
     for row in _read_csv(draft_dir / "03_groups.csv"):
-        group_name = _clean(row, "group_name")
+        group_name = truncate_field(_clean(row, "group_name"), 64)
         if not group_name:
             continue
         group, created = StudentGroup.objects.get_or_create(
@@ -239,7 +239,7 @@ def import_department_draft(
 
     seen_curriculum: set[tuple[str, str]] = set()
     for row in _read_csv(draft_dir / "05_curriculum.csv"):
-        group_name = _clean(row, "group_name")
+        group_name = truncate_field(_clean(row, "group_name"), 64)
         code = _clean(row, "discipline_code_suggested")
         if not group_name or not code:
             continue
@@ -257,9 +257,9 @@ def import_department_draft(
 
     seen_lab_links: set[tuple[str, int]] = set()
     for row in _read_csv(draft_dir / "04_lab_works.csv"):
-        group_name = _clean(row, "group_name")
-        title = _clean(row, "lab_title")
-        discipline_title = _clean(row, "discipline_title")
+        group_name = truncate_field(_clean(row, "group_name"), 64)
+        title = truncate_field(_clean(row, "lab_title"), 256)
+        discipline_title = truncate_field(_clean(row, "discipline_title"), 256)
         if not group_name or not title:
             continue
         group = group_cache.get(group_name) or StudentGroup.objects.filter(name=group_name).first()

@@ -8,6 +8,7 @@ from pathlib import Path
 from django.db import transaction
 
 from apps.academics.models import Department, Faculty
+from apps.academics.services.catalog_normalize import truncate_field
 from apps.scheduling.models import Laboratory, LaboratoryType, Room, TrainingCenter
 from apps.users.models import User, UserProfile, UserRole
 
@@ -22,7 +23,7 @@ def _clean(row: dict[str, str], key: str) -> str:
 
 
 def _truncate(value: str, max_length: int) -> str:
-    return value[:max_length] if value else value
+    return truncate_field(value, max_length)
 
 
 def _lab_type(value: str) -> str:

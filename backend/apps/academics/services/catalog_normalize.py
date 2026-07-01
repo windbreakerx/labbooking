@@ -15,6 +15,11 @@ def normalize_lab_title(title: str) -> str:
     return text
 
 
+def truncate_field(value: str, max_length: int) -> str:
+    text = (value or "").strip()
+    return text[:max_length] if text else text
+
+
 def lab_work_match_key(title: str, room_id: int | None) -> tuple[str, int | None]:
     return normalize_lab_title(title), room_id
 
