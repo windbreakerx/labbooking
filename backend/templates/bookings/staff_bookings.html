@@ -44,7 +44,7 @@
         <input type="hidden" name="student_id" id="manual-student-id" x-model="manual.studentId">
         <input type="hidden" name="discipline_id" id="manual-discipline-id" x-model="manual.disciplineId">
 
-        <div class="manual-booking__section">
+        <div class="manual-booking__section manual-booking__section--student">
             <label for="manual-student-query">Студент</label>
             <input
                 type="search"
@@ -59,7 +59,13 @@
                 x-ref="manualStudentQuery"
             >
             <div id="manual-student-results" class="manual-student-search" x-ref="manualStudentResults" @click="handleStudentResultsClick($event)"></div>
-            <div id="manual-selected-student" class="manual-student-selected" hidden :hidden="!manual.hasStudent">
+            <div
+                id="manual-selected-student"
+                class="manual-student-selected"
+                x-cloak
+                x-show="manual.hasStudent"
+                x-transition.opacity.duration.150ms
+            >
                 <span class="manual-student-selected__label">Выбран:</span>
                 <strong id="manual-selected-student-name" x-text="manual.studentName"></strong>
                 <span class="muted" id="manual-selected-student-meta" x-text="manual.studentMeta"></span>
@@ -67,7 +73,7 @@
             </div>
         </div>
 
-        <div class="manual-booking__section">
+        <div class="manual-booking__section manual-booking__section--labwork">
             <label for="manual-lab-work">Лабораторная работа</label>
             <select id="manual-lab-work" x-ref="manualLabWork" x-model="manual.labWorkId" :disabled="!manual.hasStudent" @change="handleLabWorkChange($event)">
                 <option value="">— сначала выберите студента —</option>
@@ -78,7 +84,7 @@
         </div>
 
         <div id="manual-filter-chain" class="manual-booking__calendar" x-ref="manualFilterChain"></div>
-        <div id="manual-session-slot" x-ref="manualSessionSlot" @change="handleManualSessionChange($event)"></div>
+        <div id="manual-session-slot" x-ref="manualSessionSlot" @change="handleManualSessionChange($event)" x-transition.opacity.duration.200ms></div>
 
         <div class="app-dialog__actions manual-booking__actions">
             <button type="submit" id="manual-book-btn" :disabled="!manual.canSubmit">Записать</button>
