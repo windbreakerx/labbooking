@@ -5,7 +5,7 @@
             <img src="{% static 'img/spmi-logo.png' %}" alt="" class="header__brand-logo" width="40" height="40">
             <span class="header__brand-text">
                 <span class="header__brand-title">Лабораторные</span>
-                <span class="header__brand-subtitle">Кабинет сотрудника</span>
+                <span class="header__brand-subtitle">Горный университет</span>
             </span>
         </a>
     </div>
@@ -50,9 +50,12 @@
             <div class="staff-pill-nav__tools">
                 <div class="staff-user-chip">
                     <span class="staff-user-chip__name">{% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}</span>
+                    <span class="staff-user-chip__cabinet">
+                        {% if user.role == 'LAB_HEAD' %}Кабинет завлаба{% else %}Кабинет сотрудника{% endif %}
+                    </span>
                     <form method="post" action="{% url 'logout' %}" class="staff-user-chip__logout">
                         {% csrf_token %}
-                        <button type="submit" class="button button--ghost button--sm staff-user-chip__logout-btn">Выход</button>
+                        <button type="submit" class="staff-logout-link">Выход</button>
                     </form>
                 </div>
                 {% if patch_notes_enabled %}
