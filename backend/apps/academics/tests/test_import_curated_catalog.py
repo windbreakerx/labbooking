@@ -60,3 +60,17 @@ def test_studlab_import_updates_existing_department_by_title():
     department = Department.objects.get(title="Кафедра бурения скважин")
     assert department.short_code == "БС"
     assert Department.objects.filter(title="Кафедра бурения скважин").count() == 1
+
+
+@pytest.mark.django_db
+def test_studlab_import_truncates_long_lab_short_name():
+    repo_root = Path(__file__).resolve().parents[4]
+    studlab_dir = repo_root / "docs" / "csv_templates" / "studlab_draft"
+    if not (studlab_dir / "04_laboratories.csv").is_file():
+        pytest.skip("studlab_draft not present")
+
+    import_studlab_draft(studlab_dir)
+
+    for laboratory in Laboratory.objects.all():
+        assert len(laboratory.short_name) <= 64
+        assert len(laboratory.name) <= 256

@@ -21,6 +21,10 @@ def _clean(row: dict[str, str], key: str) -> str:
     return (row.get(key) or "").strip()
 
 
+def _truncate(value: str, max_length: int) -> str:
+    return value[:max_length] if value else value
+
+
 def _lab_type(value: str) -> str:
     normalized = value.strip().upper()
     if normalized in LaboratoryType.values:
@@ -122,9 +126,9 @@ def import_studlab_draft(draft_dir: Path) -> dict[str, int]:
         faculty = faculty_by_code.get(_clean(row, "faculty_code"))
         laboratory, created = Laboratory.objects.update_or_create(
             training_center=training_center,
-            name=name,
+            name=_truncate(name, 256),
             defaults={
-                "short_name": _clean(row, "lab_name_short"),
+                "short_name": _truncate(_clean(row, "lab_name_short"), 64),
                 "faculty": faculty,
                 "lab_type": _lab_type(_clean(row, "lab_type")),
             },
