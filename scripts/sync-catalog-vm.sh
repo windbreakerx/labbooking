@@ -52,6 +52,15 @@ STUDLAB_DIR="docs/csv_templates/studlab_draft"
 TEMPLATES_DIR="docs/csv_templates"
 SEMESTER="Весна 2025/2026"
 
+if [[ ! -d "$TEMPLATES_DIR/studlab_draft" ]]; then
+  echo "ERROR: на хосте нет ${TEMPLATES_DIR}/studlab_draft (выполните git pull?)"
+  exit 1
+fi
+
+echo "==> Копирование CSV-каталогов в контейнер..."
+$COMPOSE exec -T web mkdir -p /app/docs/csv_templates
+$COMPOSE cp "${TEMPLATES_DIR}/." web:/app/docs/csv_templates/
+
 run() {
   echo "==> $*"
   $COMPOSE exec -T web python manage.py "$@"
