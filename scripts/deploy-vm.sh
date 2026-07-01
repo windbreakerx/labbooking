@@ -173,3 +173,4 @@ fi
 echo "Студенты: s<номер_зачётки>@stud.spmi.ru / student123"
 echo "Завлаб/сотрудники: zavlab.pilot@spmi.ru, operator1.pilot@spmi.ru / pilot123"
 echo "Импорт Excel: bash scripts/deploy-vm.sh --import-data"
+echo "Слияние каталога (studlab + workload drafts): bash scripts/sync-catalog-vm.sh --generate-sessions"

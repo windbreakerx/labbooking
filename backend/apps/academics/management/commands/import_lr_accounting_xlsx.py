@@ -11,6 +11,7 @@ from django.db import transaction
 from django.utils.text import slugify
 
 from apps.academics.models import ALLOWED_LAB_DURATIONS, Discipline, LabWork, Semester, StudentGroup
+from apps.academics.services.catalog_normalize import lab_work_match_key, normalize_lab_title
 from apps.bookings.models import Booking
 from apps.integrations.lr_accounting.names import DisplayName, shuffle_student_display_names
 from apps.integrations.lr_accounting.parser import ParsedLabWork, ParsedStudent, ParsedWorkbook, parse_workbook
@@ -246,7 +247,7 @@ class Command(BaseCommand):
             discipline = get_discipline(discipline_title)
             if discipline is None:
                 return None
-            cache_key = (parsed_lab.title.strip().lower(), str(room.id))
+            cache_key = (normalize_lab_title(parsed_lab.title), str(room.id))
             if cache_key in lab_cache:
                 lab_work = lab_cache[cache_key]
                 lab_work.disciplines.add(discipline)
@@ -266,11 +267,12 @@ class Command(BaseCommand):
                     lab_work.save(update_fields=["default_room", "duration_minutes", "capacity"])
                 return lab_work
 
-            existing = (
-                LabWork.objects.filter(title=parsed_lab.title, default_room=room)
-                .prefetch_related("disciplines")
-                .first()
-            )
+            existing = None
+            target_key = lab_work_match_key(parsed_lab.title, room.id)
+            for candidate in LabWork.objects.filter(default_room=room).prefetch_related("disciplines"):
+                if lab_work_match_key(candidate.title, candidate.default_room_id) == target_key:
+                    existing = candidate
+                    break
             if existing:
                 lab_work = existing
                 lab_work.disciplines.add(discipline)
