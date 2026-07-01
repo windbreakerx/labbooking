@@ -584,47 +584,14 @@
     }
 }
 
-.student-layout .student-hero-metrics {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-3);
-    margin-top: var(--space-5);
-}
-
-.student-layout .student-hero-metric {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    padding: var(--space-3);
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-    text-decoration: none;
-    transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
-}
-
-.student-layout .student-hero-metric:hover {
-    transform: translateY(-1px);
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.65);
-}
-
-.student-layout .student-hero-metric__label {
-    font-size: var(--text-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    opacity: 0.9;
-}
-
-.student-layout .student-hero-metric__value {
-    font-size: var(--text-sm);
-    line-height: 1.35;
-}
-
 .student-layout .student-roadmap {
     margin-top: var(--space-5);
     border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
+}
+
+.student-layout .student-roadmap .card__title {
+    margin-bottom: var(--space-4);
+    line-height: 1.25;
 }
 
 .student-layout .student-roadmap__list {
@@ -653,6 +620,7 @@
 
 .student-layout .student-roadmap__item p {
     margin: 0;
+    line-height: 1.55;
 }
 
 .student-layout .student-roadmap__step {
@@ -698,8 +666,10 @@
     color: var(--color-text-secondary);
 }
 
-@media (max-width: 900px) {
-    .student-layout .student-hero-metrics {
-        grid-template-columns: 1fr;
-    }
+.student-layout .calendar-grid {
+    gap: 0.45rem;
+}
+
+.student-layout .calendar-cell {
+    min-height: 2.55rem;
 }

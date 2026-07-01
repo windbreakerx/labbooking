@@ -5,20 +5,6 @@
     <p class="page-eyebrow">Личный кабинет</p>
     <h1>Добро пожаловать, {{ user.first_name }}</h1>
     <p>Записывайтесь на лабораторные в три шага: дисциплина, слот, подтверждение. Все обращения и статусы записей собраны в одном месте.</p>
-    <div class="student-hero-metrics" aria-label="Ключевые действия">
-        <a href="{% url 'disciplines' %}" class="student-hero-metric">
-            <span class="student-hero-metric__label">Шаг 1</span>
-            <strong class="student-hero-metric__value">Выбрать дисциплину</strong>
-        </a>
-        <a href="{% url 'my-bookings' %}" class="student-hero-metric">
-            <span class="student-hero-metric__label">Шаг 2</span>
-            <strong class="student-hero-metric__value">Проверить запись</strong>
-        </a>
-        <a href="{% url 'support' %}" class="student-hero-metric">
-            <span class="student-hero-metric__label">Шаг 3</span>
-            <strong class="student-hero-metric__value">Получить помощь</strong>
-        </a>
-    </div>
 </section>
 
 <div class="quick-actions quick-actions--student">
