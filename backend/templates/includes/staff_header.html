@@ -21,49 +21,40 @@
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-schedule' %} pill-nav__link--current{% endif %}" href="{% url 'staff-schedule' %}">Расписание</a>
                 {% endif %}
                 <a class="pill-nav__link{% if request.resolver_match.url_name == 'staff-reports' %} pill-nav__link--current{% endif %}" href="{% url 'staff-reports' %}">Отчёты</a>
-                <div class="staff-mega" aria-label="Кабинет завлаба">
-                    <button type="button" class="staff-mega__trigger">
-                        Кабинет завлаба
-                        <span class="staff-mega__caret" aria-hidden="true">▾</span>
-                    </button>
-                    <div class="staff-mega__menu" role="menu" aria-label="Разделы кабинета завлаба">
-                        {% if user.role == 'LAB_HEAD' %}
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-students' %} staff-mega__item--current{% endif %}" href="{% url 'staff-students' %}">Студенты</a>
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-people' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-people' %}">Сотрудники</a>
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-rooms' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-rooms' %}">Аудитории</a>
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-stands' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-stands' %}">Стенды</a>
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-bindings' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-bindings' %}">Дисциплины</a>
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-lab-works' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-lab-works' %}">Лаб. работы</a>
-                        {% else %}
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-students' %} staff-mega__item--current{% endif %}" href="{% url 'staff-students' %}">Студенты</a>
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-people' %} staff-mega__item--current{% endif %}" href="{% url 'staff-people' %}">Сотрудники</a>
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-rooms' %} staff-mega__item--current{% endif %}" href="{% url 'staff-rooms' %}">Аудитории</a>
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-stands' %} staff-mega__item--current{% endif %}" href="{% url 'staff-stands' %}">Стенды</a>
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-disciplines' %} staff-mega__item--current{% endif %}" href="{% url 'staff-disciplines' %}">Дисциплины</a>
-                        <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-lab-works' %} staff-mega__item--current{% endif %}" href="{% url 'staff-lab-works' %}">Лаб. работы</a>
-                        {% endif %}
-                    </div>
-                </div>
             </div>
         </div>
         <div class="staff-pill-nav__group staff-pill-nav__group--end">
             <div class="staff-pill-nav__tools">
                 <div class="staff-user-chip">
                     <span class="staff-user-chip__name">{% if user.full_name %}{{ user.full_name }}{% else %}{{ user.email }}{% endif %}</span>
-                    <span class="staff-user-chip__cabinet">
-                        {% if user.role == 'LAB_HEAD' %}Кабинет завлаба{% else %}Кабинет сотрудника{% endif %}
-                    </span>
-                    <form method="post" action="{% url 'logout' %}" class="staff-user-chip__logout">
-                        {% csrf_token %}
-                        <button type="submit" class="staff-logout-link">Выход</button>
-                    </form>
+                    <div class="staff-mega" aria-label="Кабинет">
+                        <button type="button" class="staff-mega__trigger staff-mega__trigger--cabinet">
+                            Кабинет
+                            <span class="staff-mega__caret" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="staff-mega__menu" role="menu" aria-label="Разделы кабинета">
+                            {% if user.role == 'LAB_HEAD' %}
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-students' %} staff-mega__item--current{% endif %}" href="{% url 'staff-students' %}">Студенты</a>
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-people' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-people' %}">Сотрудники</a>
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-rooms' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-rooms' %}">Аудитории</a>
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-stands' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-stands' %}">Стенды</a>
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-bindings' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-bindings' %}">Дисциплины</a>
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'lab-head-lab-works' %} staff-mega__item--current{% endif %}" href="{% url 'lab-head-lab-works' %}">Лаб. работы</a>
+                            {% else %}
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-students' %} staff-mega__item--current{% endif %}" href="{% url 'staff-students' %}">Студенты</a>
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-people' %} staff-mega__item--current{% endif %}" href="{% url 'staff-people' %}">Сотрудники</a>
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-rooms' %} staff-mega__item--current{% endif %}" href="{% url 'staff-rooms' %}">Аудитории</a>
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-stands' %} staff-mega__item--current{% endif %}" href="{% url 'staff-stands' %}">Стенды</a>
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-disciplines' %} staff-mega__item--current{% endif %}" href="{% url 'staff-disciplines' %}">Дисциплины</a>
+                            <a role="menuitem" class="staff-mega__item{% if request.resolver_match.url_name == 'staff-lab-works' %} staff-mega__item--current{% endif %}" href="{% url 'staff-lab-works' %}">Лаб. работы</a>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-                {% if patch_notes_enabled %}
-                <a class="pill-nav__link pill-nav__link--updates{% if request.resolver_match.url_name == 'patch-notes' %} pill-nav__link--current{% endif %}" href="{% url 'patch-notes' %}">
-                    Что нового
-                    <span class="badge badge--warning">Новое</span>
-                </a>
-                {% endif %}
+                <form method="post" action="{% url 'logout' %}" class="staff-user-logout">
+                    {% csrf_token %}
+                    <button type="submit" class="staff-logout-link">Выход</button>
+                </form>
             </div>
         </div>
     </nav>

@@ -116,6 +116,15 @@
     box-shadow: var(--shadow-focus);
 }
 
+.staff-mega__trigger--cabinet {
+    min-height: 2.2rem;
+    padding: 0.3rem 0.8rem;
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+    background: linear-gradient(180deg, #edf4ff 0%, #e6f0ff 100%);
+    color: var(--color-primary);
+    font-weight: var(--font-weight-semibold);
+}
+
 .staff-mega__caret {
     font-size: 0.8em;
     opacity: 0.75;
@@ -196,24 +205,6 @@
     font-size: var(--text-sm);
 }
 
-.staff-user-chip__cabinet {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2rem;
-    padding: 0.2rem 0.65rem;
-    border-radius: var(--radius-pill);
-    background: var(--color-primary-soft);
-    border: 1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border));
-    color: var(--color-primary);
-    font-size: var(--text-xs);
-    font-weight: var(--font-weight-semibold);
-    white-space: nowrap;
-}
-
-.staff-user-chip__logout {
-    margin: 0;
-}
-
 .staff-logout-link {
     border: none;
     background: transparent;
@@ -238,13 +229,8 @@
     border-radius: var(--radius-pill);
 }
 
-.staff-pill-nav__tools .pill-nav__link--updates {
-    min-height: 2.75rem;
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--color-border-strong);
-    background: var(--color-surface);
-    color: #24314f;
-    box-shadow: var(--shadow-xs);
+.staff-user-logout {
+    margin: 0;
 }
 
 /* Staff pages: softer tables inside cards */
@@ -423,6 +409,11 @@
     .staff-mega__menu {
         left: auto;
         right: 0;
+    }
+
+    .staff-mega__trigger--cabinet {
+        min-height: 2rem;
+        padding: 0.25rem 0.65rem;
     }
 
     .staff-user-chip {
